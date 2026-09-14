@@ -15,6 +15,7 @@ export interface GameDetail {
     player: GamePlayerRow
     profile: { display_name: string; avatar_url: string | null } | null
     factionName: string | null
+    forceDispositionName: string | null
     primaryTotal: number
     secondaryTotal: number
     totalVp: number
@@ -40,20 +41,28 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
 
   const userIds = playersRes.data.map((p) => p.user_id)
   const factionIds = playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id))
+  const forceDispositionIds = playersRes.data
+    .map((p) => p.force_disposition_id)
+    .filter((id): id is string => Boolean(id))
 
-  const [profilesRes, factionsRes] = await Promise.all([
+  const [profilesRes, factionsRes, forceDispositionsRes] = await Promise.all([
     userIds.length
       ? supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds)
       : Promise.resolve({ data: [], error: null }),
     factionIds.length
       ? supabase.from('factions').select('id, name').in('id', factionIds)
       : Promise.resolve({ data: [], error: null }),
+    forceDispositionIds.length
+      ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
   if (profilesRes.error) throw profilesRes.error
   if (factionsRes.error) throw factionsRes.error
+  if (forceDispositionsRes.error) throw forceDispositionsRes.error
 
   const profileById = new Map(profilesRes.data?.map((p) => [p.id, p]))
   const factionById = new Map(factionsRes.data?.map((f) => [f.id, f.name]))
+  const forceDispositionById = new Map(forceDispositionsRes.data?.map((f) => [f.id, f.name]))
   const totalsByPlayerId = new Map(totalsRes.data?.map((t) => [t.game_player_id, t]))
 
   return {
@@ -65,6 +74,9 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
         player,
         profile: profile ? { display_name: profile.display_name, avatar_url: profile.avatar_url } : null,
         factionName: player.faction_id ? (factionById.get(player.faction_id) ?? null) : null,
+        forceDispositionName: player.force_disposition_id
+          ? (forceDispositionById.get(player.force_disposition_id) ?? null)
+          : null,
         primaryTotal: totals?.primary_total ?? 0,
         secondaryTotal: totals?.secondary_total ?? 0,
         totalVp: totals?.total_vp ?? 0,
@@ -87,18 +99,16 @@ export function useGame(gameId: string | undefined) {
 export function useCreateGame() {
   return useMutation({
     mutationFn: async (input: {
-      missionPackId: string
-      missionId: string
       deploymentId: string
       pointsLimit: number
+      forceDispositionId?: string
       factionId?: string
       armyName?: string
     }) => {
       const { data, error } = await supabase.rpc('create_game', {
-        p_mission_pack_id: input.missionPackId,
-        p_mission_id: input.missionId,
         p_deployment_id: input.deploymentId,
         p_points_limit: input.pointsLimit,
+        p_force_disposition_id: input.forceDispositionId ?? null,
         p_faction_id: input.factionId ?? null,
         p_army_name: input.armyName ?? null,
       })
@@ -110,9 +120,15 @@ export function useCreateGame() {
 
 export function useJoinGame() {
   return useMutation({
-    mutationFn: async (input: { code: string; factionId?: string; armyName?: string }) => {
+    mutationFn: async (input: {
+      code: string
+      forceDispositionId?: string
+      factionId?: string
+      armyName?: string
+    }) => {
       const { data, error } = await supabase.rpc('join_game_by_code', {
         p_code: input.code,
+        p_force_disposition_id: input.forceDispositionId ?? null,
         p_faction_id: input.factionId ?? null,
         p_army_name: input.armyName ?? null,
       })
@@ -140,11 +156,36 @@ export function useSetReady(gameId: string) {
 export function useUpdatePlayerSetup(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; factionId?: string | null; armyName?: string | null }) => {
-      const { error } = await supabase
-        .from('game_players')
-        .update({ faction_id: input.factionId, army_name: input.armyName })
-        .eq('id', input.gamePlayerId)
+    mutationFn: async (input: {
+      gamePlayerId: string
+      factionId?: string | null
+      armyName?: string | null
+      forceDispositionId?: string | null
+    }) => {
+      const patch: Database['public']['Tables']['game_players']['Update'] = {}
+      if ('factionId' in input) patch.faction_id = input.factionId
+      if ('armyName' in input) patch.army_name = input.armyName
+      if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
+
+      const { error } = await supabase.from('game_players').update(patch).eq('id', input.gamePlayerId)
+      if (error) throw error
+
+      // Both players' Force Dispositions might now be set -- harmless
+      // no-op via the `mission_id is null` guard inside the function if
+      // not, or if this game already has a mission.
+      if ('forceDispositionId' in input) {
+        await supabase.rpc('resolve_game_mission', { p_game_id: gameId })
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+export function useSetRole(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { gamePlayerId: string; role: 'attacker' | 'defender' | null }) => {
+      const { error } = await supabase.from('game_players').update({ role: input.role }).eq('id', input.gamePlayerId)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
@@ -160,6 +201,7 @@ export function useStartGame(gameId: string) {
         .update({ status: 'active', started_at: new Date().toISOString() })
         .eq('id', gameId)
         .eq('status', 'lobby')
+        .not('mission_id', 'is', null)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),

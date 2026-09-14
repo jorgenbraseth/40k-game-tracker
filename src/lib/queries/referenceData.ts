@@ -4,10 +4,10 @@ import { supabase } from '@/lib/supabase'
 export const referenceKeys = {
   currentMissionPack: ['reference', 'current-mission-pack'] as const,
   mission: (missionId: string) => ['reference', 'mission', missionId] as const,
-  missions: (missionPackId: string) => ['reference', 'missions', missionPackId] as const,
   deployments: (missionPackId: string) => ['reference', 'deployments', missionPackId] as const,
   secondaries: (missionPackId: string) => ['reference', 'secondaries', missionPackId] as const,
   factions: ['reference', 'factions'] as const,
+  forceDispositions: ['reference', 'force-dispositions'] as const,
 }
 
 export function useCurrentMissionPack() {
@@ -46,23 +46,6 @@ export function useMission(missionId: string | undefined) {
   })
 }
 
-export function useMissions(missionPackId: string | undefined) {
-  return useQuery({
-    queryKey: referenceKeys.missions(missionPackId ?? ''),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('mission_pack_id', missionPackId as string)
-        .order('name')
-      if (error) throw error
-      return data
-    },
-    enabled: Boolean(missionPackId),
-    staleTime: Number.POSITIVE_INFINITY,
-  })
-}
-
 export function useDeployments(missionPackId: string | undefined) {
   return useQuery({
     queryKey: referenceKeys.deployments(missionPackId ?? ''),
@@ -94,6 +77,18 @@ export function useSecondaryObjectives(missionPackId: string | undefined) {
       return data
     },
     enabled: Boolean(missionPackId),
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+export function useForceDispositions() {
+  return useQuery({
+    queryKey: referenceKeys.forceDispositions,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('force_dispositions').select('*').order('name')
+      if (error) throw error
+      return data
+    },
     staleTime: Number.POSITIVE_INFINITY,
   })
 }

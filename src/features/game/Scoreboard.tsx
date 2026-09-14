@@ -15,7 +15,7 @@ import { SecondaryScores } from './SecondaryScores'
 export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const mission = useMission(detail.game.mission_id)
+  const mission = useMission(detail.game.mission_id ?? undefined)
   const secondaries = useSecondaryObjectives(detail.game.mission_pack_id)
   const upsertRound = useUpsertRoundScore(detail.game.id)
   const setCurrentRound = useSetCurrentRound(detail.game.id)
@@ -83,6 +83,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 {entry.factionName ?? 'No faction'}
                 {entry.player.army_name ? ` · ${entry.player.army_name}` : ''}
               </p>
+              {entry.player.role && (
+                <p className="text-[11px] tracking-wide text-paper/40 capitalize">{entry.player.role}</p>
+              )}
             </div>
 
             <ScoreCell
@@ -104,7 +107,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               gamePlayerId={entry.player.id}
               round={viewRound}
               scores={detail.secondaryScores}
-              available={secondaries.data ?? []}
+              available={(secondaries.data ?? []).filter((s) => !entry.player.role || s.role === entry.player.role)}
               userId={user.id}
               editable
             />
