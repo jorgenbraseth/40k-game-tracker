@@ -8,6 +8,7 @@ import { Stepper } from '@/components/Stepper'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
 import {
+  playerLabel,
   useAbandonGame,
   useFinishGame,
   useSetCurrentRound,
@@ -38,7 +39,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
 
   const [viewRound, setViewRound] = useState(detail.game.current_round)
   const [endSheetOpen, setEndSheetOpen] = useState(false)
-  const [setupSheetOpen, setSetupSheetOpen] = useState(false)
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
 
   useWakeLock(detail.game.status === 'active')
 
@@ -55,8 +56,6 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const isActive = detail.game.status === 'active'
   const isLastRound = viewRound === detail.game.total_rounds
   const isViewingCurrent = viewRound === detail.game.current_round
-  const me = detail.players.find((p) => p.player.user_id === user.id)
-  const opponent = detail.players.find((p) => p.player.user_id !== user.id)
 
   const getRoundScore = (gamePlayerId: string) =>
     detail.roundScores.find((r) => r.game_player_id === gamePlayerId && r.battle_round === viewRound)?.primary_vp ?? 0
@@ -117,8 +116,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           <div key={entry.player.id} className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-center">
               <p className="font-semibold text-paper">
-                {entry.profile?.display_name ?? `Seat ${entry.player.seat}`}
+                {playerLabel(entry, `Seat ${entry.player.seat}`)}
                 {entry.player.user_id === user.id && <span className="ml-1 text-xs text-gold">(you)</span>}
+                {!entry.player.user_id && <span className="ml-1 text-xs text-paper/40">(not joined)</span>}
               </p>
               <p className="text-xs text-paper/50">
                 {entry.factionName ?? 'No faction'}
@@ -130,13 +130,13 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               {missionByPlayerId.get(entry.player.id)?.name && (
                 <p className="mt-1 text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
               )}
-              {entry.player.user_id === user.id && (
+              {(entry.player.user_id === user.id || !entry.player.user_id) && (
                 <button
                   type="button"
-                  onClick={() => setSetupSheetOpen(true)}
+                  onClick={() => setEditingPlayerId(entry.player.id)}
                   className="mt-1 text-[11px] text-paper/40 underline hover:text-paper"
                 >
-                  Edit your setup
+                  {entry.player.user_id === user.id ? 'Edit your setup' : "Edit this seat's setup"}
                 </button>
               )}
             </div>
@@ -184,7 +184,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           {detail.players.map((entry) => (
             <div key={entry.player.id} className="flex-1 text-center">
-              <p className="truncate text-xs text-paper/50">{entry.profile?.display_name ?? `Seat ${entry.player.seat}`}</p>
+              <p className="truncate text-xs text-paper/50">{playerLabel(entry, `Seat ${entry.player.seat}`)}</p>
               <p className="text-2xl font-bold text-gold">{entry.totalVp}</p>
               <p className="text-[11px] text-paper/40">
                 {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
@@ -197,23 +197,22 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
       <Sheet open={endSheetOpen} onClose={() => setEndSheetOpen(false)} title={isActive ? 'End game' : 'Change result'}>
         <div className="flex flex-col gap-3">
           <p className="text-sm text-paper/60">
-            {p1?.profile?.display_name ?? 'Seat 1'}: {p1?.totalVp ?? 0} · {p2?.profile?.display_name ?? 'Seat 2'}:{' '}
-            {p2?.totalVp ?? 0}
+            {playerLabel(p1, 'Seat 1')}: {p1?.totalVp ?? 0} · {playerLabel(p2, 'Seat 2')}: {p2?.totalVp ?? 0}
           </p>
           <Button onClick={() => endGame(suggestedOutcome)} disabled={finishGame.isPending}>
             {suggestedOutcome === 'draw'
               ? 'Confirm draw'
-              : `Confirm ${suggestedOutcome === 'seat_1' ? p1?.profile?.display_name : p2?.profile?.display_name} wins`}
+              : `Confirm ${suggestedOutcome === 'seat_1' ? playerLabel(p1, 'Seat 1') : playerLabel(p2, 'Seat 2')} wins`}
           </Button>
           <div className="grid grid-cols-3 gap-2">
             <Button variant="secondary" onClick={() => endGame('seat_1')} disabled={finishGame.isPending}>
-              {p1?.profile?.display_name ?? 'Seat 1'} wins
+              {playerLabel(p1, 'Seat 1')} wins
             </Button>
             <Button variant="secondary" onClick={() => endGame('draw')} disabled={finishGame.isPending}>
               Draw
             </Button>
             <Button variant="secondary" onClick={() => endGame('seat_2')} disabled={finishGame.isPending}>
-              {p2?.profile?.display_name ?? 'Seat 2'} wins
+              {playerLabel(p2, 'Seat 2')} wins
             </Button>
           </div>
           <Button variant="ghost" className="text-red-300" onClick={abandon} disabled={abandonGame.isPending}>
@@ -225,18 +224,28 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         </div>
       </Sheet>
 
-      {me && (
-        <Sheet open={setupSheetOpen} onClose={() => setSetupSheetOpen(false)} title="Your setup">
-          <PlayerSetupFields
-            me={me}
-            opponent={opponent}
-            factions={factions.data ?? []}
-            forceDispositions={forceDispositions.data ?? []}
-            onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
-            onSetRole={(role) => setRole.mutate({ gamePlayerId: me.player.id, role })}
-          />
-        </Sheet>
-      )}
+      {editingPlayerId &&
+        (() => {
+          const editing = detail.players.find((p) => p.player.id === editingPlayerId)
+          if (!editing) return null
+          const other = detail.players.find((p) => p.player.id !== editingPlayerId)
+          return (
+            <Sheet
+              open
+              onClose={() => setEditingPlayerId(null)}
+              title={editing.player.user_id === user.id ? 'Your setup' : "This seat's setup"}
+            >
+              <PlayerSetupFields
+                me={editing}
+                opponent={other}
+                factions={factions.data ?? []}
+                forceDispositions={forceDispositions.data ?? []}
+                onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: editing.player.id, ...patch })}
+                onSetRole={(role) => setRole.mutate({ gamePlayerId: editing.player.id, role })}
+              />
+            </Sheet>
+          )
+        })()}
     </div>
   )
 }

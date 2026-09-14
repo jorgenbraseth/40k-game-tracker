@@ -85,8 +85,8 @@ export function NewGamePage() {
           ))}
         </Select>
         <p className="-mt-2 text-xs text-paper/40">
-          The Primary Mission is determined by both players' Force Dispositions together -- it's revealed once your
-          opponent has joined and picked theirs too.
+          The Primary Mission is determined by both players' Force Dispositions together. Playing solo? You can fill
+          in Player 2's Force Disposition yourself from the waiting room -- no second account needed.
         </p>
 
         <Select label="Your faction (optional)" value={factionId} onChange={(e) => setFactionId(e.target.value)}>

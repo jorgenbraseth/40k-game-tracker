@@ -40,7 +40,10 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (secondaryRes.error) throw secondaryRes.error
   if (totalsRes.error) throw totalsRes.error
 
-  const userIds = playersRes.data.map((p) => p.user_id)
+  // A seat nobody has joined yet has user_id = null (a solo-tracked
+  // "opponent" the creator fills in themselves) -- filter it out rather
+  // than looking up a profile for it.
+  const userIds = playersRes.data.map((p) => p.user_id).filter((id): id is string => Boolean(id))
   const factionIds = playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id))
   const forceDispositionIds = playersRes.data
     .map((p) => p.force_disposition_id)
@@ -70,7 +73,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     game: gameRes.data,
     players: playersRes.data.map((player) => {
       const totals = totalsByPlayerId.get(player.id)
-      const profile = profileById.get(player.user_id)
+      const profile = player.user_id ? profileById.get(player.user_id) : undefined
       return {
         player,
         profile: profile ? { display_name: profile.display_name, avatar_url: profile.avatar_url } : null,
@@ -186,6 +189,11 @@ function patchSecondaryRemove(
         : p,
     ),
   }
+}
+
+/** A joined player's account name, else the army name a solo tracker gave this seat, else the seat number. */
+export function playerLabel(entry: GameDetail['players'][number] | undefined, fallback: string): string {
+  return entry?.profile?.display_name ?? entry?.player.army_name ?? fallback
 }
 
 export function useGame(gameId: string | undefined) {

@@ -14,13 +14,16 @@ export function GamePage() {
   const { user } = useAuth()
   const { data, isLoading, isError, refetch } = useGame(id)
 
-  const me = data && user ? { userId: user.id, displayName: user.email ?? user.id } : null
+  const myPlayer = data?.players.find((p) => p.player.user_id === user?.id)
+  // Realtime presence is broadcast to everyone subscribed to this game's
+  // channel -- never send the user's email through it, only their chosen
+  // display name (already never the email either, see handle_new_user).
+  const me = data && user ? { userId: user.id, displayName: myPlayer?.profile?.display_name ?? user.id } : null
   const { opponentOnline } = useGameChannel(id, me)
 
   if (isLoading) return <Spinner label="Loading game…" />
   if (isError || !data) return <ErrorBanner message="Couldn't load this game." onRetry={() => refetch()} />
 
-  const myPlayer = data.players.find((p) => p.player.user_id === user?.id)
   if (!myPlayer) {
     return <ErrorBanner message="You're not a participant in this game." />
   }

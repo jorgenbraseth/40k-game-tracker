@@ -41,7 +41,7 @@ export function LandingPage() {
           email,
           password,
           options: {
-            data: { full_name: displayName || undefined },
+            data: { full_name: displayName.trim() },
             emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         })
@@ -113,6 +113,9 @@ export function LandingPage() {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   autoComplete="name"
+                  placeholder="What opponents will see -- not your email"
+                  required
+                  minLength={2}
                 />
               )}
               <TextField

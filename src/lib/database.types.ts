@@ -164,7 +164,7 @@ export interface Database {
         Row: {
           id: string
           game_id: string
-          user_id: string
+          user_id: string | null
           seat: 1 | 2
           faction_id: string | null
           army_name: string | null
@@ -176,7 +176,6 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['game_players']['Row']> & {
           game_id: string
-          user_id: string
           seat: 1 | 2
         }
         Update: Partial<Database['public']['Tables']['game_players']['Row']>

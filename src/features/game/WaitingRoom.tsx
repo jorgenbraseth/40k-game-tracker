@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/Button'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
-import { useSetReady, useSetRole, useStartGame, useUpdatePlayerSetup } from '@/lib/queries/games'
+import { playerLabel, useSetReady, useSetRole, useStartGame, useUpdatePlayerSetup } from '@/lib/queries/games'
 import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
@@ -106,11 +106,32 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
       </div>
 
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
-        <p className="mb-2 text-sm font-semibold text-paper/60 uppercase">Opponent</p>
-        {opponent ? (
+        <p className="mb-2 text-sm font-semibold text-paper/60 uppercase">Player 2</p>
+        {opponent && !opponent.player.user_id ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-paper/50">
+              Nobody's joined yet. Track this game solo by filling in their setup yourself, or share the code above
+              and let them join and take it over.
+            </p>
+            <PlayerSetupFields
+              me={opponent}
+              opponent={me}
+              factions={factions.data ?? []}
+              forceDispositions={forceDispositions.data ?? []}
+              onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: opponent.player.id, ...patch })}
+              onSetRole={(role) => setRole.mutate({ gamePlayerId: opponent.player.id, role })}
+            />
+            <Button
+              variant={opponent.player.is_ready ? 'secondary' : 'primary'}
+              onClick={() => setReady.mutate({ gamePlayerId: opponent.player.id, isReady: !opponent.player.is_ready })}
+            >
+              {opponent.player.is_ready ? 'Ready ✓ (tap to undo)' : 'Mark Player 2 ready'}
+            </Button>
+          </div>
+        ) : opponent ? (
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-paper">{opponent.profile?.display_name ?? 'Player 2'}</p>
+              <p className="font-medium text-paper">{playerLabel(opponent, 'Player 2')}</p>
               <p className="text-sm text-paper/50">
                 {opponent.factionName ?? 'No faction yet'}
                 {opponent.forceDispositionName ? ` · ${opponent.forceDispositionName}` : ''}
@@ -127,14 +148,21 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         ) : (
           <p className="text-sm text-paper/50">Waiting for someone to join with the code above…</p>
         )}
-        {opponent && (
+        {opponent?.player.user_id && (
           <p className="mt-2 text-sm text-paper/50">{opponent.player.is_ready ? 'Ready ✓' : 'Not ready yet'}</p>
         )}
       </div>
 
-      <Button disabled={!canStart || startGame.isPending} onClick={() => startGame.mutate()} fullWidth>
-        {canStart ? (startGame.isPending ? 'Starting…' : 'Start game') : startBlockedReason}
-      </Button>
+      <div className="flex w-full max-w-sm flex-col gap-2">
+        <Button disabled={!canStart || startGame.isPending} onClick={() => startGame.mutate()} fullWidth>
+          {canStart ? (startGame.isPending ? 'Starting…' : 'Start game') : startBlockedReason}
+        </Button>
+        {!opponent?.player.user_id && (
+          <p className="text-center text-xs text-paper/40">
+            Playing solo is fine -- you can enter both sides' scores once the game starts.
+          </p>
+        )}
+      </div>
     </div>
   )
 }

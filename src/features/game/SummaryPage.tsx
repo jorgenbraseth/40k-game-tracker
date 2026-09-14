@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useGame } from '@/lib/queries/games'
+import { playerLabel, useGame } from '@/lib/queries/games'
 import { useMission } from '@/lib/queries/referenceData'
 
 export function SummaryPage() {
@@ -52,7 +52,7 @@ export function SummaryPage() {
       <div className="grid grid-cols-2 gap-4">
         {players.map((entry) => (
           <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-            <p className="font-medium text-paper">{entry.profile?.display_name ?? `Seat ${entry.player.seat}`}</p>
+            <p className="font-medium text-paper">{playerLabel(entry, `Seat ${entry.player.seat}`)}</p>
             <p className="text-xs text-paper/50">{entry.factionName ?? 'No faction'}</p>
             <p className="mt-1 text-xs text-paper/40">{missionByPlayerId.get(entry.player.id) ?? 'Unknown mission'}</p>
             <p className="mt-2 text-3xl font-bold text-gold">{entry.totalVp}</p>
@@ -68,8 +68,8 @@ export function SummaryPage() {
           <thead>
             <tr className="border-b border-white/10 text-paper/50">
               <th className="px-3 py-2 text-left font-medium">Round</th>
-              <th className="px-3 py-2 text-right font-medium">{p1?.profile?.display_name ?? 'Seat 1'}</th>
-              <th className="px-3 py-2 text-right font-medium">{p2?.profile?.display_name ?? 'Seat 2'}</th>
+              <th className="px-3 py-2 text-right font-medium">{playerLabel(p1, 'Seat 1')}</th>
+              <th className="px-3 py-2 text-right font-medium">{playerLabel(p2, 'Seat 2')}</th>
             </tr>
           </thead>
           <tbody>
