@@ -1,16 +1,78 @@
 # 40K Tracker
 
-A public web app for two players to track a game of Warhammer 40,000
-together in real time: create a game, share a short code, and score
-primary and secondary objectives round by round on your own phones with
-live sync. Afterwards, get history, win/loss records, and breakdowns by
-faction and mission.
+**Live app:** https://40k-game-tracker-bca.pages.dev
+**Repo:** https://github.com/jorgenbraseth/40k-game-tracker
 
 Unofficial fan project. Not affiliated with, endorsed, sponsored, or
 specifically approved by Games Workshop Limited.
 
-See [`40k-tracker-plan.md`](./40k-tracker-plan.md) for the full design and
-rationale this build follows.
+See [`40k-tracker-plan.md`](./40k-tracker-plan.md) for the full original
+design brief and rationale this build follows.
+
+## What this is (the goal)
+
+40K Tracker is a public web app for two players to track a game of
+Warhammer 40,000 together in real time, from the table.
+
+**The intended experience, end to end:**
+
+- Anyone can sign up -- with Google or with email/password. No invite
+  needed, no spectator mode, players only.
+- One player starts a game (mission pack, deployment, points limit,
+  their own faction and army name) and gets a short 6-character code.
+  The other player enters that code to join.
+- Both players see a shared waiting room: each claims their own Force
+  Disposition (their army's strategic role) and either Attacker or
+  Defender, and the game's Primary Mission -- determined by the *pairing*
+  of both players' Force Dispositions, per the actual 2026-27 ruleset --
+  is revealed once both have chosen.
+- Once the game starts, both players score primary VP and secondary
+  objectives round by round (5 battle rounds), on their own phones, and
+  see each other's scores update live as they're entered -- no refreshing,
+  no "did you get that?" across the table. Either player can enter either
+  side's score, since players agree scores verbally at the table anyway.
+- The app knows the actual current missions, deployments, and secondary
+  objectives for whichever Chapter Approved mission pack is active --
+  this isn't a generic point counter, it understands the ruleset. When a
+  new mission pack ships, the content updates without breaking the
+  history of games played under the old one.
+- At the end, either player can close out the game (a winner is
+  suggested from the totals, or record a draw), and both players get a
+  permanent record of it: a round-by-round breakdown, and it folds into
+  their history.
+- Over time, each player builds up game history and win/loss stats,
+  broken down by faction played, mission, and opponent -- so "how do I do
+  against Necrons?" or "what's my record with Orks?" has a real answer
+  instead of a memory.
+- It's built to be used one-handed, on a phone, mid-game, with dice in
+  the other hand -- not at a desk afterward. Large tap targets, no tiny
+  number inputs, the screen stays on during an active game, and it copes
+  with a flaky venue wifi connection dropping and reconnecting.
+
+**What this deliberately is not (out of scope):** spectator mode,
+tournaments/events, an army list builder, ELO/ranking, in-app chat, push
+notifications, rematch chains, CP/painting scoring, offline-first play,
+or native mobile apps. See section 11 of `40k-tracker-plan.md` for the
+full list and reasoning.
+
+## What's actually in place right now
+
+Everything in "the goal" above is implemented and deployed at the live
+app URL, with two caveats worth knowing before you rely on it:
+
+- **Mission/deployment/secondary objective names are placeholder
+  content**, not the real Chapter Approved 2026-27 deck (that's GW's
+  copyrighted rules text -- this repo only ever stores names, categories
+  and VP values, never rules text, and doesn't yet have a verified source
+  for the real names). See "Ruleset / mission content" below.
+- **Google sign-in needs its OAuth client wired up** in the Supabase
+  dashboard (Auth → Providers → Google) before it'll work in production;
+  email/password sign-in works today without any extra setup.
+
+Everything else -- auth, live game creation/joining, the Force
+Disposition/mission-pairing flow, live round-by-round scoring, realtime
+sync, game history, and win/loss stats -- is built, deployed, and
+functional today, not aspirational.
 
 ## Stack
 
