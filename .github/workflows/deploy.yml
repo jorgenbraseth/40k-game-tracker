@@ -12,6 +12,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    # cloudflare/pages-action creates a GitHub Deployment to track each
+    # Pages release; the default GITHUB_TOKEN is read-only unless a job
+    # explicitly asks for write access to that API.
+    permissions:
+      contents: read
+      deployments: write
     steps:
       - uses: actions/checkout@v4
 
