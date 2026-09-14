@@ -15,7 +15,9 @@ import { SecondaryScores } from './SecondaryScores'
 export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const mission = useMission(detail.game.mission_id ?? undefined)
+  const [p1, p2] = detail.players
+  const p1Mission = useMission(p1?.player.mission_id ?? undefined)
+  const p2Mission = useMission(p2?.player.mission_id ?? undefined)
   const secondaries = useSecondaryObjectives(detail.game.mission_pack_id)
   const upsertRound = useUpsertRoundScore(detail.game.id)
   const setCurrentRound = useSetCurrentRound(detail.game.id)
@@ -27,10 +29,15 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   useWakeLock(true)
 
   if (!user) return null
-  if (mission.isLoading || secondaries.isLoading) return <Spinner label="Loading mission data…" />
+  if (p1Mission.isLoading || p2Mission.isLoading || secondaries.isLoading) {
+    return <Spinner label="Loading mission data…" />
+  }
 
-  const maxPrimary = mission.data?.max_primary_vp ?? 50
-  const [p1, p2] = detail.players
+  const missionByPlayerId = new Map([
+    [p1?.player.id, p1Mission.data],
+    [p2?.player.id, p2Mission.data],
+  ])
+  const defaultMaxPrimary = 15
   const isLastRound = viewRound === detail.game.total_rounds
   const isViewingCurrent = viewRound === detail.game.current_round
 
@@ -86,12 +93,15 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               {entry.player.role && (
                 <p className="text-[11px] tracking-wide text-paper/40 capitalize">{entry.player.role}</p>
               )}
+              {missionByPlayerId.get(entry.player.id)?.name && (
+                <p className="mt-1 text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
+              )}
             </div>
 
             <ScoreCell
               label="Primary VP"
               value={getRoundScore(entry.player.id)}
-              max={maxPrimary}
+              max={missionByPlayerId.get(entry.player.id)?.max_primary_vp ?? defaultMaxPrimary}
               onChange={(vp) =>
                 upsertRound.mutate({
                   gamePlayerId: entry.player.id,

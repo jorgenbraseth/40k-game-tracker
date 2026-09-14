@@ -58,16 +58,16 @@ full list and reasoning.
 ## What's actually in place right now
 
 Everything in "the goal" above is implemented and deployed at the live
-app URL, with two caveats worth knowing before you rely on it:
+app URL, with one caveat worth knowing before you rely on it:
 
-- **Mission/deployment/secondary objective names are placeholder
-  content**, not the real Chapter Approved 2026-27 deck (that's GW's
-  copyrighted rules text -- this repo only ever stores names, categories
-  and VP values, never rules text, and doesn't yet have a verified source
-  for the real names). See "Ruleset / mission content" below.
 - **Google sign-in needs its OAuth client wired up** in the Supabase
   dashboard (Auth → Providers → Google) before it'll work in production;
   email/password sign-in works today without any extra setup.
+
+Mission/deployment/secondary objective names are the real Chapter
+Approved 2026-27 deck (names and VP values only, sourced from the public
+card text -- see "Ruleset / mission content" below), not placeholder
+content.
 
 Everything else -- auth, live game creation/joining, the Force
 Disposition/mission-pairing flow, live round-by-round scoring, realtime
@@ -164,30 +164,38 @@ Chapter Approved deck ships, add a new `mission_packs` row and its
 children in a new migration; existing games keep pointing at the pack
 they were played under.
 
-The 2026-27 deck's Primary Mission is **asymmetric**: each player picks a
-Force Disposition (`force_dispositions` -- the five real, GW-confirmed
-role names: Take and Hold, Purge the Foe, Reconnaissance, Disruption,
-Priority Assets), and the *pairing* of both players' choices determines
-which `missions` row applies (`missions.force_disposition_a_id`/`_b_id`,
-resolved by the `resolve_game_mission` RPC once both players have picked,
-in the waiting room). Secondary objectives are also split into separate
-Attacker/Defender decks (`secondary_objectives.role`) rather than one
-shared pool. See `supabase/migrations/20260115000000_force_disposition_missions.sql`.
+The 2026-27 deck's Primary Mission is **asymmetric per player**, not a
+single mission shared by both: each player picks a Force Disposition
+(`force_dispositions` -- the five real, GW-confirmed role names: Take and
+Hold, Purge the Foe, Reconnaissance, Disruption, Priority Assets), and
+then finds their **own** Primary Mission on their **own** Force
+Disposition card, indexed by their *opponent's* choice. Two players with
+different Force Dispositions therefore play two different Primary
+Missions (same 15VP cap, different cards) in the same game --
+`game_players.mission_id`, not `games.mission_id`, resolved per-seat by
+the `resolve_game_mission` RPC once both players have picked, in the
+waiting room. `missions.force_disposition_id` is the mission owner's own
+Force Disposition, `missions.opponent_force_disposition_id` is the
+opponent's -- an ordered pair, since e.g. Take and Hold-facing-Purge the
+Foe and Purge the Foe-facing-Take and Hold are different mission cards.
+Secondary objectives are also split into separate Attacker/Defender decks
+(`secondary_objectives.role`), though the 18 cards in each are identical.
+See `supabase/migrations/20260201000000_asymmetric_primary_missions.sql`.
 
-**The seed data in `supabase/seed.sql` is placeholder content**, not
-transcribed from GW's actual Chapter Approved 2026-27 deck (that's their
-copyrighted rules text -- this repo only ever stores objective names,
-categories and VP values, never rules text). It seeds exactly one
-placeholder Primary Mission per Force Disposition pairing (15 total) so
-every combination resolves to *something*; the real deck has 30 primary
-mission cards, so there's likely more than one option per pairing for
-variety that this simplified stand-in doesn't capture. Replace it with
-the real names/values from your own copy of the current deck before
-relying on this for real games -- `seed.sql` is safe to re-run after
-editing (it clears its own previously-seeded missions/deployments/
-secondary_objectives first). It's applied automatically for local dev
-only; it does not run in `deploy.yml` -- seed production reference data
-once, deliberately, after review.
+The seed data in `supabase/seed.sql` is the real Chapter Approved 2026-27
+deck -- names, Force Disposition pairings and VP values, sourced from the
+public card text and mission generator at
+[wahapedia.ru](https://wahapedia.ru/wh40k11ed/the-rules/mission-deck-2026-27/)
+(never GW's copyrighted rules text -- how each mission actually scores
+turn by turn -- which this repo doesn't and shouldn't store; players read
+that off their own copy of the deck). It's applied automatically for
+local dev only; it does not run in `deploy.yml` -- seed production
+reference data once, deliberately, after review. `seed.sql` is safe to
+re-run after editing (it clears its own previously-seeded missions/
+deployments/secondary_objectives first) -- useful when the next Chapter
+Approved deck ships: add a new `mission_packs` row and repeat this
+process for its content, without touching the old pack that existing
+games still point to.
 
 ## Deployment
 

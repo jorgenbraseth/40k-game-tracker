@@ -1,19 +1,18 @@
 -- Reference data seed.
 --
--- IMPORTANT: the mission/deployment/secondary names below are PLACEHOLDER
--- content so the app has something to run against locally. They are not
--- transcribed from Games Workshop's Chapter Approved 2026-27 deck (that's
--- copyrighted rules text this repo must never contain). Before going to
--- production, replace this file's mission_packs/missions/deployments/
--- secondary_objectives rows with the real names and VP values from your
--- own copy of the current deck -- names and point values only, never the
--- rules text.
+-- The mission_packs/missions/deployments/secondary_objectives rows below
+-- are the real Chapter Approved 2026-27 deck -- names, Force Disposition
+-- pairings, and VP values only, sourced from the public card text and
+-- mission generator at
+-- https://wahapedia.ru/wh40k11ed/the-rules/mission-deck-2026-27/. This
+-- repo never stores GW's rules text (how each mission is actually scored
+-- turn by turn) -- that's their copyrighted material; players read that
+-- off their own physical or app copy of the deck. See "Ruleset / mission
+-- content" in README.md for how this data is versioned.
 --
--- The five Force Disposition names ARE the real, confirmed ones (seeded
--- in migration 20260115000000, not here) -- GW announced them publicly.
--- What's still placeholder is which specific Primary Mission card goes
--- with which pairing of Force Dispositions, and the secondary objective
--- names/VP values in each deck.
+-- The five Force Disposition names are seeded in migration 20260115000000,
+-- not here (they're stable structural metadata, not content that changes
+-- with each pack).
 --
 -- This file is applied automatically by `supabase start` / `supabase db
 -- reset` in local dev. It is NOT run against production by deploy.yml --
@@ -27,7 +26,7 @@ insert into rulesets (id, name, edition, is_current) values
 on conflict (id) do nothing;
 
 insert into mission_packs (id, ruleset_id, name, valid_from, is_current) values
-  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001', 'Chapter Approved 2026-27 (placeholder)', '2026-06-20', true)
+  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001', 'Chapter Approved 2026-27', '2026-06-20', true)
 on conflict (id) do nothing;
 
 -- Deployments are unchanged by the Force Disposition restructuring, so
@@ -56,47 +55,88 @@ where not exists (
 delete from secondary_objectives where mission_pack_id = '00000000-0000-0000-0000-000000000101';
 delete from missions where mission_pack_id = '00000000-0000-0000-0000-000000000101';
 
--- One placeholder Primary Mission per unordered Force Disposition pairing
--- (5 dispositions -> 15 pairings including mirror matchups), so every
--- combination players can pick resolves to *something*. The real deck
--- has 30 primary mission cards (likely more than one option per pairing
--- for variety) -- this is a deliberately simplified 1-per-pairing stand-in.
+-- Every Force Disposition card lists a Primary Mission for each of the 5
+-- possible opponent Force Dispositions (including itself, for a mirror
+-- matchup) -- 5 cards x 5 opponent lookups = 25 distinct Primary
+-- Missions, each worth up to 15VP. This is an ORDERED pairing: "Take and
+-- Hold" facing "Purge the Foe" plays a different mission than "Purge the
+-- Foe" facing "Take and Hold" -- see resolve_game_mission() and the
+-- comment at the top of 20260201000000_asymmetric_primary_missions.sql.
 with fd as (
   select id, name from force_dispositions where ruleset_id = '00000000-0000-0000-0000-000000000001'
 ),
-pairs as (
-  select a.id as a_id, a.name as a_name, b.id as b_id, b.name as b_name
-  from fd a
-  join fd b on a.name <= b.name
+mission_grid (owner_fd, opponent_fd, mission_name) as (
+  values
+    ('Take and Hold', 'Take and Hold', 'Battlefield Dominance'),
+    ('Take and Hold', 'Purge the Foe', 'Immovable Object'),
+    ('Take and Hold', 'Disruption', 'Determined Acquisition'),
+    ('Take and Hold', 'Reconnaissance', 'Purge and Secure'),
+    ('Take and Hold', 'Priority Assets', 'Inescapable Dominion'),
+
+    ('Purge the Foe', 'Take and Hold', 'Unstoppable Force'),
+    ('Purge the Foe', 'Purge the Foe', 'Meatgrinder'),
+    ('Purge the Foe', 'Disruption', 'Punishment'),
+    ('Purge the Foe', 'Reconnaissance', 'Consecrate'),
+    ('Purge the Foe', 'Priority Assets', 'Destroyer''s Wrath'),
+
+    ('Disruption', 'Take and Hold', 'Death Trap'),
+    ('Disruption', 'Purge the Foe', 'Delaying Action'),
+    ('Disruption', 'Disruption', 'Outmanoeuvre'),
+    ('Disruption', 'Reconnaissance', 'Smoke and Mirrors'),
+    ('Disruption', 'Priority Assets', 'Locate and Deny'),
+
+    ('Reconnaissance', 'Take and Hold', 'Reconnaissance Sweep'),
+    ('Reconnaissance', 'Purge the Foe', 'Triangulation'),
+    ('Reconnaissance', 'Disruption', 'Surveil the Foe'),
+    ('Reconnaissance', 'Reconnaissance', 'Gather Intel'),
+    ('Reconnaissance', 'Priority Assets', 'Search and Scour'),
+
+    ('Priority Assets', 'Take and Hold', 'Secure Asset'),
+    ('Priority Assets', 'Purge the Foe', 'Vital Link'),
+    ('Priority Assets', 'Disruption', 'Extract Relic'),
+    ('Priority Assets', 'Reconnaissance', 'Vanguard Operation'),
+    ('Priority Assets', 'Priority Assets', 'Sabotage')
 )
-insert into missions (mission_pack_id, name, max_primary_vp, force_disposition_a_id, force_disposition_b_id)
+insert into missions (mission_pack_id, name, max_primary_vp, force_disposition_id, opponent_force_disposition_id)
 select
   '00000000-0000-0000-0000-000000000101',
-  case when a_name = b_name
-    then a_name || ' Mirror Match (placeholder)'
-    else a_name || ' vs ' || b_name || ' (placeholder)'
-  end,
-  50,
-  a_id,
-  b_id
-from pairs;
+  g.mission_name,
+  15,
+  owner.id,
+  opponent.id
+from mission_grid g
+join fd owner on owner.name = g.owner_fd
+join fd opponent on opponent.name = g.opponent_fd;
 
-insert into secondary_objectives (mission_pack_id, name, category, role, max_vp) values
-  ('00000000-0000-0000-0000-000000000101', 'Bring It Down', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Engage on All Fronts', 'tactical', 'attacker', 12),
-  ('00000000-0000-0000-0000-000000000101', 'No Prisoners', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Assassination', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Cleanse', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Deploy Teleport Homers', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Deploy Scramblers', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Investigate Signals', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Overwhelming Force', 'tactical', 'attacker', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Defend Stronghold', 'tactical', 'defender', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Establish Locus', 'tactical', 'defender', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Extend Battle Lines', 'tactical', 'defender', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Storm Hostile Objective', 'tactical', 'defender', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Area Denial', 'tactical', 'defender', 15),
-  ('00000000-0000-0000-0000-000000000101', 'Behind Enemy Lines', 'tactical', 'defender', 15);
+-- The 18-card Secondary Mission deck is identical for Attacker and
+-- Defender (each just draws from/keeps their own copy of it), so each
+-- name is seeded once per role. Every card caps at 5VP regardless of
+-- whether a player is using it under Fixed or Tactical rules for the
+-- battle (a per-player, whole-deck choice this app doesn't need to model
+-- -- there's no per-card fixed/tactical category in this deck).
+insert into secondary_objectives (mission_pack_id, name, role, max_vp)
+select '00000000-0000-0000-0000-000000000101', name, role, 5
+from (values
+  ('No Prisoners'),
+  ('Overwhelming Force'),
+  ('Plunder'),
+  ('Display of Might'),
+  ('Outflank'),
+  ('Beacon'),
+  ('Cleanse'),
+  ('A Grievous Blow'),
+  ('Defend Stronghold'),
+  ('Engage on All Fronts'),
+  ('Secure No Man''s Land'),
+  ('Forward Position'),
+  ('Centre Ground'),
+  ('Assassination'),
+  ('A Tempting Target'),
+  ('Behind Enemy Lines'),
+  ('Bring It Down'),
+  ('Burden of Trust')
+) as names(name)
+cross join (values ('attacker'), ('defender')) as roles(role);
 
 -- Factions. A handful of top-level armies plus example Space Marine
 -- chapters hanging off the parent, per the parent_faction_id design.

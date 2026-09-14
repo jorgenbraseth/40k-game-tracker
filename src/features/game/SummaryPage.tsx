@@ -9,14 +9,19 @@ export function SummaryPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { data, isLoading, isError, refetch } = useGame(id)
-  const mission = useMission(data?.game.mission_id ?? undefined)
+  const [p1, p2] = data?.players ?? []
+  const p1Mission = useMission(p1?.player.mission_id ?? undefined)
+  const p2Mission = useMission(p2?.player.mission_id ?? undefined)
 
   if (isLoading) return <Spinner label="Loading summary…" />
   if (isError || !data) return <ErrorBanner message="Couldn't load this game." onRetry={() => refetch()} />
 
   const { game, players } = data
-  const [p1, p2] = players
   const me = players.find((p) => p.player.user_id === user?.id)
+  const missionByPlayerId = new Map([
+    [p1?.player.id, p1Mission.data?.name],
+    [p2?.player.id, p2Mission.data?.name],
+  ])
 
   const resultLabel = (() => {
     if (game.outcome === 'draw') return 'Draw'
@@ -39,7 +44,7 @@ export function SummaryPage() {
             {resultLabel}
           </p>
         )}
-        <h1 className="mt-1 text-2xl font-bold text-paper">{mission.data?.name ?? 'Game summary'}</h1>
+        <h1 className="mt-1 text-2xl font-bold text-paper">Game summary</h1>
         <p className="text-sm text-paper/50">{game.points_limit} pts</p>
       </div>
 
@@ -48,6 +53,7 @@ export function SummaryPage() {
           <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
             <p className="font-medium text-paper">{entry.profile?.display_name ?? `Seat ${entry.player.seat}`}</p>
             <p className="text-xs text-paper/50">{entry.factionName ?? 'No faction'}</p>
+            <p className="mt-1 text-xs text-paper/40">{missionByPlayerId.get(entry.player.id) ?? 'Unknown mission'}</p>
             <p className="mt-2 text-3xl font-bold text-gold">{entry.totalVp}</p>
             <p className="text-xs text-paper/40">
               {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
