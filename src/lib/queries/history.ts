@@ -41,7 +41,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   if (games.length === 0) return []
 
   const completeGameIds = games.map((g) => g.id)
-  const missionIds = [...new Set(games.map((g) => g.mission_id))]
+  const missionIds = [...new Set(games.map((g) => g.mission_id).filter((id): id is string => Boolean(id)))]
   const deploymentIds = [...new Set(games.map((g) => g.deployment_id))]
 
   const [playersRes, totalsRes, missionsRes, deploymentsRes] = await Promise.all([
@@ -94,7 +94,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
     rows.push({
       gameId: game.id,
       endedAt: game.ended_at ?? game.created_at,
-      missionName: missionById.get(game.mission_id) ?? 'Unknown mission',
+      missionName: (game.mission_id && missionById.get(game.mission_id)) || 'Unknown mission',
       deploymentName: deploymentById.get(game.deployment_id) ?? 'Unknown deployment',
       pointsLimit: game.points_limit,
       mySeat: me.seat,

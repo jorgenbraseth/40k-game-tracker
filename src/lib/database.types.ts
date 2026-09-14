@@ -8,6 +8,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type GameStatus = 'lobby' | 'active' | 'complete' | 'abandoned'
 export type GameOutcome = 'seat_1' | 'seat_2' | 'draw'
 export type SecondaryCategory = 'fixed' | 'tactical'
+export type SecondaryRole = 'attacker' | 'defender'
+export type PlayerRole = 'attacker' | 'defender'
 
 export interface Database {
   public: {
@@ -48,6 +50,8 @@ export interface Database {
           mission_pack_id: string
           name: string
           max_primary_vp: number
+          force_disposition_a_id: string | null
+          force_disposition_b_id: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['missions']['Row']> & {
@@ -55,6 +59,20 @@ export interface Database {
           name: string
         }
         Update: Partial<Database['public']['Tables']['missions']['Row']>
+        Relationships: []
+      }
+      force_dispositions: {
+        Row: {
+          id: string
+          ruleset_id: string
+          name: string
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['force_dispositions']['Row']> & {
+          ruleset_id: string
+          name: string
+        }
+        Update: Partial<Database['public']['Tables']['force_dispositions']['Row']>
         Relationships: []
       }
       deployments: {
@@ -77,6 +95,7 @@ export interface Database {
           mission_pack_id: string
           name: string
           category: SecondaryCategory
+          role: SecondaryRole | null
           max_vp: number
           created_at: string
         }
@@ -125,7 +144,7 @@ export interface Database {
           join_code: string
           status: GameStatus
           mission_pack_id: string
-          mission_id: string
+          mission_id: string | null
           deployment_id: string
           points_limit: number
           total_rounds: number
@@ -139,7 +158,6 @@ export interface Database {
         Insert: Partial<Database['public']['Tables']['games']['Row']> & {
           join_code: string
           mission_pack_id: string
-          mission_id: string
           deployment_id: string
           points_limit: number
         }
@@ -154,6 +172,8 @@ export interface Database {
           seat: 1 | 2
           faction_id: string | null
           army_name: string | null
+          force_disposition_id: string | null
+          role: PlayerRole | null
           is_ready: boolean
           created_at: string
         }
@@ -244,10 +264,9 @@ export interface Database {
       }
       create_game: {
         Args: {
-          p_mission_pack_id: string
-          p_mission_id: string
           p_deployment_id: string
           p_points_limit: number
+          p_force_disposition_id?: string | null
           p_faction_id?: string | null
           p_army_name?: string | null
         }
@@ -256,10 +275,15 @@ export interface Database {
       join_game_by_code: {
         Args: {
           p_code: string
+          p_force_disposition_id?: string | null
           p_faction_id?: string | null
           p_army_name?: string | null
         }
         Returns: string | null
+      }
+      resolve_game_mission: {
+        Args: { p_game_id: string }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>

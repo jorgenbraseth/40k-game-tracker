@@ -9,7 +9,7 @@ export function SummaryPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { data, isLoading, isError, refetch } = useGame(id)
-  const mission = useMission(data?.game.mission_id)
+  const mission = useMission(data?.game.mission_id ?? undefined)
 
   if (isLoading) return <Spinner label="Loading summary…" />
   if (isError || !data) return <ErrorBanner message="Couldn't load this game." onRetry={() => refetch()} />

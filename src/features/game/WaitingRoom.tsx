@@ -4,13 +4,16 @@ import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
-import { useSetReady, useStartGame, useUpdatePlayerSetup } from '@/lib/queries/games'
-import { useFactions } from '@/lib/queries/referenceData'
+import { useSetReady, useSetRole, useStartGame, useUpdatePlayerSetup } from '@/lib/queries/games'
+import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
 
 export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
   const { user } = useAuth()
   const factions = useFactions()
+  const forceDispositions = useForceDispositions()
+  const resolvedMission = useMission(detail.game.mission_id ?? undefined)
   const setReady = useSetReady(detail.game.id)
+  const setRole = useSetRole(detail.game.id)
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
   const startGame = useStartGame(detail.game.id)
   const [copied, setCopied] = useState(false)
@@ -18,6 +21,17 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const me = detail.players.find((p) => p.player.user_id === user?.id)
   const opponent = detail.players.find((p) => p.player.user_id !== user?.id)
   const bothReady = detail.players.length === 2 && detail.players.every((p) => p.player.is_ready)
+  const bothRolesAssigned = detail.players.length === 2 && detail.players.every((p) => p.player.role)
+  const missionResolved = Boolean(detail.game.mission_id)
+  const canStart = bothReady && bothRolesAssigned && missionResolved
+
+  const startBlockedReason = !missionResolved
+    ? 'Waiting on both Force Dispositions to reveal the mission'
+    : !bothRolesAssigned
+      ? 'Both players need to claim Attacker or Defender'
+      : !bothReady
+        ? 'Waiting for both players to be ready'
+        : null
 
   const copyCode = async () => {
     try {
@@ -45,15 +59,37 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         </button>
       </div>
 
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
+        <p className="mb-1 text-sm font-semibold text-paper/60 uppercase">Primary mission</p>
+        {missionResolved ? (
+          <p className="text-lg font-semibold text-gold">{resolvedMission.data?.name ?? '…'}</p>
+        ) : (
+          <p className="text-sm text-paper/50">Revealed once both players have picked a Force Disposition</p>
+        )}
+      </div>
+
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
         <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Your setup</p>
         <div className="flex flex-col gap-3">
           <Select
+            label="Force Disposition"
+            value={me.player.force_disposition_id ?? ''}
+            onChange={(e) =>
+              updateSetup.mutate({ gamePlayerId: me.player.id, forceDispositionId: e.target.value || null })
+            }
+          >
+            <option value="">Pick Force Disposition</option>
+            {forceDispositions.data?.map((fd) => (
+              <option key={fd.id} value={fd.id}>
+                {fd.name}
+              </option>
+            ))}
+          </Select>
+
+          <Select
             label="Faction"
             value={me.player.faction_id ?? ''}
-            onChange={(e) =>
-              updateSetup.mutate({ gamePlayerId: me.player.id, factionId: e.target.value || null, armyName: me.player.army_name })
-            }
+            onChange={(e) => updateSetup.mutate({ gamePlayerId: me.player.id, factionId: e.target.value || null })}
           >
             <option value="">Pick faction</option>
             {factions.data?.map((f) => (
@@ -65,10 +101,32 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
           <TextField
             label="Army name"
             defaultValue={me.player.army_name ?? ''}
-            onBlur={(e) =>
-              updateSetup.mutate({ gamePlayerId: me.player.id, factionId: me.player.faction_id, armyName: e.target.value || null })
-            }
+            onBlur={(e) => updateSetup.mutate({ gamePlayerId: me.player.id, armyName: e.target.value || null })}
           />
+
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-paper/80">Role</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['attacker', 'defender'] as const).map((role) => {
+                const takenByOpponent = opponent?.player.role === role
+                const mine = me.player.role === role
+                return (
+                  <Button
+                    key={role}
+                    type="button"
+                    variant={mine ? 'primary' : 'secondary'}
+                    disabled={takenByOpponent && !mine}
+                    onClick={() => setRole.mutate({ gamePlayerId: me.player.id, role: mine ? null : role })}
+                    className="capitalize"
+                  >
+                    {role}
+                    {takenByOpponent && !mine ? ' (taken)' : ''}
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+
           <Button
             variant={me.player.is_ready ? 'secondary' : 'primary'}
             onClick={() => setReady.mutate({ gamePlayerId: me.player.id, isReady: !me.player.is_ready })}
@@ -84,7 +142,11 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-paper">{opponent.profile?.display_name ?? 'Player 2'}</p>
-              <p className="text-sm text-paper/50">{opponent.factionName ?? 'No faction yet'}</p>
+              <p className="text-sm text-paper/50">
+                {opponent.factionName ?? 'No faction yet'}
+                {opponent.forceDispositionName ? ` · ${opponent.forceDispositionName}` : ''}
+                {opponent.player.role ? ` · ${opponent.player.role}` : ''}
+              </p>
             </div>
             <span
               className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}
@@ -101,8 +163,8 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         )}
       </div>
 
-      <Button disabled={!bothReady || startGame.isPending} onClick={() => startGame.mutate()} fullWidth>
-        {bothReady ? (startGame.isPending ? 'Starting…' : 'Start game') : 'Waiting for both players to be ready'}
+      <Button disabled={!canStart || startGame.isPending} onClick={() => startGame.mutate()} fullWidth>
+        {canStart ? (startGame.isPending ? 'Starting…' : 'Start game') : startBlockedReason}
       </Button>
     </div>
   )

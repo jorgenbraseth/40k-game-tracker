@@ -85,7 +85,7 @@ Email/password sign-in works out of the box against the local stack
   /lib             supabase client, generated types, query hooks, realtime hooks
 /supabase
   /migrations      numbered SQL, applied in order
-  seed.sql         reference data (missions, deployments, secondaries, factions)
+  seed.sql         reference data (missions, deployments, secondaries, factions -- force_dispositions is seeded by migration, not here)
   config.toml      local dev config (`supabase start`)
 /.github/workflows
   ci.yml           typecheck + lint + test + build, on every PR
@@ -94,20 +94,36 @@ Email/password sign-in works out of the box against the local stack
 
 ## Ruleset / mission content
 
-Missions, deployments, secondary objectives and factions are versioned
-reference data (`mission_packs` and its children), never hardcoded --
-see the comment at the top of
+Missions, deployments, secondary objectives, factions and Force
+Dispositions are versioned reference data (`mission_packs` and its
+children), never hardcoded -- see the comment at the top of
 `supabase/migrations/20260101000000_reference_tables.sql`. When a new
 Chapter Approved deck ships, add a new `mission_packs` row and its
 children in a new migration; existing games keep pointing at the pack
 they were played under.
 
+The 2026-27 deck's Primary Mission is **asymmetric**: each player picks a
+Force Disposition (`force_dispositions` -- the five real, GW-confirmed
+role names: Take and Hold, Purge the Foe, Reconnaissance, Disruption,
+Priority Assets), and the *pairing* of both players' choices determines
+which `missions` row applies (`missions.force_disposition_a_id`/`_b_id`,
+resolved by the `resolve_game_mission` RPC once both players have picked,
+in the waiting room). Secondary objectives are also split into separate
+Attacker/Defender decks (`secondary_objectives.role`) rather than one
+shared pool. See `supabase/migrations/20260115000000_force_disposition_missions.sql`.
+
 **The seed data in `supabase/seed.sql` is placeholder content**, not
 transcribed from GW's actual Chapter Approved 2026-27 deck (that's their
 copyrighted rules text -- this repo only ever stores objective names,
-categories and VP values, never rules text). Replace it with the real
-names/values from your own copy of the current deck before relying on
-this for real games. `seed.sql` is applied automatically for local dev
+categories and VP values, never rules text). It seeds exactly one
+placeholder Primary Mission per Force Disposition pairing (15 total) so
+every combination resolves to *something*; the real deck has 30 primary
+mission cards, so there's likely more than one option per pairing for
+variety that this simplified stand-in doesn't capture. Replace it with
+the real names/values from your own copy of the current deck before
+relying on this for real games -- `seed.sql` is safe to re-run after
+editing (it clears its own previously-seeded missions/deployments/
+secondary_objectives first). It's applied automatically for local dev
 only; it does not run in `deploy.yml` -- seed production reference data
 once, deliberately, after review.
 
