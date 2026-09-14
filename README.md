@@ -227,20 +227,31 @@ Secondary objectives are also split into separate Attacker/Defender decks
 (`secondary_objectives.role`), though the 18 cards in each are identical.
 See `supabase/migrations/20260201000000_asymmetric_primary_missions.sql`.
 
-The seed data in `supabase/seed.sql` is the real Chapter Approved 2026-27
-deck -- names, Force Disposition pairings and VP values, sourced from the
-public card text and mission generator at
+The real Chapter Approved 2026-27 deck content -- names, Force
+Disposition pairings and VP values, sourced from the public card text
+and mission generator at
 [wahapedia.ru](https://wahapedia.ru/wh40k11ed/the-rules/mission-deck-2026-27/)
 (never GW's copyrighted rules text -- how each mission actually scores
 turn by turn -- which this repo doesn't and shouldn't store; players read
-that off their own copy of the deck). It's applied automatically for
-local dev only; it does not run in `deploy.yml` -- seed production
-reference data once, deliberately, after review. `seed.sql` is safe to
-re-run after editing (it clears its own previously-seeded missions/
-deployments/secondary_objectives first) -- useful when the next Chapter
-Approved deck ships: add a new `mission_packs` row and repeat this
-process for its content, without touching the old pack that existing
-games still point to.
+that off their own copy of the deck) -- lives in
+`supabase/migrations/20260221000000_apply_real_reference_data.sql`, **not**
+`seed.sql`. Missions and secondary objectives specifically have to be a
+migration, not a manual seed step: they were originally only in
+`seed.sql` (which deploy.yml deliberately never runs against production,
+by design, for review before touching real reference data), and nobody
+ran it by hand after the Force Disposition redesign landed -- so
+production silently kept the very first scaffold's placeholder missions,
+with `force_disposition_id`/`role` left null, and every game's Primary
+Mission resolution failed forever, for months, with no error. A migration
+can't be forgotten the same way; it runs automatically, every deploy.
+`seed.sql` still seeds deployments, factions, and the rulesets/
+mission_packs rows themselves (all safe to apply idempotently, unlike
+content that needs a clean replace) for local dev.
+
+When the next Chapter Approved deck ships: add a new `mission_packs` row
+and a new migration with its missions/secondary_objectives, the same
+way -- don't touch the old pack's migration, existing games keep pointing
+at it.
 
 ## Deployment
 
