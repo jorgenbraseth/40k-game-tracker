@@ -1,0 +1,69 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { gameKeys } from '@/lib/queries/games'
+import { supabase } from '@/lib/supabase'
+
+interface PresenceMeta {
+  userId: string
+  displayName: string
+}
+
+/**
+ * One realtime channel per game: subscribes to postgres_changes on the four
+ * mutable game tables (filtered to this game) and tracks presence so we
+ * can show an "opponent connected" indicator. Each change event just
+ * invalidates the game query rather than patching cache by hand -- simpler
+ * and self-healing if an event is missed.
+ */
+export function useGameChannel(gameId: string | undefined, me: PresenceMeta | null) {
+  const queryClient = useQueryClient()
+  const [opponentOnline, setOpponentOnline] = useState(false)
+
+  useEffect(() => {
+    if (!gameId || !me) return
+
+    const invalidate = () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) })
+
+    const channel = supabase
+      .channel(`game:${gameId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameId}` }, invalidate)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_players', filter: `game_id=eq.${gameId}` },
+        invalidate,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'round_scores', filter: `game_id=eq.${gameId}` },
+        invalidate,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'secondary_scores', filter: `game_id=eq.${gameId}` },
+        invalidate,
+      )
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState<PresenceMeta>()
+        const others = Object.values(state)
+          .flat()
+          .filter((p) => p.userId !== me.userId)
+        setOpponentOnline(others.length > 0)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          invalidate()
+          await channel.track(me)
+        }
+      })
+
+    return () => {
+      setOpponentOnline(false)
+      supabase.removeChannel(channel)
+    }
+    // Intentionally keyed on me.userId rather than the whole `me` object
+    // (a fresh literal every render) or queryClient (a stable singleton).
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, me?.userId])
+
+  return { opponentOnline }
+}

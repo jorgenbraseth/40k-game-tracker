@@ -1,0 +1,109 @@
+import { useState } from 'react'
+import { Button } from '@/components/Button'
+import { Select } from '@/components/Select'
+import { TextField } from '@/components/TextField'
+import { useAuth } from '@/features/auth/AuthProvider'
+import type { GameDetail } from '@/lib/queries/games'
+import { useSetReady, useStartGame, useUpdatePlayerSetup } from '@/lib/queries/games'
+import { useFactions } from '@/lib/queries/referenceData'
+
+export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
+  const { user } = useAuth()
+  const factions = useFactions()
+  const setReady = useSetReady(detail.game.id)
+  const updateSetup = useUpdatePlayerSetup(detail.game.id)
+  const startGame = useStartGame(detail.game.id)
+  const [copied, setCopied] = useState(false)
+
+  const me = detail.players.find((p) => p.player.user_id === user?.id)
+  const opponent = detail.players.find((p) => p.player.user_id !== user?.id)
+  const bothReady = detail.players.length === 2 && detail.players.every((p) => p.player.is_ready)
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(detail.game.join_code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard can be denied; the code is visible on screen regardless
+    }
+  }
+
+  if (!me) return null
+
+  return (
+    <div className="flex flex-col items-center gap-8 text-center">
+      <div>
+        <p className="text-sm font-medium text-paper/60">Share this code with your opponent</p>
+        <div className="mt-2 flex items-center justify-center gap-3">
+          <span className="rounded-xl bg-gold/10 px-6 py-3 text-4xl font-bold tracking-[0.3em] text-gold">
+            {detail.game.join_code}
+          </span>
+        </div>
+        <button type="button" onClick={copyCode} className="mt-2 text-sm text-paper/50 underline">
+          {copied ? 'Copied!' : 'Copy code'}
+        </button>
+      </div>
+
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+        <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Your setup</p>
+        <div className="flex flex-col gap-3">
+          <Select
+            label="Faction"
+            value={me.player.faction_id ?? ''}
+            onChange={(e) =>
+              updateSetup.mutate({ gamePlayerId: me.player.id, factionId: e.target.value || null, armyName: me.player.army_name })
+            }
+          >
+            <option value="">Pick faction</option>
+            {factions.data?.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </Select>
+          <TextField
+            label="Army name"
+            defaultValue={me.player.army_name ?? ''}
+            onBlur={(e) =>
+              updateSetup.mutate({ gamePlayerId: me.player.id, factionId: me.player.faction_id, armyName: e.target.value || null })
+            }
+          />
+          <Button
+            variant={me.player.is_ready ? 'secondary' : 'primary'}
+            onClick={() => setReady.mutate({ gamePlayerId: me.player.id, isReady: !me.player.is_ready })}
+          >
+            {me.player.is_ready ? 'Ready ✓ (tap to undo)' : "I'm ready"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+        <p className="mb-2 text-sm font-semibold text-paper/60 uppercase">Opponent</p>
+        {opponent ? (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-paper">{opponent.profile?.display_name ?? 'Player 2'}</p>
+              <p className="text-sm text-paper/50">{opponent.factionName ?? 'No faction yet'}</p>
+            </div>
+            <span
+              className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+              {opponentOnline ? 'online' : 'offline'}
+            </span>
+          </div>
+        ) : (
+          <p className="text-sm text-paper/50">Waiting for someone to join with the code above…</p>
+        )}
+        {opponent && (
+          <p className="mt-2 text-sm text-paper/50">{opponent.player.is_ready ? 'Ready ✓' : 'Not ready yet'}</p>
+        )}
+      </div>
+
+      <Button disabled={!bothReady || startGame.isPending} onClick={() => startGame.mutate()} fullWidth>
+        {bothReady ? (startGame.isPending ? 'Starting…' : 'Start game') : 'Waiting for both players to be ready'}
+      </Button>
+    </div>
+  )
+}
