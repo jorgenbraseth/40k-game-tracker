@@ -18,7 +18,10 @@ both sides) or shared live between two players' own phones.
 **The intended experience, end to end:**
 
 - Anyone can sign up -- with Google or with email/password. No invite
-  needed, no spectator mode, players only.
+  needed, no spectator mode, players only. Signing up registers a display
+  name (editable any time from Profile) that's what other players see in
+  the waiting room, live scoreboard, and history/stats -- their email
+  address is never shown to, or sent to, anyone else.
 - One player starts a game (mission pack, deployment, points limit,
   their own faction and army name) and gets a short 6-character code.
 - **A single player can completely track a game alone.** The creator
@@ -95,6 +98,13 @@ creates an unclaimed second seat (`game_players.user_id` is nullable) the
 creator can fill in and run themselves from the waiting room; joining by
 code later claims that same seat rather than adding a third one, and
 just grants the joiner the same edit rights the creator already had.
+
+Display names never derive from email: `handle_new_user()`'s fallback
+(when a signup provides no name at all) generates a generic placeholder,
+never the email's local part, and the signup form requires a display
+name for email/password accounts so that fallback is rarely even hit.
+Realtime presence -- broadcast to everyone subscribed to a game's channel
+-- sends the profile display name, never the raw email, fixed alongside.
 
 Everything else -- auth, live game creation/joining, the Force
 Disposition/mission-pairing flow, live round-by-round scoring, realtime
