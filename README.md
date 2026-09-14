@@ -11,8 +11,9 @@ design brief and rationale this build follows.
 
 ## What this is (the goal)
 
-40K Tracker is a public web app for two players to track a game of
-Warhammer 40,000 together in real time, from the table.
+40K Tracker is a public web app to track a game of Warhammer 40,000 in
+real time, from the table -- solo (one player runs the whole scoreboard,
+both sides) or shared live between two players' own phones.
 
 **The intended experience, end to end:**
 
@@ -20,20 +21,27 @@ Warhammer 40,000 together in real time, from the table.
   needed, no spectator mode, players only.
 - One player starts a game (mission pack, deployment, points limit,
   their own faction and army name) and gets a short 6-character code.
-  The other player enters that code to join.
-- Both players see a shared waiting room: each claims their own Force
-  Disposition (their army's strategic role) and either Attacker or
-  Defender -- the app explains in-UI what Attacker/Defender actually
-  determines (battlefield edge, which Secondary Mission deck you draw
-  from), since it's easy to forget between games -- and the game's
-  Primary Mission, determined by the *pairing* of both players' Force
-  Dispositions per the actual 2026-27 ruleset, is revealed once both have
-  chosen.
-- Once the game starts, both players score primary VP and secondary
-  objectives round by round (5 battle rounds), on their own phones, and
-  see each other's scores update live as they're entered -- no refreshing,
-  no "did you get that?" across the table. Either player can enter either
-  side's score, since players agree scores verbally at the table anyway.
+- **A single player can completely track a game alone.** The creator
+  fills in Player 2's setup themselves in the waiting room -- same
+  Force Disposition/faction/army/role fields as their own -- and can
+  start and run the whole game solo, entering both sides' scores round
+  by round. Sharing the join code is optional: if a second player does
+  enter it, they're simply added as another person who can also adjust
+  either side's numbers, the same as if they'd been there from the
+  start -- not a required step to use the app.
+- Whoever fills in each side's setup claims their own Force Disposition
+  (their army's strategic role) and either Attacker or Defender -- the
+  app explains in-UI what Attacker/Defender actually determines
+  (battlefield edge, which Secondary Mission deck you draw from), since
+  it's easy to forget between games -- and each side's Primary Mission,
+  determined by the *pairing* of both Force Dispositions per the actual
+  2026-27 ruleset, is revealed once both are chosen.
+- Once the game starts, primary VP and secondary objectives are scored
+  round by round (5 battle rounds). With two players each on their own
+  phone, scores update live for both as they're entered -- no refreshing,
+  no "did you get that?" across the table -- and either one can enter
+  either side's score, since players agree scores verbally at the table
+  anyway. Tracking solo works the same way, just from one phone.
 - The app knows the actual current missions, deployments, and secondary
   objectives for whichever Chapter Approved mission pack is active --
   this isn't a generic point counter, it understands the ruleset. When a
@@ -81,6 +89,12 @@ Mission/deployment/secondary objective names are the real Chapter
 Approved 2026-27 deck (names and VP values only, sourced from the public
 card text -- see "Ruleset / mission content" below), not placeholder
 content.
+
+Solo tracking is implemented: `create_game` seats the creator and also
+creates an unclaimed second seat (`game_players.user_id` is nullable) the
+creator can fill in and run themselves from the waiting room; joining by
+code later claims that same seat rather than adding a third one, and
+just grants the joiner the same edit rights the creator already had.
 
 Everything else -- auth, live game creation/joining, the Force
 Disposition/mission-pairing flow, live round-by-round scoring, realtime
