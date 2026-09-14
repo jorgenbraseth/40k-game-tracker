@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Database } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
+import { showToast } from '@/lib/toast'
 
 type GamePlayerRow = Database['public']['Tables']['game_players']['Row']
 type GameRow = Database['public']['Tables']['games']['Row']
@@ -87,6 +88,106 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   }
 }
 
+/** Optimistic-patch helpers -- keep the score UI responsive (and correct while offline/paused) without waiting on a round-trip. */
+
+function patchRoundScore(
+  detail: GameDetail,
+  input: { gamePlayerId: string; battleRound: number; primaryVp: number; userId: string },
+): GameDetail {
+  const existing = detail.roundScores.find(
+    (r) => r.game_player_id === input.gamePlayerId && r.battle_round === input.battleRound,
+  )
+  const delta = input.primaryVp - (existing?.primary_vp ?? 0)
+  const now = new Date().toISOString()
+  const roundScores = existing
+    ? detail.roundScores.map((r) =>
+        r === existing ? { ...r, primary_vp: input.primaryVp, updated_by: input.userId, updated_at: now } : r,
+      )
+    : [
+        ...detail.roundScores,
+        {
+          id: `optimistic-${input.gamePlayerId}-${input.battleRound}`,
+          game_id: detail.game.id,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          primary_vp: input.primaryVp,
+          updated_by: input.userId,
+          updated_at: now,
+        },
+      ]
+  return {
+    ...detail,
+    roundScores,
+    players: detail.players.map((p) =>
+      p.player.id === input.gamePlayerId
+        ? { ...p, primaryTotal: p.primaryTotal + delta, totalVp: p.totalVp + delta }
+        : p,
+    ),
+  }
+}
+
+function patchSecondaryUpsert(
+  detail: GameDetail,
+  input: { gamePlayerId: string; battleRound: number; secondaryObjectiveId: string; vpScored: number; userId: string },
+): GameDetail {
+  const existing = detail.secondaryScores.find(
+    (s) =>
+      s.game_player_id === input.gamePlayerId &&
+      s.battle_round === input.battleRound &&
+      s.secondary_objective_id === input.secondaryObjectiveId,
+  )
+  const delta = input.vpScored - (existing?.vp_scored ?? 0)
+  const now = new Date().toISOString()
+  const secondaryScores = existing
+    ? detail.secondaryScores.map((s) =>
+        s === existing ? { ...s, vp_scored: input.vpScored, updated_by: input.userId, updated_at: now } : s,
+      )
+    : [
+        ...detail.secondaryScores,
+        {
+          id: `optimistic-${input.gamePlayerId}-${input.battleRound}-${input.secondaryObjectiveId}`,
+          game_id: detail.game.id,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          secondary_objective_id: input.secondaryObjectiveId,
+          vp_scored: input.vpScored,
+          updated_by: input.userId,
+          updated_at: now,
+        },
+      ]
+  return {
+    ...detail,
+    secondaryScores,
+    players: detail.players.map((p) =>
+      p.player.id === input.gamePlayerId
+        ? { ...p, secondaryTotal: p.secondaryTotal + delta, totalVp: p.totalVp + delta }
+        : p,
+    ),
+  }
+}
+
+function patchSecondaryRemove(
+  detail: GameDetail,
+  input: { gamePlayerId: string; battleRound: number; secondaryObjectiveId: string },
+): GameDetail {
+  const existing = detail.secondaryScores.find(
+    (s) =>
+      s.game_player_id === input.gamePlayerId &&
+      s.battle_round === input.battleRound &&
+      s.secondary_objective_id === input.secondaryObjectiveId,
+  )
+  if (!existing) return detail
+  return {
+    ...detail,
+    secondaryScores: detail.secondaryScores.filter((s) => s !== existing),
+    players: detail.players.map((p) =>
+      p.player.id === input.gamePlayerId
+        ? { ...p, secondaryTotal: p.secondaryTotal - existing.vp_scored, totalVp: p.totalVp - existing.vp_scored }
+        : p,
+    ),
+  }
+}
+
 export function useGame(gameId: string | undefined) {
   return useQuery({
     queryKey: gameKeys.detail(gameId ?? ''),
@@ -149,6 +250,7 @@ export function useSetReady(gameId: string) {
         .eq('id', input.gamePlayerId)
       if (error) throw error
     },
+    onError: () => showToast("Couldn't update ready status. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -170,13 +272,15 @@ export function useUpdatePlayerSetup(gameId: string) {
       const { error } = await supabase.from('game_players').update(patch).eq('id', input.gamePlayerId)
       if (error) throw error
 
-      // Both players' Force Dispositions might now be set -- harmless
-      // no-op via the `mission_id is null` guard inside the function if
-      // not, or if this game already has a mission.
+      // Both players' Force Dispositions might now be set, or a player
+      // corrected a wrong pick -- resolve_game_mission always recomputes
+      // both seats' missions from the current picks, so this is always
+      // safe to call, whether it's the first resolution or a correction.
       if ('forceDispositionId' in input) {
         await supabase.rpc('resolve_game_mission', { p_game_id: gameId })
       }
     },
+    onError: () => showToast("Couldn't save your setup. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -188,6 +292,7 @@ export function useSetRole(gameId: string) {
       const { error } = await supabase.from('game_players').update({ role: input.role }).eq('id', input.gamePlayerId)
       if (error) throw error
     },
+    onError: () => showToast("Couldn't update your role. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -196,13 +301,11 @@ export function useStartGame(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from('games')
-        .update({ status: 'active', started_at: new Date().toISOString() })
-        .eq('id', gameId)
-        .eq('status', 'lobby')
+      const { error } = await supabase.rpc('start_game', { p_game_id: gameId })
       if (error) throw error
     },
+    onError: (error) =>
+      showToast(error instanceof Error && error.message ? error.message : "Couldn't start the game. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -214,6 +317,7 @@ export function useSetCurrentRound(gameId: string) {
       const { error } = await supabase.from('games').update({ current_round: round }).eq('id', gameId)
       if (error) throw error
     },
+    onError: () => showToast("Couldn't advance the round. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -235,8 +339,15 @@ export function useUpsertRoundScore(gameId: string) {
       )
       if (error) throw error
     },
-    onMutate: async () => {
+    onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchRoundScore(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save that score. Check your connection and try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
@@ -266,6 +377,16 @@ export function useUpsertSecondaryScore(gameId: string) {
       )
       if (error) throw error
     },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchSecondaryUpsert(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save that secondary. Check your connection and try again.")
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -282,6 +403,16 @@ export function useRemoveSecondaryScore(gameId: string) {
         .eq('secondary_objective_id', input.secondaryObjectiveId)
       if (error) throw error
     },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchSecondaryRemove(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't remove that secondary. Check your connection and try again.")
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -296,6 +427,7 @@ export function useFinishGame(gameId: string) {
         .eq('id', gameId)
       if (error) throw error
     },
+    onError: () => showToast("Couldn't save the result. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
@@ -310,6 +442,7 @@ export function useAbandonGame(gameId: string) {
         .eq('id', gameId)
       if (error) throw error
     },
+    onError: () => showToast("Couldn't end the game. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }

@@ -24,8 +24,9 @@ export function SummaryPage() {
   ])
 
   const resultLabel = (() => {
+    if (game.status === 'abandoned' && !game.outcome) return 'Abandoned'
     if (game.outcome === 'draw') return 'Draw'
-    if (!me) return null
+    if (!me || !game.outcome) return null
     const won = game.outcome === `seat_${me.player.seat}`
     return won ? 'Victory' : 'Defeat'
   })()
@@ -94,6 +95,15 @@ export function SummaryPage() {
           </tbody>
         </table>
       </div>
+
+      <Link to={`/game/${game.id}`}>
+        <Button variant="secondary" fullWidth>
+          Edit scores / result
+        </Button>
+      </Link>
+      <p className="-mt-3 text-center text-xs text-paper/40">
+        Nothing here is final -- go back any time to fix a score, a secondary, or the declared result.
+      </p>
 
       <div className="flex gap-3">
         <Link to="/home" className="flex-1">

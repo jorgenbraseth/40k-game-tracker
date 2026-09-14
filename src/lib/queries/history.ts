@@ -16,7 +16,7 @@ export interface CompletedGameRow {
   opponentName: string
   opponentFactionName: string | null
   opponentTotalVp: number
-  result: 'win' | 'loss' | 'draw'
+  result: 'win' | 'loss' | 'draw' | 'abandoned'
 }
 
 export const historyKeys = {
@@ -37,7 +37,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
     .from('games')
     .select('*')
     .in('id', gameIds)
-    .eq('status', 'complete')
+    .in('status', ['complete', 'abandoned'])
     .order('ended_at', { ascending: false })
   if (gamesError) throw gamesError
   if (games.length === 0) return []
@@ -93,10 +93,16 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
     const players = playersByGameId.get(game.id) ?? []
     const me = players.find((p) => p.user_id === userId)
     const opponent = players.find((p) => p.user_id !== userId)
-    if (!me || !game.outcome) continue
+    if (!me) continue
+    if (!game.outcome && game.status !== 'abandoned') continue
 
-    const result: CompletedGameRow['result'] =
-      game.outcome === 'draw' ? 'draw' : game.outcome === `seat_${me.seat}` ? 'win' : 'loss'
+    const result: CompletedGameRow['result'] = !game.outcome
+      ? 'abandoned'
+      : game.outcome === 'draw'
+        ? 'draw'
+        : game.outcome === `seat_${me.seat}`
+          ? 'win'
+          : 'loss'
 
     rows.push({
       gameId: game.id,

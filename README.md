@@ -23,9 +23,12 @@ Warhammer 40,000 together in real time, from the table.
   The other player enters that code to join.
 - Both players see a shared waiting room: each claims their own Force
   Disposition (their army's strategic role) and either Attacker or
-  Defender, and the game's Primary Mission -- determined by the *pairing*
-  of both players' Force Dispositions, per the actual 2026-27 ruleset --
-  is revealed once both have chosen.
+  Defender -- the app explains in-UI what Attacker/Defender actually
+  determines (battlefield edge, which Secondary Mission deck you draw
+  from), since it's easy to forget between games -- and the game's
+  Primary Mission, determined by the *pairing* of both players' Force
+  Dispositions per the actual 2026-27 ruleset, is revealed once both have
+  chosen.
 - Once the game starts, both players score primary VP and secondary
   objectives round by round (5 battle rounds), on their own phones, and
   see each other's scores update live as they're entered -- no refreshing,
@@ -39,7 +42,17 @@ Warhammer 40,000 together in real time, from the table.
 - At the end, either player can close out the game (a winner is
   suggested from the totals, or record a draw), and both players get a
   permanent record of it: a round-by-round breakdown, and it folds into
-  their history.
+  their history. A game can also be ended early -- conceded, or the
+  opponent had to leave -- from any round, not just the last one.
+- **This is a bookkeeping tool, not a guided workflow.** Its job is to
+  end up with the correct score, keep a clean round-by-round record of
+  primary + secondary VP, and track which objectives were drawn and
+  scored each round -- not to police how you got there. Every value a
+  player enters -- score, secondary picked, faction, army name, Force
+  Disposition, role, even the declared winner -- stays editable for the
+  life of the game, including after it's marked complete or abandoned.
+  Fat-fingered a tap, picked the wrong secondary, realized your army name
+  was wrong three rounds in? Fix it in place, no reset required.
 - Over time, each player builds up game history and win/loss stats,
   broken down by faction played, mission, and opponent -- so "how do I do
   against Necrons?" or "what's my record with Orks?" has a real answer
@@ -72,7 +85,15 @@ content.
 Everything else -- auth, live game creation/joining, the Force
 Disposition/mission-pairing flow, live round-by-round scoring, realtime
 sync, game history, and win/loss stats -- is built, deployed, and
-functional today, not aspirational.
+functional today, not aspirational. So is the always-editable bookkeeping
+model described above: score/secondary edits apply optimistically (so a
+tap shows up immediately, including while offline -- it sends once
+back online, no separate offline queue needed) with rollback and an
+error toast if a save genuinely fails; ending a game early (concede /
+opponent left) works from any round; and `game_players`/`games` state
+transitions that used to be enforced only in the UI (starting a game
+before both players are ready, cross-game score writes) are now also
+checked server-side (`start_game` RPC, RLS).
 
 ## Stack
 
