@@ -1,12 +1,16 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/Button'
+import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useMyActiveGames } from '@/lib/queries/games'
+import { useDeleteGame, useMyActiveGames } from '@/lib/queries/games'
 
 export function HomePage() {
   const { user } = useAuth()
   const { data: activeGames, isLoading, isError, refetch } = useMyActiveGames(user?.id)
+  const deleteGame = useDeleteGame()
+  const [cancelingGameId, setCancelingGameId] = useState<string | null>(null)
 
   return (
     <div className="flex flex-col gap-8">
@@ -36,11 +40,11 @@ export function HomePage() {
         {activeGames && activeGames.length > 0 && (
           <ul className="flex flex-col gap-2">
             {activeGames.map((game) => (
-              <li key={game.id}>
-                <Link
-                  to={`/game/${game.id}`}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10"
-                >
+              <li
+                key={game.id}
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 pr-2 hover:bg-white/10"
+              >
+                <Link to={`/game/${game.id}`} className="flex flex-1 items-center justify-between px-4 py-3">
                   <span>
                     <span className="font-medium text-paper">Code {game.join_code}</span>
                     <span className="ml-2 text-sm text-paper/50 capitalize">{game.status}</span>
@@ -49,11 +53,37 @@ export function HomePage() {
                     →
                   </span>
                 </Link>
+                <button
+                  type="button"
+                  aria-label="Cancel game"
+                  onClick={() => setCancelingGameId(game.id)}
+                  className="min-h-11 min-w-11 rounded-lg text-paper/40 hover:bg-white/10 hover:text-red-400"
+                >
+                  ✕
+                </button>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <ConfirmSheet
+        open={cancelingGameId !== null}
+        onClose={() => setCancelingGameId(null)}
+        onConfirm={async () => {
+          if (!cancelingGameId) return
+          try {
+            await deleteGame.mutateAsync(cancelingGameId)
+            setCancelingGameId(null)
+          } catch {
+            // error already surfaced via toast in useDeleteGame; keep the sheet open to retry
+          }
+        }}
+        title="Cancel this game?"
+        message="This removes it completely for both players -- scores, setup, everything. This can't be undone."
+        confirmLabel="Cancel game"
+        pending={deleteGame.isPending}
+      />
     </div>
   )
 }

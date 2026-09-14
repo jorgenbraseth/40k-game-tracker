@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
+import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { Sheet } from '@/components/Sheet'
 import { ScoreCell } from '@/components/ScoreCell'
 import { Spinner } from '@/components/Feedback'
@@ -10,6 +11,7 @@ import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
   useAbandonGame,
+  useDeleteGame,
   useFinishGame,
   useSetCurrentRound,
   useSetRole,
@@ -34,12 +36,14 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const setCurrentRound = useSetCurrentRound(detail.game.id)
   const finishGame = useFinishGame(detail.game.id)
   const abandonGame = useAbandonGame(detail.game.id)
+  const deleteGame = useDeleteGame()
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
   const setRole = useSetRole(detail.game.id)
 
   const [viewRound, setViewRound] = useState(detail.game.current_round)
   const [endSheetOpen, setEndSheetOpen] = useState(false)
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
+  const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
 
   useWakeLock(detail.game.status === 'active')
 
@@ -221,8 +225,35 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           <p className="text-center text-xs text-paper/40">
             You can come back and change this later -- nothing here is final.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              setEndSheetOpen(false)
+              setCancelSheetOpen(true)
+            }}
+            className="text-center text-xs text-paper/30 underline hover:text-red-400"
+          >
+            Or cancel this game entirely, removing it completely
+          </button>
         </div>
       </Sheet>
+
+      <ConfirmSheet
+        open={cancelSheetOpen}
+        onClose={() => setCancelSheetOpen(false)}
+        onConfirm={async () => {
+          try {
+            await deleteGame.mutateAsync(detail.game.id)
+            navigate('/home')
+          } catch {
+            // error already surfaced via toast in useDeleteGame; keep the sheet open to retry
+          }
+        }}
+        title="Cancel this game?"
+        message="This removes it completely for both players -- scores, setup, everything. This can't be undone. If you just want to stop playing, Abandon keeps a record instead."
+        confirmLabel="Cancel game"
+        pending={deleteGame.isPending}
+      />
 
       {editingPlayerId &&
         (() => {

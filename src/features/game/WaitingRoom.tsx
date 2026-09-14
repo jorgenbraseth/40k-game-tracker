@@ -1,20 +1,32 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
+import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
-import { playerLabel, useSetReady, useSetRole, useStartGame, useUpdatePlayerSetup } from '@/lib/queries/games'
+import {
+  playerLabel,
+  useDeleteGame,
+  useSetReady,
+  useSetRole,
+  useStartGame,
+  useUpdatePlayerSetup,
+} from '@/lib/queries/games'
 import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
 export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const factions = useFactions()
   const forceDispositions = useForceDispositions()
   const setReady = useSetReady(detail.game.id)
   const setRole = useSetRole(detail.game.id)
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
   const startGame = useStartGame(detail.game.id)
+  const deleteGame = useDeleteGame()
   const [copied, setCopied] = useState(false)
+  const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
 
   const me = detail.players.find((p) => p.player.user_id === user?.id)
   const opponent = detail.players.find((p) => p.player.user_id !== user?.id)
@@ -162,7 +174,35 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             Playing solo is fine -- you can enter both sides' scores once the game starts.
           </p>
         )}
+        <button
+          type="button"
+          onClick={() => setCancelSheetOpen(true)}
+          className="mt-2 text-center text-xs text-paper/40 underline hover:text-red-400"
+        >
+          Cancel this game
+        </button>
       </div>
+
+      <ConfirmSheet
+        open={cancelSheetOpen}
+        onClose={() => setCancelSheetOpen(false)}
+        onConfirm={async () => {
+          try {
+            await deleteGame.mutateAsync(detail.game.id)
+            navigate('/home')
+          } catch {
+            // error already surfaced via toast in useDeleteGame; keep the sheet open to retry
+          }
+        }}
+        title="Cancel this game?"
+        message={
+          opponent?.player.user_id
+            ? "This removes it completely for both players -- scores, setup, everything. This can't be undone."
+            : "This removes it completely. This can't be undone."
+        }
+        confirmLabel="Cancel game"
+        pending={deleteGame.isPending}
+      />
     </div>
   )
 }
