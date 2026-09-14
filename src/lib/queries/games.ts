@@ -23,22 +23,29 @@ export interface GameDetail {
   }>
   roundScores: Database['public']['Tables']['round_scores']['Row'][]
   secondaryScores: Database['public']['Tables']['secondary_scores']['Row'][]
+  primaryTicks: Database['public']['Tables']['primary_objective_ticks']['Row'][]
+  secondaryTicks: Database['public']['Tables']['secondary_objective_ticks']['Row'][]
 }
 
 export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
-  const [gameRes, playersRes, roundRes, secondaryRes, totalsRes] = await Promise.all([
-    supabase.from('games').select('*').eq('id', gameId).single(),
-    supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
-    supabase.from('round_scores').select('*').eq('game_id', gameId),
-    supabase.from('secondary_scores').select('*').eq('game_id', gameId),
-    supabase.from('game_totals').select('*').eq('game_id', gameId),
-  ])
+  const [gameRes, playersRes, roundRes, secondaryRes, totalsRes, primaryTicksRes, secondaryTicksRes] =
+    await Promise.all([
+      supabase.from('games').select('*').eq('id', gameId).single(),
+      supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
+      supabase.from('round_scores').select('*').eq('game_id', gameId),
+      supabase.from('secondary_scores').select('*').eq('game_id', gameId),
+      supabase.from('game_totals').select('*').eq('game_id', gameId),
+      supabase.from('primary_objective_ticks').select('*').eq('game_id', gameId),
+      supabase.from('secondary_objective_ticks').select('*').eq('game_id', gameId),
+    ])
 
   if (gameRes.error) throw gameRes.error
   if (playersRes.error) throw playersRes.error
   if (roundRes.error) throw roundRes.error
   if (secondaryRes.error) throw secondaryRes.error
   if (totalsRes.error) throw totalsRes.error
+  if (primaryTicksRes.error) throw primaryTicksRes.error
+  if (secondaryTicksRes.error) throw secondaryTicksRes.error
 
   // A seat nobody has joined yet has user_id = null (a solo-tracked
   // "opponent" the creator fills in themselves) -- filter it out rather
@@ -88,6 +95,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     }),
     roundScores: roundRes.data,
     secondaryScores: secondaryRes.data,
+    primaryTicks: primaryTicksRes.data,
+    secondaryTicks: secondaryTicksRes.data,
   }
 }
 
@@ -420,6 +429,156 @@ export function useRemoveSecondaryScore(gameId: string) {
     onError: (_error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't remove that secondary. Check your connection and try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+function patchPrimaryTick(
+  detail: GameDetail,
+  input: { gamePlayerId: string; battleRound: number; missionObjectiveLineId: string; count: number; userId: string },
+): GameDetail {
+  const existing = detail.primaryTicks.find(
+    (t) =>
+      t.game_player_id === input.gamePlayerId &&
+      t.battle_round === input.battleRound &&
+      t.mission_objective_line_id === input.missionObjectiveLineId,
+  )
+  const now = new Date().toISOString()
+  const primaryTicks = existing
+    ? detail.primaryTicks.map((t) => (t === existing ? { ...t, count: input.count, updated_by: input.userId, updated_at: now } : t))
+    : [
+        ...detail.primaryTicks,
+        {
+          id: `optimistic-${input.gamePlayerId}-${input.battleRound}-${input.missionObjectiveLineId}`,
+          game_id: detail.game.id,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          mission_objective_line_id: input.missionObjectiveLineId,
+          count: input.count,
+          updated_by: input.userId,
+          updated_at: now,
+        },
+      ]
+  return { ...detail, primaryTicks }
+}
+
+function patchSecondaryTick(
+  detail: GameDetail,
+  input: {
+    gamePlayerId: string
+    battleRound: number
+    secondaryObjectiveLineId: string
+    count: number
+    userId: string
+  },
+): GameDetail {
+  const existing = detail.secondaryTicks.find(
+    (t) =>
+      t.game_player_id === input.gamePlayerId &&
+      t.battle_round === input.battleRound &&
+      t.secondary_objective_line_id === input.secondaryObjectiveLineId,
+  )
+  const now = new Date().toISOString()
+  const secondaryTicks = existing
+    ? detail.secondaryTicks.map((t) =>
+        t === existing ? { ...t, count: input.count, updated_by: input.userId, updated_at: now } : t,
+      )
+    : [
+        ...detail.secondaryTicks,
+        {
+          id: `optimistic-${input.gamePlayerId}-${input.battleRound}-${input.secondaryObjectiveLineId}`,
+          game_id: detail.game.id,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          secondary_objective_line_id: input.secondaryObjectiveLineId,
+          count: input.count,
+          updated_by: input.userId,
+          updated_at: now,
+        },
+      ]
+  return { ...detail, secondaryTicks }
+}
+
+/**
+ * Ticks a mission objective line on/off (or sets a "for each" count).
+ * Purely a record of *how* the round's primary VP was reached -- the
+ * caller is responsible for also calling useUpsertRoundScore with the
+ * recomputed total, since round_scores.primary_vp stays the source of
+ * truth (and stays directly editable, independent of any tick).
+ */
+export function useUpsertPrimaryObjectiveTick(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      gamePlayerId: string
+      battleRound: number
+      missionObjectiveLineId: string
+      count: number
+      userId: string
+    }) => {
+      const { error } = await supabase.from('primary_objective_ticks').upsert(
+        {
+          game_id: gameId,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          mission_objective_line_id: input.missionObjectiveLineId,
+          count: input.count,
+          updated_by: input.userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'game_player_id,battle_round,mission_objective_line_id' },
+      )
+      if (error) throw error
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchPrimaryTick(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save that. Check your connection and try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+/** Same as useUpsertPrimaryObjectiveTick, for a secondary's scoring lines. */
+export function useUpsertSecondaryObjectiveTick(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      gamePlayerId: string
+      battleRound: number
+      secondaryObjectiveLineId: string
+      count: number
+      userId: string
+    }) => {
+      const { error } = await supabase.from('secondary_objective_ticks').upsert(
+        {
+          game_id: gameId,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          secondary_objective_line_id: input.secondaryObjectiveLineId,
+          count: input.count,
+          updated_by: input.userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'game_player_id,battle_round,secondary_objective_line_id' },
+      )
+      if (error) throw error
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchSecondaryTick(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save that. Check your connection and try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })

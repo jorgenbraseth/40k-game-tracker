@@ -6,6 +6,7 @@ export const referenceKeys = {
   mission: (missionId: string) => ['reference', 'mission', missionId] as const,
   deployments: (missionPackId: string) => ['reference', 'deployments', missionPackId] as const,
   secondaries: (missionPackId: string) => ['reference', 'secondaries', missionPackId] as const,
+  missionObjectiveLines: (missionId: string) => ['reference', 'mission-objective-lines', missionId] as const,
   factions: ['reference', 'factions'] as const,
   forceDispositions: ['reference', 'force-dispositions'] as const,
 }
@@ -76,6 +77,48 @@ export function useSecondaryObjectives(missionPackId: string | undefined) {
       return data
     },
     enabled: Boolean(missionPackId),
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+/** The actual scoring conditions printed on a mission's card -- what a player ticks/counts instead of typing a raw VP number. */
+export function useMissionObjectiveLines(missionId: string | undefined) {
+  return useQuery({
+    queryKey: referenceKeys.missionObjectiveLines(missionId ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mission_objective_lines')
+        .select('*')
+        .eq('mission_id', missionId as string)
+        .order('sort_order')
+      if (error) throw error
+      return data
+    },
+    enabled: Boolean(missionId),
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+/**
+ * All scoring lines for a set of secondary objectives (typically every
+ * secondary in the pack -- there are few enough, ~30 rows, to fetch once
+ * rather than per-card). Takes ids directly since this table has no
+ * mission_pack_id of its own -- callers already have the ids from
+ * useSecondaryObjectives().
+ */
+export function useSecondaryObjectiveLines(secondaryObjectiveIds: string[] | undefined) {
+  return useQuery({
+    queryKey: ['reference', 'secondary-objective-lines', ...(secondaryObjectiveIds ?? [])],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('secondary_objective_lines')
+        .select('*')
+        .in('secondary_objective_id', secondaryObjectiveIds as string[])
+        .order('sort_order')
+      if (error) throw error
+      return data
+    },
+    enabled: Boolean(secondaryObjectiveIds?.length),
     staleTime: Number.POSITIVE_INFINITY,
   })
 }

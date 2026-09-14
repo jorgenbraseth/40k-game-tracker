@@ -45,6 +45,13 @@ both sides) or shared live between two players' own phones.
   no "did you get that?" across the table -- and either one can enter
   either side's score, since players agree scores verbally at the table
   anyway. Tracking solo works the same way, just from one phone.
+- Scoring is pick-what-you-achieved, not type-a-number: tapping a
+  player's primary VP, or a picked secondary, opens the actual scoring
+  conditions printed on that card -- tap to mark a flat condition
+  achieved, or use a counter for a "for each..." one -- and the round's
+  total is computed from what's ticked. The total still stays directly
+  editable too (same "always editable" rule as everything else), for
+  whatever the checklist doesn't cover.
 - The app knows the actual current missions, deployments, and secondary
   objectives for whichever Chapter Approved mission pack is active --
   this isn't a generic point counter, it understands the ruleset. When a
@@ -94,16 +101,26 @@ app URL, with one caveat worth knowing before you rely on it:
   dashboard (Auth → Providers → Google) before it'll work in production;
   email/password sign-in works today without any extra setup.
 
-Mission/deployment/secondary objective names are the real Chapter
-Approved 2026-27 deck (names and VP values only, sourced from the public
-card text -- see "Ruleset / mission content" below), not placeholder
-content.
+Mission/deployment/secondary objective content is the real Chapter
+Approved 2026-27 deck, sourced from the public card text -- see "Ruleset
+/ mission content" below, including the one deliberate exception to this
+repo's usual names-and-VP-only rule (the actual scoring condition text,
+for the pick-what-you-achieved checklist) -- not placeholder content.
 
 Solo tracking is implemented: `create_game` seats the creator and also
 creates an unclaimed second seat (`game_players.user_id` is nullable) the
 creator can fill in and run themselves from the waiting room; joining by
 code later claims that same seat rather than adding a third one, and
 just grants the joiner the same edit rights the creator already had.
+
+The pick-what-you-achieved scoring checklist is implemented for both
+primary and secondary VP: `mission_objective_lines` and
+`secondary_objective_lines` hold each card's real scoring conditions
+(`mission_objective_lines`), a player ticks/counts them in
+`Scoreboard`'s `PrimaryScorePanel` and the secondary picker, and
+`primary_objective_ticks`/`secondary_objective_ticks` record what was
+ticked while `round_scores`/`secondary_scores` stay the computed,
+directly-editable source of truth.
 
 Display names never derive from email: `handle_new_user()`'s fallback
 (when a signup provides no name at all) generates a generic placeholder,
@@ -240,12 +257,9 @@ The real Chapter Approved 2026-27 deck content -- names, Force
 Disposition pairings and VP values, sourced from the public card text
 and mission generator at
 [wahapedia.ru](https://wahapedia.ru/wh40k11ed/the-rules/mission-deck-2026-27/)
-(never GW's copyrighted rules text -- how each mission actually scores
-turn by turn -- which this repo doesn't and shouldn't store; players read
-that off their own copy of the deck) -- lives in
-`supabase/migrations/20260221000000_apply_real_reference_data.sql`, **not**
-`seed.sql`. Missions and secondary objectives specifically have to be a
-migration, not a manual seed step: they were originally only in
+-- lives in `supabase/migrations/20260221000000_apply_real_reference_data.sql`,
+**not** `seed.sql`. Missions and secondary objectives specifically have
+to be a migration, not a manual seed step: they were originally only in
 `seed.sql` (which deploy.yml deliberately never runs against production,
 by design, for review before touching real reference data), and nobody
 ran it by hand after the Force Disposition redesign landed -- so
@@ -257,8 +271,22 @@ can't be forgotten the same way; it runs automatically, every deploy.
 mission_packs rows themselves (all safe to apply idempotently, unlike
 content that needs a clean replace) for local dev.
 
+**Copyright note, read this before touching mission content again:**
+everywhere else in this repo, "reference data" deliberately means names,
+categories and VP values only -- never GW's rules text (how a mission or
+secondary actually scores, turn by turn). `mission_objective_lines` and
+`secondary_objective_lines` (`supabase/migrations/20260301000000_objective_lines.sql`)
+are a **deliberate, informed exception** to that rule, made by the
+project owner after being told explicitly what it meant: `condition_text`
+in those tables *is* GW's copyrighted scoring text (via wahapedia.ru's
+public transcription), stored so a player can tick which conditions they
+achieved instead of typing a raw VP number. Don't treat this as license
+to relax the no-rules-text policy anywhere else in the app without the
+same explicit conversation -- it's still the default everywhere but here.
+
 When the next Chapter Approved deck ships: add a new `mission_packs` row
-and a new migration with its missions/secondary_objectives, the same
+and a new migration with its missions/secondary_objectives (and, if you
+want the checklist to keep working, their objective lines too), the same
 way -- don't touch the old pack's migration, existing games keep pointing
 at it.
 
