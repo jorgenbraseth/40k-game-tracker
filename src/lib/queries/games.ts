@@ -455,6 +455,30 @@ export function useAbandonGame(gameId: string) {
   })
 }
 
+/**
+ * Cancels a game outright -- unlike abandoning, this removes it from
+ * every list (Home, History) entirely rather than keeping a record.
+ * game_players/round_scores/secondary_scores cascade-delete with it.
+ * Takes the game id per-call rather than a bound gameId so it works from
+ * list rows (Home/History) as well as from inside a single game.
+ */
+export function useDeleteGame() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (gameId: string) => {
+      const { error } = await supabase.from('games').delete().eq('id', gameId)
+      if (error) throw error
+      return gameId
+    },
+    onError: () => showToast("Couldn't cancel the game. Try again."),
+    onSuccess: (gameId) => {
+      queryClient.removeQueries({ queryKey: gameKeys.detail(gameId) })
+      queryClient.invalidateQueries({ queryKey: ['games'] })
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+    },
+  })
+}
+
 /** Active (lobby/active) games the current user is part of, most recent first. */
 export function useMyActiveGames(userId: string | undefined) {
   return useQuery({

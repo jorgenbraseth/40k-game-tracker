@@ -55,6 +55,12 @@ both sides) or shared live between two players' own phones.
   permanent record of it: a round-by-round breakdown, and it folds into
   their history. A game can also be ended early -- conceded, or the
   opponent had to leave -- from any round, not just the last one.
+- Any participant can also cancel a game outright, at any stage --
+  distinct from ending it early, this removes it completely (for both
+  players, from every list) rather than keeping a record, for a game
+  that shouldn't exist at all (created by mistake, a test, wrong code
+  entered). Gated behind an explicit confirmation so a stray tap can't
+  wipe a real game.
 - **This is a bookkeeping tool, not a guided workflow.** Its job is to
   end up with the correct score, keep a clean round-by-round record of
   primary + secondary VP, and track which objectives were drawn and
@@ -114,10 +120,13 @@ model described above: score/secondary edits apply optimistically (so a
 tap shows up immediately, including while offline -- it sends once
 back online, no separate offline queue needed) with rollback and an
 error toast if a save genuinely fails; ending a game early (concede /
-opponent left) works from any round; and `game_players`/`games` state
-transitions that used to be enforced only in the UI (starting a game
-before both players are ready, cross-game score writes) are now also
-checked server-side (`start_game` RPC, RLS).
+opponent left) works from any round; canceling a game outright (distinct
+from ending it, this deletes it entirely rather than keeping a record)
+is available from the Home list, History list, waiting room, and
+scoreboard, always behind a confirm step; and `game_players`/`games`
+state transitions that used to be enforced only in the UI (starting a
+game before both players are ready, cross-game score writes) are now
+also checked server-side (`start_game` RPC, RLS).
 
 ## Stack
 
