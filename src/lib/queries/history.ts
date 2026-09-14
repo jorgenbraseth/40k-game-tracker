@@ -4,7 +4,9 @@ import { supabase } from '@/lib/supabase'
 export interface CompletedGameRow {
   gameId: string
   endedAt: string
+  /** The current user's own Primary Mission -- each player has their own, see resolve_game_mission(). */
   missionName: string
+  opponentMissionName: string
   deploymentName: string
   pointsLimit: number
   mySeat: 1 | 2
@@ -41,19 +43,24 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   if (games.length === 0) return []
 
   const completeGameIds = games.map((g) => g.id)
-  const missionIds = [...new Set(games.map((g) => g.mission_id).filter((id): id is string => Boolean(id)))]
   const deploymentIds = [...new Set(games.map((g) => g.deployment_id))]
 
-  const [playersRes, totalsRes, missionsRes, deploymentsRes] = await Promise.all([
+  const [playersRes, totalsRes, deploymentsRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', completeGameIds),
     supabase.from('game_totals').select('*').in('game_id', completeGameIds),
-    supabase.from('missions').select('id, name').in('id', missionIds),
     supabase.from('deployments').select('id, name').in('id', deploymentIds),
   ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
-  if (missionsRes.error) throw missionsRes.error
   if (deploymentsRes.error) throw deploymentsRes.error
+
+  const missionIds = [
+    ...new Set(playersRes.data.map((p) => p.mission_id).filter((id): id is string => Boolean(id))),
+  ]
+  const missionsRes = missionIds.length
+    ? await supabase.from('missions').select('id, name').in('id', missionIds)
+    : { data: [], error: null }
+  if (missionsRes.error) throw missionsRes.error
 
   const profileIds = [...new Set(playersRes.data.map((p) => p.user_id))]
   const factionIds = [...new Set(playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id)))]
@@ -94,7 +101,8 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
     rows.push({
       gameId: game.id,
       endedAt: game.ended_at ?? game.created_at,
-      missionName: (game.mission_id && missionById.get(game.mission_id)) || 'Unknown mission',
+      missionName: (me.mission_id && missionById.get(me.mission_id)) || 'Unknown mission',
+      opponentMissionName: (opponent?.mission_id && missionById.get(opponent.mission_id)) || 'Unknown mission',
       deploymentName: deploymentById.get(game.deployment_id) ?? 'Unknown deployment',
       pointsLimit: game.points_limit,
       mySeat: me.seat,

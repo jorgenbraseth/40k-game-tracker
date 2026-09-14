@@ -107,7 +107,7 @@ export function SecondaryScores({
                 className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
               >
                 <span className="text-paper">{objective.name}</span>
-                <span className="text-xs text-paper/40 capitalize">{objective.category}</span>
+                <span className="text-xs text-paper/40">up to {objective.max_vp}VP</span>
               </button>
             </li>
           ))}

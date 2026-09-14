@@ -201,7 +201,6 @@ export function useStartGame(gameId: string) {
         .update({ status: 'active', started_at: new Date().toISOString() })
         .eq('id', gameId)
         .eq('status', 'lobby')
-        .not('mission_id', 'is', null)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),

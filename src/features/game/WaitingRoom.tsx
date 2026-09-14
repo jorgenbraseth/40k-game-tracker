@@ -11,7 +11,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const { user } = useAuth()
   const factions = useFactions()
   const forceDispositions = useForceDispositions()
-  const resolvedMission = useMission(detail.game.mission_id ?? undefined)
   const setReady = useSetReady(detail.game.id)
   const setRole = useSetRole(detail.game.id)
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
@@ -22,8 +21,11 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const opponent = detail.players.find((p) => p.player.user_id !== user?.id)
   const bothReady = detail.players.length === 2 && detail.players.every((p) => p.player.is_ready)
   const bothRolesAssigned = detail.players.length === 2 && detail.players.every((p) => p.player.role)
-  const missionResolved = Boolean(detail.game.mission_id)
+  const missionResolved = detail.players.length === 2 && detail.players.every((p) => p.player.mission_id)
   const canStart = bothReady && bothRolesAssigned && missionResolved
+
+  const myMission = useMission(me?.player.mission_id ?? undefined)
+  const opponentMission = useMission(opponent?.player.mission_id ?? undefined)
 
   const startBlockedReason = !missionResolved
     ? 'Waiting on both Force Dispositions to reveal the mission'
@@ -60,11 +62,23 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
       </div>
 
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
-        <p className="mb-1 text-sm font-semibold text-paper/60 uppercase">Primary mission</p>
+        <p className="mb-1 text-sm font-semibold text-paper/60 uppercase">Primary missions</p>
         {missionResolved ? (
-          <p className="text-lg font-semibold text-gold">{resolvedMission.data?.name ?? '…'}</p>
+          <div className="flex flex-col gap-2">
+            <p>
+              <span className="text-xs text-paper/50">You: </span>
+              <span className="text-lg font-semibold text-gold">{myMission.data?.name ?? '…'}</span>
+            </p>
+            <p>
+              <span className="text-xs text-paper/50">Opponent: </span>
+              <span className="text-lg font-semibold text-gold">{opponentMission.data?.name ?? '…'}</span>
+            </p>
+          </div>
         ) : (
-          <p className="text-sm text-paper/50">Revealed once both players have picked a Force Disposition</p>
+          <p className="text-sm text-paper/50">
+            Revealed once both players have picked a Force Disposition -- each of you gets your own mission,
+            based on your opponent's choice
+          </p>
         )}
       </div>
 

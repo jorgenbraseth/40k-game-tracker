@@ -71,7 +71,6 @@ export function useSecondaryObjectives(missionPackId: string | undefined) {
         .from('secondary_objectives')
         .select('*')
         .eq('mission_pack_id', missionPackId as string)
-        .order('category')
         .order('name')
       if (error) throw error
       return data
