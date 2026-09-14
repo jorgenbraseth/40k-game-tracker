@@ -235,6 +235,91 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['join_attempts']['Row']>
         Relationships: []
       }
+      mission_objective_lines: {
+        Row: {
+          id: string
+          mission_id: string
+          window_label: string
+          when_label: string | null
+          condition_text: string
+          vp_value: number
+          is_counter: boolean
+          is_cumulative_bonus: boolean
+          sort_order: number
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['mission_objective_lines']['Row']> & {
+          mission_id: string
+          window_label: string
+          condition_text: string
+          vp_value: number
+        }
+        Update: Partial<Database['public']['Tables']['mission_objective_lines']['Row']>
+        Relationships: []
+      }
+      secondary_objective_lines: {
+        Row: {
+          id: string
+          secondary_objective_id: string
+          window_label: string
+          when_label: string | null
+          condition_text: string
+          vp_value: number
+          is_counter: boolean
+          is_cumulative_bonus: boolean
+          mode: 'fixed' | 'tactical' | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['secondary_objective_lines']['Row']> & {
+          secondary_objective_id: string
+          window_label: string
+          condition_text: string
+          vp_value: number
+        }
+        Update: Partial<Database['public']['Tables']['secondary_objective_lines']['Row']>
+        Relationships: []
+      }
+      primary_objective_ticks: {
+        Row: {
+          id: string
+          game_id: string
+          game_player_id: string
+          battle_round: number
+          mission_objective_line_id: string
+          count: number
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['primary_objective_ticks']['Row']> & {
+          game_id: string
+          game_player_id: string
+          battle_round: number
+          mission_objective_line_id: string
+        }
+        Update: Partial<Database['public']['Tables']['primary_objective_ticks']['Row']>
+        Relationships: []
+      }
+      secondary_objective_ticks: {
+        Row: {
+          id: string
+          game_id: string
+          game_player_id: string
+          battle_round: number
+          secondary_objective_line_id: string
+          count: number
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['secondary_objective_ticks']['Row']> & {
+          game_id: string
+          game_player_id: string
+          battle_round: number
+          secondary_objective_line_id: string
+        }
+        Update: Partial<Database['public']['Tables']['secondary_objective_ticks']['Row']>
+        Relationships: []
+      }
     }
     Views: {
       game_totals: {

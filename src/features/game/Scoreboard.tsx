@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { Sheet } from '@/components/Sheet'
-import { ScoreCell } from '@/components/ScoreCell'
 import { Spinner } from '@/components/Feedback'
 import { Stepper } from '@/components/Stepper'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -16,11 +15,18 @@ import {
   useSetCurrentRound,
   useSetRole,
   useUpdatePlayerSetup,
-  useUpsertRoundScore,
 } from '@/lib/queries/games'
-import { useFactions, useForceDispositions, useMission, useSecondaryObjectives } from '@/lib/queries/referenceData'
+import {
+  useFactions,
+  useForceDispositions,
+  useMission,
+  useMissionObjectiveLines,
+  useSecondaryObjectiveLines,
+  useSecondaryObjectives,
+} from '@/lib/queries/referenceData'
 import { useWakeLock } from '@/lib/useWakeLock'
 import { PlayerSetupFields } from './PlayerSetupFields'
+import { PrimaryScorePanel } from './PrimaryScorePanel'
 import { SecondaryScores } from './SecondaryScores'
 
 export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
@@ -29,10 +35,12 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const [p1, p2] = detail.players
   const p1Mission = useMission(p1?.player.mission_id ?? undefined)
   const p2Mission = useMission(p2?.player.mission_id ?? undefined)
+  const p1Lines = useMissionObjectiveLines(p1?.player.mission_id ?? undefined)
+  const p2Lines = useMissionObjectiveLines(p2?.player.mission_id ?? undefined)
   const secondaries = useSecondaryObjectives(detail.game.mission_pack_id)
+  const secondaryLines = useSecondaryObjectiveLines(secondaries.data?.map((s) => s.id))
   const factions = useFactions()
   const forceDispositions = useForceDispositions()
-  const upsertRound = useUpsertRoundScore(detail.game.id)
   const setCurrentRound = useSetCurrentRound(detail.game.id)
   const finishGame = useFinishGame(detail.game.id)
   const abandonGame = useAbandonGame(detail.game.id)
@@ -48,13 +56,24 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   useWakeLock(detail.game.status === 'active')
 
   if (!user) return null
-  if (p1Mission.isLoading || p2Mission.isLoading || secondaries.isLoading) {
+  if (
+    p1Mission.isLoading ||
+    p2Mission.isLoading ||
+    p1Lines.isLoading ||
+    p2Lines.isLoading ||
+    secondaries.isLoading ||
+    secondaryLines.isLoading
+  ) {
     return <Spinner label="Loading mission data…" />
   }
 
   const missionByPlayerId = new Map([
     [p1?.player.id, p1Mission.data],
     [p2?.player.id, p2Mission.data],
+  ])
+  const linesByPlayerId = new Map([
+    [p1?.player.id, p1Lines.data ?? []],
+    [p2?.player.id, p2Lines.data ?? []],
   ])
   const defaultMaxPrimary = 15
   const isActive = detail.game.status === 'active'
@@ -145,18 +164,15 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               )}
             </div>
 
-            <ScoreCell
-              label="Primary VP"
-              value={getRoundScore(entry.player.id)}
-              max={missionByPlayerId.get(entry.player.id)?.max_primary_vp ?? defaultMaxPrimary}
-              onChange={(vp) =>
-                upsertRound.mutate({
-                  gamePlayerId: entry.player.id,
-                  battleRound: viewRound,
-                  primaryVp: vp,
-                  userId: user.id,
-                })
-              }
+            <PrimaryScorePanel
+              gameId={detail.game.id}
+              gamePlayerId={entry.player.id}
+              battleRound={viewRound}
+              currentRoundVp={getRoundScore(entry.player.id)}
+              maxPrimary={missionByPlayerId.get(entry.player.id)?.max_primary_vp ?? defaultMaxPrimary}
+              lines={linesByPlayerId.get(entry.player.id) ?? []}
+              ticks={detail.primaryTicks}
+              userId={user.id}
             />
 
             <SecondaryScores
@@ -165,6 +181,8 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               round={viewRound}
               scores={detail.secondaryScores}
               available={(secondaries.data ?? []).filter((s) => !entry.player.role || s.role === entry.player.role)}
+              lines={secondaryLines.data ?? []}
+              ticks={detail.secondaryTicks}
               userId={user.id}
               editable
             />
