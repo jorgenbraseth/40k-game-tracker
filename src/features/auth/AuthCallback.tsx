@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Spinner } from '@/components/Feedback'
+import { showToast } from '@/lib/toast'
 import { useAuth } from './AuthProvider'
 
 /**
@@ -13,7 +14,7 @@ export function AuthCallback() {
 
   useEffect(() => {
     if (!loading && !user) {
-      // Session exchange failed or this was opened directly with no code.
+      showToast("Sign-in didn't go through. Please try again.")
     }
   }, [loading, user])
 

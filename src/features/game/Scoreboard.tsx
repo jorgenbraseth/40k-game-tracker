@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { Sheet } from '@/components/Sheet'
 import { ScoreCell } from '@/components/ScoreCell'
@@ -7,9 +7,17 @@ import { Spinner } from '@/components/Feedback'
 import { Stepper } from '@/components/Stepper'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
-import { useFinishGame, useSetCurrentRound, useUpsertRoundScore } from '@/lib/queries/games'
-import { useMission, useSecondaryObjectives } from '@/lib/queries/referenceData'
+import {
+  useAbandonGame,
+  useFinishGame,
+  useSetCurrentRound,
+  useSetRole,
+  useUpdatePlayerSetup,
+  useUpsertRoundScore,
+} from '@/lib/queries/games'
+import { useFactions, useForceDispositions, useMission, useSecondaryObjectives } from '@/lib/queries/referenceData'
 import { useWakeLock } from '@/lib/useWakeLock'
+import { PlayerSetupFields } from './PlayerSetupFields'
 import { SecondaryScores } from './SecondaryScores'
 
 export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
@@ -19,14 +27,20 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const p1Mission = useMission(p1?.player.mission_id ?? undefined)
   const p2Mission = useMission(p2?.player.mission_id ?? undefined)
   const secondaries = useSecondaryObjectives(detail.game.mission_pack_id)
+  const factions = useFactions()
+  const forceDispositions = useForceDispositions()
   const upsertRound = useUpsertRoundScore(detail.game.id)
   const setCurrentRound = useSetCurrentRound(detail.game.id)
   const finishGame = useFinishGame(detail.game.id)
+  const abandonGame = useAbandonGame(detail.game.id)
+  const updateSetup = useUpdatePlayerSetup(detail.game.id)
+  const setRole = useSetRole(detail.game.id)
 
   const [viewRound, setViewRound] = useState(detail.game.current_round)
   const [endSheetOpen, setEndSheetOpen] = useState(false)
+  const [setupSheetOpen, setSetupSheetOpen] = useState(false)
 
-  useWakeLock(true)
+  useWakeLock(detail.game.status === 'active')
 
   if (!user) return null
   if (p1Mission.isLoading || p2Mission.isLoading || secondaries.isLoading) {
@@ -38,8 +52,11 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
     [p2?.player.id, p2Mission.data],
   ])
   const defaultMaxPrimary = 15
+  const isActive = detail.game.status === 'active'
   const isLastRound = viewRound === detail.game.total_rounds
   const isViewingCurrent = viewRound === detail.game.current_round
+  const me = detail.players.find((p) => p.player.user_id === user.id)
+  const opponent = detail.players.find((p) => p.player.user_id !== user.id)
 
   const getRoundScore = (gamePlayerId: string) =>
     detail.roundScores.find((r) => r.game_player_id === gamePlayerId && r.battle_round === viewRound)?.primary_vp ?? 0
@@ -59,21 +76,38 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
 
   const endGame = async (outcome: 'seat_1' | 'seat_2' | 'draw') => {
     await finishGame.mutateAsync(outcome)
+    setEndSheetOpen(false)
+    navigate(`/game/${detail.game.id}/summary`)
+  }
+
+  const abandon = async () => {
+    await abandonGame.mutateAsync()
+    setEndSheetOpen(false)
     navigate(`/game/${detail.game.id}/summary`)
   }
 
   return (
     <div className="flex flex-col gap-5 pb-28">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-paper/50">
-            Round {detail.game.current_round} of {detail.game.total_rounds}
+            {detail.game.status === 'complete'
+              ? 'Game complete'
+              : detail.game.status === 'abandoned'
+                ? 'Game abandoned'
+                : `Round ${detail.game.current_round} of ${detail.game.total_rounds}`}
           </p>
+          {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
         </div>
-        <span className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}>
-          <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
-          opponent {opponentOnline ? 'online' : 'offline'}
-        </span>
+        <div className="flex items-center gap-3">
+          <Link to={`/game/${detail.game.id}/summary`} className="text-xs whitespace-nowrap text-paper/50 underline">
+            Summary
+          </Link>
+          <span className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}>
+            <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+            opponent {opponentOnline ? 'online' : 'offline'}
+          </span>
+        </div>
       </div>
 
       <Stepper total={detail.game.total_rounds} current={viewRound} onChange={setViewRound} />
@@ -95,6 +129,15 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               )}
               {missionByPlayerId.get(entry.player.id)?.name && (
                 <p className="mt-1 text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
+              )}
+              {entry.player.user_id === user.id && (
+                <button
+                  type="button"
+                  onClick={() => setSetupSheetOpen(true)}
+                  className="mt-1 text-[11px] text-paper/40 underline hover:text-paper"
+                >
+                  Edit your setup
+                </button>
               )}
             </div>
 
@@ -125,15 +168,16 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         ))}
       </div>
 
-      {isLastRound && isViewingCurrent ? (
+      <div className="flex flex-col gap-2">
+        {isActive && isViewingCurrent && !isLastRound && (
+          <Button variant="secondary" onClick={advanceRound}>
+            Advance to round {detail.game.current_round + 1}
+          </Button>
+        )}
         <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
-          End game
+          {isActive ? 'End game' : 'Change result'}
         </Button>
-      ) : isViewingCurrent ? (
-        <Button variant="secondary" onClick={advanceRound}>
-          Advance to round {detail.game.current_round + 1}
-        </Button>
-      ) : null}
+      </div>
 
       {/* Running totals -- always visible without scrolling, per the design brief. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 py-3 backdrop-blur">
@@ -150,7 +194,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         </div>
       </div>
 
-      <Sheet open={endSheetOpen} onClose={() => setEndSheetOpen(false)} title="End game">
+      <Sheet open={endSheetOpen} onClose={() => setEndSheetOpen(false)} title={isActive ? 'End game' : 'Change result'}>
         <div className="flex flex-col gap-3">
           <p className="text-sm text-paper/60">
             {p1?.profile?.display_name ?? 'Seat 1'}: {p1?.totalVp ?? 0} · {p2?.profile?.display_name ?? 'Seat 2'}:{' '}
@@ -172,8 +216,27 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               {p2?.profile?.display_name ?? 'Seat 2'} wins
             </Button>
           </div>
+          <Button variant="ghost" className="text-red-300" onClick={abandon} disabled={abandonGame.isPending}>
+            Abandon game (no result / opponent had to leave)
+          </Button>
+          <p className="text-center text-xs text-paper/40">
+            You can come back and change this later -- nothing here is final.
+          </p>
         </div>
       </Sheet>
+
+      {me && (
+        <Sheet open={setupSheetOpen} onClose={() => setSetupSheetOpen(false)} title="Your setup">
+          <PlayerSetupFields
+            me={me}
+            opponent={opponent}
+            factions={factions.data ?? []}
+            forceDispositions={forceDispositions.data ?? []}
+            onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
+            onSetRole={(role) => setRole.mutate({ gamePlayerId: me.player.id, role })}
+          />
+        </Sheet>
+      )}
     </div>
   )
 }

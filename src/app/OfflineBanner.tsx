@@ -6,7 +6,7 @@ export function OfflineBanner() {
 
   return (
     <div className="bg-red-900 px-4 py-1.5 text-center text-xs font-medium text-paper">
-      You're offline. Scores will sync once you're back online.
+      You're offline. Your taps are saved on this screen and will send once you're back online.
     </div>
   )
 }

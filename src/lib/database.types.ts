@@ -282,6 +282,10 @@ export interface Database {
         Args: { p_game_id: string }
         Returns: undefined
       }
+      start_game: {
+        Args: { p_game_id: string }
+        Returns: undefined
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

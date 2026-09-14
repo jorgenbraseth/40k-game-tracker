@@ -39,7 +39,7 @@ export function HistoryPage() {
                     'rounded-full px-2 py-0.5 text-xs font-semibold uppercase',
                     game.result === 'win' && 'bg-green-900/50 text-green-300',
                     game.result === 'loss' && 'bg-red-900/50 text-red-300',
-                    game.result === 'draw' && 'bg-white/10 text-paper/60',
+                    (game.result === 'draw' || game.result === 'abandoned') && 'bg-white/10 text-paper/60',
                   )}
                 >
                   {game.result}

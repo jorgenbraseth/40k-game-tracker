@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Button } from '@/components/Button'
-import { Select } from '@/components/Select'
-import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
 import { useSetReady, useSetRole, useStartGame, useUpdatePlayerSetup } from '@/lib/queries/games'
 import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
+import { PlayerSetupFields } from './PlayerSetupFields'
 
 export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
   const { user } = useAuth()
@@ -85,61 +84,14 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
         <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Your setup</p>
         <div className="flex flex-col gap-3">
-          <Select
-            label="Force Disposition"
-            value={me.player.force_disposition_id ?? ''}
-            onChange={(e) =>
-              updateSetup.mutate({ gamePlayerId: me.player.id, forceDispositionId: e.target.value || null })
-            }
-          >
-            <option value="">Pick Force Disposition</option>
-            {forceDispositions.data?.map((fd) => (
-              <option key={fd.id} value={fd.id}>
-                {fd.name}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            label="Faction"
-            value={me.player.faction_id ?? ''}
-            onChange={(e) => updateSetup.mutate({ gamePlayerId: me.player.id, factionId: e.target.value || null })}
-          >
-            <option value="">Pick faction</option>
-            {factions.data?.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </Select>
-          <TextField
-            label="Army name"
-            defaultValue={me.player.army_name ?? ''}
-            onBlur={(e) => updateSetup.mutate({ gamePlayerId: me.player.id, armyName: e.target.value || null })}
+          <PlayerSetupFields
+            me={me}
+            opponent={opponent}
+            factions={factions.data ?? []}
+            forceDispositions={forceDispositions.data ?? []}
+            onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
+            onSetRole={(role) => setRole.mutate({ gamePlayerId: me.player.id, role })}
           />
-
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-paper/80">Role</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['attacker', 'defender'] as const).map((role) => {
-                const takenByOpponent = opponent?.player.role === role
-                const mine = me.player.role === role
-                return (
-                  <Button
-                    key={role}
-                    type="button"
-                    variant={mine ? 'primary' : 'secondary'}
-                    disabled={takenByOpponent && !mine}
-                    onClick={() => setRole.mutate({ gamePlayerId: me.player.id, role: mine ? null : role })}
-                    className="capitalize"
-                  >
-                    {role}
-                    {takenByOpponent && !mine ? ' (taken)' : ''}
-                  </Button>
-                )
-              })}
-            </div>
-          </div>
 
           <Button
             variant={me.player.is_ready ? 'secondary' : 'primary'}
@@ -147,6 +99,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
           >
             {me.player.is_ready ? 'Ready ✓ (tap to undo)' : "I'm ready"}
           </Button>
+          <p className="text-center text-xs text-paper/40">
+            Picked something wrong? All of this stays editable after the game starts too.
+          </p>
         </div>
       </div>
 

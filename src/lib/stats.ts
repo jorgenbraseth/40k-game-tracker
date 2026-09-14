@@ -45,6 +45,7 @@ export function computeStats(rows: CompletedGameRow[]): StatsSummary {
   }
 
   for (const row of rows) {
+    if (row.result === 'abandoned') continue // no win/loss/draw to record
     tally(overall, row.result)
     bump(byFactionMap, row.myFactionName ?? 'Unknown faction', row.result)
     bump(byMissionMap, row.missionName, row.result)
