@@ -181,6 +181,7 @@ export interface Database {
           role: PlayerRole | null
           turn_order: TurnOrder | null
           represents_user_id: string | null
+          painted_bonus: boolean
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['game_players']['Row']> & {
@@ -382,6 +383,7 @@ export interface Database {
           seat: 1 | 2
           primary_total: number
           secondary_total: number
+          painted_bonus_vp: number
           total_vp: number
         }
         Relationships: []

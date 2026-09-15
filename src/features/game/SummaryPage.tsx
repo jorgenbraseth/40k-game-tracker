@@ -31,7 +31,12 @@ export function SummaryPage() {
     return won ? 'Victory' : 'Defeat'
   })()
 
-  const rounds = Array.from({ length: game.total_rounds }, (_, i) => i + 1)
+  // One extra pseudo-round past the last real battle round, for the handful of mission lines
+  // only checked at the very end of the game (see Scoreboard's endOfGameRound) -- round_scores
+  // stores it the same way as any other round, just under a round number no mission's own
+  // windows ever use.
+  const endOfGameRound = game.total_rounds + 1
+  const rounds = [...Array.from({ length: game.total_rounds }, (_, i) => i + 1), endOfGameRound]
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,6 +63,7 @@ export function SummaryPage() {
             <p className="mt-2 text-3xl font-bold text-gold">{entry.totalVp}</p>
             <p className="text-xs text-paper/40">
               {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
+              {entry.paintedBonusVp > 0 && ` + ${entry.paintedBonusVp} painted`}
             </p>
           </div>
         ))}
@@ -86,7 +92,7 @@ export function SummaryPage() {
               }
               return (
                 <tr key={round} className="border-b border-white/5 last:border-0">
-                  <td className="px-3 py-2 text-paper/70">{round}</td>
+                  <td className="px-3 py-2 text-paper/70">{round === endOfGameRound ? 'End' : round}</td>
                   <td className="px-3 py-2 text-right text-paper">{score(p1?.player.id)}</td>
                   <td className="px-3 py-2 text-right text-paper">{score(p2?.player.id)}</td>
                 </tr>
