@@ -16,6 +16,12 @@ type SecondaryObjective = Database['public']['Tables']['secondary_objectives']['
 type SecondaryObjectiveLine = Database['public']['Tables']['secondary_objective_lines']['Row']
 type SecondaryTick = Database['public']['Tables']['secondary_objective_ticks']['Row']
 
+/** Same core-rule caps as primary (see PrimaryScorePanel): no matter how many secondaries a
+ * player scores, no more than 15VP from secondary in a single round or 45VP over the game --
+ * on top of whatever a single card's own max_vp already limits. */
+const MAX_SECONDARY_VP_PER_ROUND = 15
+const MAX_SECONDARY_VP_PER_GAME = 45
+
 /**
  * Tactical secondaries are drawn cumulatively (2 more each round) and scored from that whole
  * cumulative pool, not just what was drawn this round -- a player may score any not-yet-scored
@@ -87,6 +93,27 @@ export function SecondaryScores({
       .map((t) => [t.secondary_objective_line_id, t.count]),
   )
 
+  // What this secondary can still be raised to, on top of its own card max: whatever's left of
+  // this round's 15VP secondary cap and the game's 45VP secondary cap, excluding what this same
+  // secondary already contributes to each (so re-scoring it doesn't double-count itself).
+  const capForScoring = (() => {
+    if (!scoringObjectiveId) return 0
+    const roundOthers = myScores
+      .filter((s) => s.battle_round === round && s.secondary_objective_id !== scoringObjectiveId)
+      .reduce((sum, s) => sum + s.vp_scored, 0)
+    const gameOthers = myScores
+      .filter((s) => s.secondary_objective_id !== scoringObjectiveId)
+      .reduce((sum, s) => sum + s.vp_scored, 0)
+    return Math.max(
+      0,
+      Math.min(
+        scoringObjective?.max_vp ?? 15,
+        MAX_SECONDARY_VP_PER_ROUND - roundOthers,
+        MAX_SECONDARY_VP_PER_GAME - gameOthers,
+      ),
+    )
+  })()
+
   const handleChangeCount = (lineId: string, newCount: number) => {
     if (!scoringObjectiveId) return
     tick.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveLineId: lineId, count: newCount, userId })
@@ -94,7 +121,7 @@ export function SecondaryScores({
       (sum, l) => sum + (l.id === lineId ? newCount : (counts.get(l.id) ?? 0)) * l.vp_value,
       0,
     )
-    const clamped = Math.max(0, Math.min(scoringObjective?.max_vp ?? 5, newTotal))
+    const clamped = Math.max(0, Math.min(capForScoring, newTotal))
     upsert.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId: scoringObjectiveId, vpScored: clamped, userId })
   }
 
@@ -263,13 +290,13 @@ export function SecondaryScores({
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    max={scoringObjective?.max_vp ?? 15}
+                    max={capForScoring}
                     autoFocus
                     value={manualDraft}
                     onChange={(e) => setManualDraft(e.target.value)}
                     onBlur={() => {
                       if (!scoringObjectiveId) return
-                      const vp = Math.max(0, Math.min(scoringObjective?.max_vp ?? 15, Number(manualDraft) || 0))
+                      const vp = Math.max(0, Math.min(capForScoring, Number(manualDraft) || 0))
                       upsert.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId: scoringObjectiveId, vpScored: vp, userId })
                       setManualDraft(null)
                     }}

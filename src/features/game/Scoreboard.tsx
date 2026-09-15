@@ -15,6 +15,7 @@ import {
   useFinishGame,
   useSetCurrentRound,
   useSetLayoutVariant,
+  useSetPaintedBonus,
   useSetRole,
   useSetTurnOrder,
   useUpdatePlayerSetup,
@@ -47,6 +48,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const forceDispositions = useForceDispositions()
   const setCurrentRound = useSetCurrentRound(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
+  const setPaintedBonus = useSetPaintedBonus(detail.game.id)
   const finishGame = useFinishGame(detail.game.id)
   const abandonGame = useAbandonGame(detail.game.id)
   const deleteGame = useDeleteGame()
@@ -83,8 +85,13 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
     [p2?.player.id, p2Lines.data ?? []],
   ])
   const defaultMaxPrimary = 15
+  // One pseudo-round past the last real battle round, for scoring that's only checked at the
+  // very end of the game ("End of the Battle" in mission_objective_lines) and the painted-army
+  // bonus -- same round_scores/primary_objective_ticks machinery as a real round (see the
+  // 20260312000000 migration), just a round number no mission ever uses for its own windows.
+  const endOfGameRound = detail.game.total_rounds + 1
   const isActive = detail.game.status === 'active'
-  const isLastRound = viewRound === detail.game.total_rounds
+  const isLastRound = viewRound === endOfGameRound
   const isViewingCurrent = viewRound === detail.game.current_round
 
   // Once both players have settled the "who takes the first turn" roll-off,
@@ -106,7 +113,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
     detail.roundScores.find((r) => r.game_player_id === gamePlayerId && r.battle_round === viewRound)?.primary_vp ?? 0
 
   const advanceRound = () => {
-    const next = Math.min(detail.game.total_rounds, detail.game.current_round + 1)
+    const next = Math.min(endOfGameRound, detail.game.current_round + 1)
     setCurrentRound.mutate(next)
     setViewRound(next)
   }
@@ -145,7 +152,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               ? 'Game complete'
               : detail.game.status === 'abandoned'
                 ? 'Game abandoned'
-                : `Round ${detail.game.current_round} of ${detail.game.total_rounds}`}
+                : detail.game.current_round === endOfGameRound
+                  ? 'End of game'
+                  : `Round ${detail.game.current_round} of ${detail.game.total_rounds}`}
           </p>
           {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
           {detail.game.layout_variant && (
@@ -174,7 +183,12 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         </div>
       </div>
 
-      <Stepper total={detail.game.total_rounds} current={viewRound} onChange={setViewRound} />
+      <Stepper
+        total={endOfGameRound}
+        current={viewRound}
+        onChange={setViewRound}
+        labels={{ [endOfGameRound]: 'End' }}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {orderedPlayers.map((entry) => (
@@ -214,25 +228,55 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               gameId={detail.game.id}
               gamePlayerId={entry.player.id}
               battleRound={viewRound}
+              endOfGameRound={endOfGameRound}
               currentRoundVp={getRoundScore(entry.player.id)}
               maxPrimary={missionByPlayerId.get(entry.player.id)?.max_primary_vp ?? defaultMaxPrimary}
+              otherRoundsTotal={entry.primaryTotal - getRoundScore(entry.player.id)}
               lines={linesByPlayerId.get(entry.player.id) ?? []}
               ticks={detail.primaryTicks}
               userId={user.id}
             />
 
-            <SecondaryScores
-              gameId={detail.game.id}
-              gamePlayerId={entry.player.id}
-              round={viewRound}
-              scores={detail.secondaryScores}
-              draws={detail.secondaryDraws}
-              available={(secondaries.data ?? []).filter((s) => !entry.player.role || s.role === entry.player.role)}
-              lines={secondaryLines.data ?? []}
-              ticks={detail.secondaryTicks}
-              userId={user.id}
-              editable
-            />
+            {viewRound === endOfGameRound ? (
+              entry.player.user_id === user.id || !entry.player.user_id ? (
+                <label className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm">
+                  <span className="text-paper/80">
+                    Army painted <span className="text-paper/40">(+10VP)</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={entry.player.painted_bonus}
+                    onChange={(e) =>
+                      setPaintedBonus.mutate({ gamePlayerId: entry.player.id, paintedBonus: e.target.checked })
+                    }
+                    className="h-5 w-5 accent-gold"
+                  />
+                </label>
+              ) : (
+                // painted_bonus is a game_players column, so only the seat's own account (or an
+                // unclaimed seat, above) can write it -- unlike round/secondary scores, which any
+                // participant can enter for either side (see round_scores' RLS comment).
+                <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-paper/60">
+                  <span>
+                    Army painted <span className="text-paper/40">(+10VP)</span>
+                  </span>
+                  <span className="font-medium text-paper">{entry.player.painted_bonus ? 'Yes' : 'No'}</span>
+                </p>
+              )
+            ) : (
+              <SecondaryScores
+                gameId={detail.game.id}
+                gamePlayerId={entry.player.id}
+                round={viewRound}
+                scores={detail.secondaryScores}
+                draws={detail.secondaryDraws}
+                available={(secondaries.data ?? []).filter((s) => !entry.player.role || s.role === entry.player.role)}
+                lines={secondaryLines.data ?? []}
+                ticks={detail.secondaryTicks}
+                userId={user.id}
+                editable
+              />
+            )}
           </div>
         ))}
       </div>
@@ -247,7 +291,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
             )}
             {!isLastRound && (
               <Button variant="secondary" className="flex-1" onClick={advanceRound}>
-                Advance to round {detail.game.current_round + 1}
+                {detail.game.current_round + 1 === endOfGameRound
+                  ? 'Advance to End of Game'
+                  : `Advance to round ${detail.game.current_round + 1}`}
               </Button>
             )}
           </div>

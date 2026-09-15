@@ -69,19 +69,32 @@ players' own phones if they'd both rather enter their own numbers.
   step on top of that; once the fields are filled in, either player can
   just start the game.
 - Once the game starts, primary VP and secondary objectives are scored
-  round by round (5 battle rounds). With two players each on their own
-  phone, scores update live for both as they're entered -- no refreshing,
-  no "did you get that?" across the table -- and either one can enter
-  either side's score, since players agree scores verbally at the table
-  anyway. Bookkeeping both sides yourself works the same way, just from
-  one phone.
-- Scoring is pick-what-you-achieved, not type-a-number: tapping a
-  player's primary VP, or a picked secondary, opens the actual scoring
-  conditions printed on that card -- tap to mark a flat condition
-  achieved, or use a counter for a "for each..." one -- and the round's
-  total is computed from what's ticked. The total still stays directly
-  editable too (same "always editable" rule as everything else), for
-  whatever the checklist doesn't cover.
+  round by round (5 battle rounds, then an End of Game step -- see
+  below). With two players each on their own phone, scores update live
+  for both as they're entered -- no refreshing, no "did you get that?"
+  across the table -- and either one can enter either side's score,
+  since players agree scores verbally at the table anyway. Bookkeeping
+  both sides yourself works the same way, just from one phone.
+- Scoring is pick-what-you-achieved, not type-a-number: the round
+  overview shows a player's primary VP as the actual scoring conditions
+  printed on the resolved mission's card, right there -- not hidden
+  behind a tap-to-open square -- tap to mark a flat condition achieved,
+  or use a counter for a "for each..." one, and the round's total is
+  computed from what's ticked. Only the conditions whose printed timing
+  window (e.g. "2nd Battle Round onwards") is actually live for the
+  round being viewed are shown, so a player is never offered scoring
+  that doesn't apply yet. The total still stays directly editable too
+  (same "always editable" rule as everything else), for whatever the
+  checklist doesn't cover. A handful of missions also award a few more
+  VP once, checked only at the very end of the game rather than in any
+  particular round -- that's the End of Game step after round 5, where
+  those conditions (and only those) become scorable. No matter how a
+  mission's own conditions add up, the app holds primary and secondary
+  each to the real core-rule caps: 15VP per round, 45VP per game -- the
+  round overview always shows a total capped at what's actually still
+  achievable, not a raw, uncapped sum. The End of Game step is also
+  where each player's army can be marked painted, for a flat +10VP
+  bonus each -- its own thing, not counted as primary or secondary.
 - Secondaries follow the real Tactical deck flow: each round a player
   draws 2 new secondary cards (manually, or at random), and in any round
   may score any not-yet-scored secondary they've drawn *so far this
@@ -202,12 +215,54 @@ display falls back to seat order, unchanged from before this existed.
 
 The pick-what-you-achieved scoring checklist is implemented for both
 primary and secondary VP: `mission_objective_lines` and
-`secondary_objective_lines` hold each card's real scoring conditions
-(`mission_objective_lines`), a player ticks/counts them in
-`Scoreboard`'s `PrimaryScorePanel` and the secondary picker, and
-`primary_objective_ticks`/`secondary_objective_ticks` record what was
-ticked while `round_scores`/`secondary_scores` stay the computed,
-directly-editable source of truth.
+`secondary_objective_lines` hold each card's real scoring conditions, a
+player ticks/counts them, and `primary_objective_ticks`/
+`secondary_objective_ticks` record what was ticked while
+`round_scores`/`secondary_scores` stay the computed, directly-editable
+source of truth. For primary, the checklist is shown directly in the
+round overview (`Scoreboard`'s `PrimaryScorePanel`) rather than behind a
+tap-to-open square, and only the conditions whose window is actually
+live for the round being viewed -- `src/lib/missionWindows.ts` parses
+each line's printed `window_label` ("Second Battle Round Onwards",
+"First and Second Battle Round", "End of the Battle", ...) into which
+round(s) it applies to, so e.g. round 1 never shows "2nd Battle Round
+onwards" scoring.
+
+Both primary and secondary now hold to the real core-rule caps -- 15VP
+per round, 45VP per game, each -- not just whatever a mission's own
+conditions add up to: `PrimaryScorePanel` clamps a round's checklist
+total (and its manual override) to whatever's left of both caps, using
+each player's own running total from `game_totals`; `SecondaryScores`
+does the same across however many secondaries are scored in one round,
+on top of each card's own `max_vp`. `round_scores.primary_vp` and
+`secondary_scores.vp_scored` also carry a matching `<= 15` check
+constraint server-side (added `not valid`, so it can't fail applying
+over existing game data, but still enforces on every write from here
+on) as defence in depth -- the aggregate round/game caps stay
+client-enforced only, same as everywhere else in this app that trusts
+the UI to already be clamping rather than adding a database trigger for
+it.
+
+A handful of missions also award a few more VP once, checked only at
+the very end of the game ("End of the Battle" in
+`mission_objective_lines`) rather than in any particular battle round --
+that's the **End of Game** step, one past the last real battle round
+(`Scoreboard`'s `endOfGameRound`, `total_rounds + 1`; the `Stepper`
+shows it as an "End" tab). It reuses the exact same `round_scores`/
+`primary_objective_ticks` machinery as a real round, just for
+end-of-battle-only lines instead of round-windowed ones --
+`round_scores.battle_round`'s check constraint was widened from 1-5 to
+1-6 to make room, purely a modelling choice, not a real 6th battle
+round. Secondaries aren't scored there (the real Tactical deck has no
+end-of-battle timing), so `SecondaryScores` simply isn't shown on that
+step. The End of Game step is also where the painted-army bonus lives:
+a plain checkbox, own seat only (`game_players.painted_bonus`, a flat
++10VP each via `game_totals.painted_bonus_vp`, folded into `total_vp`
+but tracked separately from primary/secondary) -- unlike round/secondary
+scores, this one *isn't* bookkeeper-writable for the other side, since
+it's a `game_players` column and that table's RLS only allows a seat's
+own account (or an unclaimed seat) to write it; a claimed opponent seat
+shows it read-only instead.
 
 Secondaries are tracked the way Tactical secondaries actually work: 2
 new cards are drawn each round (`secondary_draws`, one row per
@@ -221,9 +276,7 @@ highlighted when that's the round currently being viewed), then already
 groups ordered by draw round, oldest first -- with a "+ Draw a
 secondary" picker that either draws a specific card or, via "🎲 Draw
 random", picks uniformly at random from whatever's left in that role's
-deck. The combined 15VP-per-round cap on secondary scoring isn't
-enforced (or shown) yet -- each secondary is still only clamped to its
-own `max_vp`.
+deck.
 
 Ladders are implemented: the Ladders page lists every ladder (yours and
 others'), `create_ladder` makes a new one and seats its creator, joining

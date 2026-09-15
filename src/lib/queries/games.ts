@@ -23,6 +23,9 @@ export interface GameDetail {
     forceDispositionName: string | null
     primaryTotal: number
     secondaryTotal: number
+    /** +10VP if this player's army is painted (game_players.painted_bonus) -- its own thing, not
+     * primary or secondary VP, entered on the End of Game screen. */
+    paintedBonusVp: number
     totalVp: number
   }>
   roundScores: Database['public']['Tables']['round_scores']['Row'][]
@@ -107,6 +110,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
           : null,
         primaryTotal: totals?.primary_total ?? 0,
         secondaryTotal: totals?.secondary_total ?? 0,
+        paintedBonusVp: totals?.painted_bonus_vp ?? 0,
         totalVp: totals?.total_vp ?? 0,
       }
     }),
@@ -502,6 +506,46 @@ export function useSetLayoutVariant(gameId: string) {
     onError: (_error, _layoutVariant, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't set the layout. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+/**
+ * The painted-army bonus (+10VP each, if a player's army is painted) is entered on the End of
+ * Game screen -- either player may set either seat's, same "bookkeeper enters both sides"
+ * reasoning as round/secondary scores, not the "own seat only" rule setup fields use.
+ */
+export function useSetPaintedBonus(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { gamePlayerId: string; paintedBonus: boolean }) => {
+      const { error } = await supabase
+        .from('game_players')
+        .update({ painted_bonus: input.paintedBonus })
+        .eq('id', input.gamePlayerId)
+      if (error) throw error
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) {
+        const delta = (input.paintedBonus ? 10 : 0) - (previous.players.find((p) => p.player.id === input.gamePlayerId)?.paintedBonusVp ?? 0)
+        const withPlayerField = patchPlayerField(previous, input.gamePlayerId, { painted_bonus: input.paintedBonus })
+        queryClient.setQueryData(gameKeys.detail(gameId), {
+          ...withPlayerField,
+          players: withPlayerField.players.map((p) =>
+            p.player.id === input.gamePlayerId
+              ? { ...p, paintedBonusVp: p.paintedBonusVp + delta, totalVp: p.totalVp + delta }
+              : p,
+          ),
+        })
+      }
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save the painted bonus. Try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
