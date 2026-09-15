@@ -55,6 +55,12 @@ players' own phones if they'd both rather enter their own numbers.
   setup, and whoever went first (the "top of round" player, as opposed
   to "bottom of round") shows first on the live Scoreboard once both
   have picked.
+- Starting a game requires every one of those setup fields filled in for
+  *both* seats -- Force Disposition, faction, layout, Attacker/Defender,
+  and who went first -- with one deliberate exception: army name, which
+  is flavour text with no gameplay effect, stays optional forever. There
+  is no separate "ready" step on top of that; once the fields are
+  filled in, either player can just start the game.
 - Once the game starts, primary VP and secondary objectives are scored
   round by round (5 battle rounds). With two players each on their own
   phone, scores update live for both as they're entered -- no refreshing,
@@ -243,12 +249,12 @@ mission is resolved (so the Force Disposition pairing is known), the
 layout picker lives at the bottom of `PlayerSetupFields` -- the same
 form as Force Disposition/faction/army/Attacker-Defender -- both in the
 waiting room and in the live Scoreboard's "Edit your setup" sheet.
-Picking a layout is **required to start a game** (`WaitingRoom`'s
-`canStart`, alongside both players being ready and having claimed a
-role), but like every other setup field it stays freely editable for
-the life of the game once chosen -- required-before-start and
-always-editable-after are not in tension, `role`/`is_ready` already work
-the same way.
+Picking a layout is **required to start a game**, same as every setup
+field except army name (`WaitingRoom`'s `canStart`, and the `start_game`
+RPC server-side), but like every other setup field it stays freely
+editable for the life of the game once chosen -- required-before-start
+and always-editable-after are not in tension, `role`/`turn_order`
+already work the same way.
 
 Display names never derive from email: `handle_new_user()`'s fallback
 (when a signup provides no name at all) generates a generic placeholder,
@@ -270,8 +276,8 @@ from ending it, this deletes it entirely rather than keeping a record)
 is available from the Home list, History list, waiting room, and
 scoreboard, always behind a confirm step; and `game_players`/`games`
 state transitions that used to be enforced only in the UI (starting a
-game before both players are ready, cross-game score writes) are now
-also checked server-side (`start_game` RPC, RLS).
+game before its setup is actually complete, cross-game score writes) are
+now also checked server-side (`start_game` RPC, RLS).
 
 ## Stack
 
@@ -426,8 +432,8 @@ not the deployment (wahapedia's own page script resolves them that way,
 see the migration's comment) -- a deployment picks the battlefield shape,
 a layout picks the terrain piece placement on it, and the two are chosen
 independently. Picking a layout (`games.layout_variant`) is required
-before a game can start, same as claiming Attacker/Defender or marking
-ready -- but, like those, stays freely editable for the life of the
+before a game can start, same as every other setup field except army
+name -- but, like those, stays freely editable for the life of the
 game once set.
 
 When the next Chapter Approved deck ships: add a new `mission_packs` row

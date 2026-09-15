@@ -329,31 +329,6 @@ export function useJoinGame() {
   })
 }
 
-export function useSetReady(gameId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; isReady: boolean }) => {
-      const { error } = await supabase
-        .from('game_players')
-        .update({ is_ready: input.isReady })
-        .eq('id', input.gamePlayerId)
-      if (error) throw error
-    },
-    onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
-      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
-      if (previous)
-        queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, { is_ready: input.isReady }))
-      return { previous }
-    },
-    onError: (_error, _input, context) => {
-      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
-      showToast("Couldn't update ready status. Try again.")
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
-  })
-}
-
 export function useUpdatePlayerSetup(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
