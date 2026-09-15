@@ -33,6 +33,10 @@ export interface GameDetail {
     totalVp: number
   }>
   roundScores: Database['public']['Tables']['round_scores']['Row'][]
+  /** Command Points gained/spent per seat per battle round -- entered manually, same as every
+   * other score, never auto-granted. Remaining CP is just the running sum, computed where it's
+   * displayed rather than stored (see 20260322000000_command_points.sql). */
+  commandPoints: Database['public']['Tables']['command_points']['Row'][]
   secondaryScores: Database['public']['Tables']['secondary_scores']['Row'][]
   secondaryDraws: Database['public']['Tables']['secondary_draws']['Row'][]
   primaryTicks: Database['public']['Tables']['primary_objective_ticks']['Row'][]
@@ -71,6 +75,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     primaryTicksRes,
     secondaryTicksRes,
     verificationsRes,
+    commandPointsRes,
   ] = await Promise.all([
     supabase.from('games').select('*').eq('id', gameId).single(),
     supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
@@ -81,6 +86,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     supabase.from('primary_objective_ticks').select('*').eq('game_id', gameId),
     supabase.from('secondary_objective_ticks').select('*').eq('game_id', gameId),
     supabase.from('game_player_verifications').select('*').eq('game_id', gameId),
+    supabase.from('command_points').select('*').eq('game_id', gameId),
   ])
 
   if (gameRes.error) throw gameRes.error
@@ -92,6 +98,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (primaryTicksRes.error) throw primaryTicksRes.error
   if (secondaryTicksRes.error) throw secondaryTicksRes.error
   if (verificationsRes.error) throw verificationsRes.error
+  if (commandPointsRes.error) throw commandPointsRes.error
 
   // A seat nobody has joined yet has user_id = null (the bookkeeper can
   // fill it in themselves, on behalf of a player who never needs to sign
@@ -151,12 +158,23 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
       }
     }),
     roundScores: roundRes.data,
+    commandPoints: commandPointsRes.data,
     secondaryScores: secondaryRes.data,
     secondaryDraws: secondaryDrawsRes.data,
     primaryTicks: primaryTicksRes.data,
     secondaryTicks: secondaryTicksRes.data,
     verifications: verificationsRes.data,
   }
+}
+
+/** A seat's running CP total: every round's cp_gained, minus every round's cp_spent, added up --
+ * never stored, computed here the same "replay the rows live" way game_totals used to be
+ * miscomputed server-side (see 20260321000000_fix_game_totals_fanout.sql) and everywhere else in
+ * this app trusts a live sum over a cached one. */
+export function remainingCp(commandPoints: GameDetail['commandPoints'], gamePlayerId: string): number {
+  return commandPoints
+    .filter((cp) => cp.game_player_id === gamePlayerId)
+    .reduce((sum, cp) => sum + cp.cp_gained - cp.cp_spent, 0)
 }
 
 /** Optimistic-patch helpers -- keep the score UI responsive (and correct while offline/paused) without waiting on a round-trip. */
@@ -206,6 +224,36 @@ function patchRoundScore(
         : p,
     ),
   }
+}
+
+function patchCommandPoints(
+  detail: GameDetail,
+  input: { gamePlayerId: string; battleRound: number; cpGained: number; cpSpent: number; userId: string },
+): GameDetail {
+  const existing = detail.commandPoints.find(
+    (cp) => cp.game_player_id === input.gamePlayerId && cp.battle_round === input.battleRound,
+  )
+  const now = new Date().toISOString()
+  const commandPoints = existing
+    ? detail.commandPoints.map((cp) =>
+        cp === existing
+          ? { ...cp, cp_gained: input.cpGained, cp_spent: input.cpSpent, updated_by: input.userId, updated_at: now }
+          : cp,
+      )
+    : [
+        ...detail.commandPoints,
+        {
+          id: `optimistic-${input.gamePlayerId}-${input.battleRound}`,
+          game_id: detail.game.id,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          cp_gained: input.cpGained,
+          cp_spent: input.cpSpent,
+          updated_by: input.userId,
+          updated_at: now,
+        },
+      ]
+  return { ...detail, commandPoints }
 }
 
 function patchSecondaryUpsert(
@@ -729,6 +777,44 @@ export function useUpsertRoundScore(gameId: string) {
     onError: (_error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save that score. Check your connection and try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+export function useUpsertCommandPoints(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      gamePlayerId: string
+      battleRound: number
+      cpGained: number
+      cpSpent: number
+      userId: string
+    }) => {
+      const { error } = await supabase.from('command_points').upsert(
+        {
+          game_id: gameId,
+          game_player_id: input.gamePlayerId,
+          battle_round: input.battleRound,
+          cp_gained: input.cpGained,
+          cp_spent: input.cpSpent,
+          updated_by: input.userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'game_player_id,battle_round' },
+      )
+      if (error) throw error
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchCommandPoints(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save Command Points. Check your connection and try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })

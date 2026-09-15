@@ -72,6 +72,11 @@ export function useGameChannel(gameId: string | undefined, me: PresenceMeta | nu
         { event: '*', schema: 'public', table: 'game_player_verifications', filter: `game_id=eq.${gameId}` },
         invalidate,
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'command_points', filter: `game_id=eq.${gameId}` },
+        invalidate,
+      )
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceMeta>()
         const otherPlayers = Object.values(state)
