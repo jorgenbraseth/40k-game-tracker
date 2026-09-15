@@ -592,6 +592,33 @@ export function useSetLayoutVariant(gameId: string) {
   })
 }
 
+/** Which ladder (if any) this game's tagged to -- a shared, game-level decision same as layout,
+ * so it lives in GameConfigPicker alongside it, and stays editable for the life of the game like
+ * everything else here. `games`' own RLS ("participants can update their games") already permits
+ * writing any column including ladder_id, so this needs no new policy -- only which options the
+ * client offers (the ladders this viewer's actually a member of) is a UI concern, not a security
+ * one. */
+export function useSetLadder(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (ladderId: string | null) => {
+      const { error } = await supabase.from('games').update({ ladder_id: ladderId }).eq('id', gameId)
+      if (error) throw error
+    },
+    onMutate: async (ladderId) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchGame(previous, { ladder_id: ladderId }))
+      return { previous }
+    },
+    onError: (_error, _ladderId, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't change the ladder. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
 /**
  * The painted-army bonus (+10VP each, if a player's army is painted) is entered on the End of
  * Game screen -- either player may set either seat's, same "bookkeeper enters both sides"

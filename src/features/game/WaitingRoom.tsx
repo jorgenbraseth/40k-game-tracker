@@ -10,12 +10,14 @@ import {
   playerUserId,
   setMirroredField,
   useDeleteGame,
+  useSetLadder,
   useSetLayoutVariant,
   useSetRole,
   useSetTurnOrder,
   useStartGame,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
+import { useLadders } from '@/lib/queries/ladders'
 import { useFactions, useForceDispositions, useMission, useMissionsForPack } from '@/lib/queries/referenceData'
 import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
@@ -31,12 +33,17 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const updateSetup = useUpdatePlayerSetup(detail.game.id, missionsForPack.data)
   const startGame = useStartGame(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
+  const setLadder = useSetLadder(detail.game.id)
+  const ladders = useLadders(user?.id)
   const deleteGame = useDeleteGame()
   const [copied, setCopied] = useState(false)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
 
   const me = detail.players.find((p) => p.player.user_id === user?.id)
   const opponent = detail.players.find((p) => p.player.user_id !== user?.id)
+  const ladderOptions = (ladders.data ?? [])
+    .filter((l) => (l.isMember && !l.archivedAt) || l.id === detail.game.ladder_id)
+    .map((l) => ({ id: l.id, name: l.name }))
   const missionResolved = detail.players.length === 2 && detail.players.every((p) => p.player.mission_id)
   const bothFactionsSet = detail.players.length === 2 && detail.players.every((p) => p.player.faction_id)
   const layoutChosen = Boolean(detail.game.layout_variant)
@@ -174,6 +181,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             layoutMission={myMission.data ?? opponentMission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
+            ladderId={detail.game.ladder_id}
+            ladderOptions={ladderOptions}
+            onSetLadder={(ladderId) => setLadder.mutate(ladderId)}
             onSetRole={(role) =>
               setMirroredField(
                 (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),

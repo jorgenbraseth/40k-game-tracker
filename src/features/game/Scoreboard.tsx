@@ -16,12 +16,14 @@ import {
   useDeleteGame,
   useFinishGame,
   useSetCurrentRound,
+  useSetLadder,
   useSetLayoutVariant,
   useSetPaintedBonus,
   useSetRole,
   useSetTurnOrder,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
+import { useLadders } from '@/lib/queries/ladders'
 import {
   useFactions,
   useForceDispositions,
@@ -52,6 +54,8 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const missionsForPack = useMissionsForPack(detail.game.mission_pack_id)
   const setCurrentRound = useSetCurrentRound(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
+  const setLadder = useSetLadder(detail.game.id)
+  const ladders = useLadders(user?.id)
   const setPaintedBonus = useSetPaintedBonus(detail.game.id)
   const finishGame = useFinishGame(detail.game.id)
   const abandonGame = useAbandonGame(detail.game.id)
@@ -132,6 +136,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   // of seat number -- same convention WaitingRoom uses, so "You" always means the right seat.
   const me = detail.players.find((p) => p.player.user_id === user.id)
   const opponent = detail.players.find((p) => p.player.id !== me?.player.id)
+  const ladderOptions = (ladders.data ?? [])
+    .filter((l) => (l.isMember && !l.archivedAt) || l.id === detail.game.ladder_id)
+    .map((l) => ({ id: l.id, name: l.name }))
 
   const getRoundScore = (gamePlayerId: string) =>
     detail.roundScores.find((r) => r.game_player_id === gamePlayerId && r.battle_round === viewRound)?.primary_vp ?? 0
@@ -432,6 +439,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
             layoutMission={p1Mission.data ?? p2Mission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
+            ladderId={detail.game.ladder_id}
+            ladderOptions={ladderOptions}
+            onSetLadder={(ladderId) => setLadder.mutate(ladderId)}
             onSetRole={(role) =>
               setMirroredField(
                 (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),

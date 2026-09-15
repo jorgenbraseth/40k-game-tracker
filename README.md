@@ -394,6 +394,17 @@ archived ladder's history stays reachable and it can be restored any
 time. Untagged games stay
 participant-only, unchanged.
 
+Which ladder a game's tagged to also stays editable for the life of the
+game, not just a one-time pick at creation: `useSetLadder` (a plain
+`games.ladder_id` write, same "participants can update their games"
+policy every other game-level field already relies on -- no new policy
+needed) and a "Ladder game?" `Select` in `GameConfigPicker`, alongside
+layout/Attacker/turn order, in both the waiting room and the live
+Scoreboard's "Game configuration" sheet. The dropdown only offers
+ladders the viewer's currently a non-archived member of, plus whichever
+one's already set (even if archived, or the viewer's since left it) so
+a stale selection never just disappears from the list.
+
 Ranking is Elo (`src/lib/elo.ts`, K-factor 32, everyone starts at 1500):
 `fetchLadderStandings` builds one `{playedAt, playerAId, playerBId,
 scoreForA}` entry per game with two identity-resolved seats (a game with
