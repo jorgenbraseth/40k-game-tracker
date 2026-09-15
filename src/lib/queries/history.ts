@@ -8,7 +8,6 @@ export interface CompletedGameRow {
   /** The current user's own Primary Mission -- each player has their own, see resolve_game_mission(). */
   missionName: string
   opponentMissionName: string
-  deploymentName: string
   pointsLimit: number
   mySeat: 1 | 2
   myGamePlayerId: string
@@ -62,13 +61,11 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   if (games.length === 0) return []
 
   const completeGameIds = games.map((g) => g.id)
-  const deploymentIds = [...new Set(games.map((g) => g.deployment_id))]
   const ladderIds = [...new Set(games.map((g) => g.ladder_id).filter((id): id is string => Boolean(id)))]
 
-  const [playersRes, totalsRes, deploymentsRes, laddersRes, verificationsRes] = await Promise.all([
+  const [playersRes, totalsRes, laddersRes, verificationsRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', completeGameIds),
     supabase.from('game_totals').select('*').in('game_id', completeGameIds),
-    supabase.from('deployments').select('id, name').in('id', deploymentIds),
     ladderIds.length
       ? supabase.from('ladders').select('id, name').in('id', ladderIds)
       : Promise.resolve({ data: [], error: null }),
@@ -76,7 +73,6 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
-  if (deploymentsRes.error) throw deploymentsRes.error
   if (laddersRes.error) throw laddersRes.error
   if (verificationsRes.error) throw verificationsRes.error
 
@@ -107,7 +103,6 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   if (factionsRes.error) throw factionsRes.error
 
   const missionById = new Map(missionsRes.data.map((m) => [m.id, m.name]))
-  const deploymentById = new Map(deploymentsRes.data.map((d) => [d.id, d.name]))
   const ladderById = new Map(laddersRes.data?.map((l) => [l.id, l.name]))
   const profileById = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
   const factionById = new Map(factionsRes.data?.map((f) => [f.id, f.name]))
@@ -140,7 +135,6 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
       endedAt: game.ended_at ?? game.created_at,
       missionName: (me.mission_id && missionById.get(me.mission_id)) || 'Unknown mission',
       opponentMissionName: (opponent?.mission_id && missionById.get(opponent.mission_id)) || 'Unknown mission',
-      deploymentName: deploymentById.get(game.deployment_id) ?? 'Unknown deployment',
       pointsLimit: game.points_limit,
       mySeat: me.seat,
       myGamePlayerId: me.id,

@@ -8,7 +8,6 @@ function row(overrides: Partial<CompletedGameRow>): CompletedGameRow {
     endedAt: new Date().toISOString(),
     missionName: 'Scorched Earth',
     opponentMissionName: 'Terraform',
-    deploymentName: 'Hammer and Anvil',
     pointsLimit: 2000,
     mySeat: 1,
     myGamePlayerId: crypto.randomUUID(),

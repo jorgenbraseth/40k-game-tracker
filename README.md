@@ -25,10 +25,11 @@ players' own phones if they'd both rather enter their own numbers.
   Profile) that's what other players see in the waiting room, live
   scoreboard, and history/stats -- their email address is never shown
   to, or sent to, anyone else.
-- One player starts a game (mission pack, deployment, points limit,
-  optionally a ladder to tag it to) and gets a short 6-character code.
-  Nothing about either player's army goes here -- that's all decided in
-  the waiting room next, once both seats actually exist.
+- One player starts a game (points limit, optionally a ladder to tag it
+  to) and gets a short 6-character code. Nothing about either player's
+  army -- or the terrain layout -- goes here -- that's all decided in
+  the waiting room next, once both seats actually exist and, for the
+  layout, once a Force Disposition pairing is known.
 - **One account can be the bookkeeper for a whole game.** The point
   isn't a "solo mode" -- it's that getting a real opponent to create an
   account and log in is friction nobody wants mid-game, so it's never
@@ -149,10 +150,10 @@ players' own phones if they'd both rather enter their own numbers.
   history of games played under the old one.
 - At the end, either player can close out the game (a winner is
   suggested from the totals, or record a draw), and both players get a
-  permanent record of it: a round-by-round breakdown, which deployment
-  and terrain layout were played, and it folds into their history. A
-  game can also be ended early -- conceded, or the opponent had to
-  leave -- from any round, not just the last one.
+  permanent record of it: a round-by-round breakdown, which terrain
+  layout was played, and it folds into their history. A game can also
+  be ended early -- conceded, or the opponent had to leave -- from any
+  round, not just the last one.
 - Any participant can also cancel a game outright, at any stage --
   distinct from ending it early, this removes it completely (for both
   players, from every list) rather than keeping a record, for a game
@@ -233,16 +234,20 @@ shared ladder or a game the viewer happened to be part of. A game still
 in the lobby or being played is a different matter -- that stays visible
 only to its own participants until it actually finishes, same as always.
 
-**Deployment and terrain layout:** picking a deployment shows its actual
-map image (one of the 6 Chapter Approved deployment cards), not just a
-name in a dropdown. Once a mission is resolved (both players' Force
+**Terrain layout:** once a mission is resolved (both players' Force
 Dispositions known), the 3 recommended terrain layouts (A/B/C) for that
-specific Force Disposition pairing are also pickable, each with its own
-image, in the shared `GameConfigPicker` -- a property of the game, not
-of either seat's own setup, so it lives there alongside Attacker/Defender
-rather than in `PlayerSetupFields`. Picking one is required to start a
-game -- but, like every other setup field, stays freely editable
-afterwards.
+specific Force Disposition pairing become pickable, each with its own
+map image, in the shared `GameConfigPicker` -- a property of the game,
+not of either seat's own setup, so it lives there alongside
+Attacker/Defender rather than in `PlayerSetupFields`. Picking one is
+required to start a game -- but, like every other setup field, stays
+freely editable afterwards. There's no separate "deployment" choice
+before this: each layout image already shows its own deployment
+battlefield shape with the terrain placed on it, so asking which of the
+6 named deployment maps to use, independently and before either
+player's Force Disposition is even known, was never really a free
+choice of its own -- just an earlier, blanker view of the same fact the
+layout pick already covers.
 
 ## What's actually in place right now
 
@@ -517,13 +522,23 @@ that does something else (declaring Attacker/turn order, confirming who
 won) are deliberately left unlinked -- navigating away isn't what
 tapping those does.
 
-Deployment map images, terrain layout selection, Attacker/Defender, and
-turn order are all implemented. "Start a game"'s deployment picker
-(`ImageOptionGrid`) shows each deployment's actual card image instead of
-a bare name. The other three are all *game*-level decisions, not a
-per-seat one, so none of them live in `PlayerSetupFields` (each seat's
-own setup form: Faction, Force Disposition, Army name) -- they live
-together in the shared `GameConfigPicker` (`src/features/game/`): once
+Terrain layout selection, Attacker/Defender, and turn order are all
+implemented. There's no separate "deployment" picker at game creation
+any more (`20260323000000_deployment_optional.sql`): `games.deployment_id`
+is nullable now and `create_game` no longer takes it as a parameter --
+the 3 terrain layout alternatives, picked once a Force Disposition
+pairing is known, already fully determine (and visually show) the
+deployment, so asking for one independently, before either player had
+even picked a Force Disposition, was never a real choice on top of
+that. `useDeployments` and the "Deployment" `ImageOptionGrid` that used
+to live on `NewGamePage` are gone; the `deployments` table and existing
+games' `deployment_id` stay untouched, same "never touch old history"
+rule this app applies to every other schema change -- new games just
+don't set it. All three of terrain layout/Attacker/turn order are all
+*game*-level decisions, not a per-seat one, so none of them live in
+`PlayerSetupFields` (each seat's own setup form: Faction, Force
+Disposition, Army name) -- they live together in the shared
+`GameConfigPicker` (`src/features/game/`): once
 a game's mission is resolved (so the Force Disposition pairing is
 known), the 3 recommended terrain layouts for that pairing become
 pickable there; Attacker/Defender and turn order are asked as "who is
@@ -809,12 +824,15 @@ names/values-only reference data. `deployments.image_path` and
 point at these local paths -- served from the app's own domain, not
 hotlinked. Layout images are keyed by the **Force Disposition pairing**,
 not the deployment (wahapedia's own page script resolves them that way,
-see the migration's comment) -- a deployment picks the battlefield shape,
-a layout picks the terrain piece placement on it, and the two are chosen
-independently. Picking a layout (`games.layout_variant`) is required
-before a game can start, same as every other setup field except army
-name -- but, like those, stays freely editable for the life of the
-game once set.
+see the migration's comment) -- a deployment is the battlefield shape, a
+layout is the terrain piece placement on top of one, and each layout
+image already shows both together, which is exactly why this app
+dropped asking for a deployment as a separate, independent pick (see
+"What's actually in place right now" above,
+`20260323000000_deployment_optional.sql`). Picking a layout
+(`games.layout_variant`) is required before a game can start, same as
+every other setup field except army name -- but, like those, stays
+freely editable for the life of the game once set.
 
 When the next Chapter Approved deck ships: add a new `mission_packs` row
 and a new migration with its missions/secondary_objectives (and, if you

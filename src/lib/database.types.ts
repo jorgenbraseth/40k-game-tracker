@@ -148,7 +148,7 @@ export interface Database {
           join_code: string
           status: GameStatus
           mission_pack_id: string
-          deployment_id: string
+          deployment_id: string | null
           points_limit: number
           total_rounds: number
           current_round: number
@@ -163,7 +163,6 @@ export interface Database {
         Insert: Partial<Database['public']['Tables']['games']['Row']> & {
           join_code: string
           mission_pack_id: string
-          deployment_id: string
           points_limit: number
         }
         Update: Partial<Database['public']['Tables']['games']['Row']>
@@ -437,7 +436,6 @@ export interface Database {
       }
       create_game: {
         Args: {
-          p_deployment_id: string
           p_points_limit: number
           p_force_disposition_id?: string | null
           p_faction_id?: string | null
