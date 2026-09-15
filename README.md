@@ -283,8 +283,11 @@ Secondaries are tracked the way Tactical secondaries actually work: 2
 new cards are drawn each round (`secondary_draws`, one row per
 player/secondary/game -- a card is drawn at most once), and in any round
 a player may score any not-yet-scored secondary drawn *so far this
-game*, not just this round's two. `SecondaryScores` shows the whole
-cumulative picture regardless of which round is being viewed -- every
+game*, not just this round's two. `SecondaryScores` leads with the same
+small "Secondary VP" header `PrimaryScorePanel` uses for primary --
+this round's total, and what it's actually still capped at (same
+15VP-per-round/45VP-per-game rule) -- then shows the whole cumulative
+picture regardless of which round is being viewed -- every
 **drawn-but-unscored** one first (badged with which round it was drawn,
 highlighted when that's the round currently being viewed), then already
 **scored** ones below (with which round each was scored in) -- both
