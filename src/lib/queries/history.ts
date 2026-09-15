@@ -29,13 +29,19 @@ export const historyKeys = {
 }
 
 export async function fetchCompletedGames(userId: string): Promise<CompletedGameRow[]> {
-  const { data: myPlayerRows, error: myPlayerError } = await supabase
-    .from('game_players')
-    .select('game_id')
-    .eq('user_id', userId)
-  if (myPlayerError) throw myPlayerError
+  // A game counts as this user's own if they claimed a seat directly (user_id), or -- for a
+  // solo-bookkept game -- if a bookkeeper attributed an unclaimed seat to them
+  // (represents_user_id), same identity resolution fetchLadderStandings already uses. Two
+  // separate queries rather than a single .or() filter, since this codebase doesn't otherwise
+  // build raw PostgREST filter strings and userId can come straight from a route param.
+  const [ownSeatRows, representedSeatRows] = await Promise.all([
+    supabase.from('game_players').select('game_id').eq('user_id', userId),
+    supabase.from('game_players').select('game_id').eq('represents_user_id', userId),
+  ])
+  if (ownSeatRows.error) throw ownSeatRows.error
+  if (representedSeatRows.error) throw representedSeatRows.error
 
-  const gameIds = myPlayerRows.map((r) => r.game_id)
+  const gameIds = [...new Set([...ownSeatRows.data, ...representedSeatRows.data].map((r) => r.game_id))]
   if (gameIds.length === 0) return []
 
   const { data: games, error: gamesError } = await supabase
@@ -106,9 +112,9 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   const rows: CompletedGameRow[] = []
   for (const game of games) {
     const players = playersByGameId.get(game.id) ?? []
-    const me = players.find((p) => p.user_id === userId)
-    const opponent = players.find((p) => p.user_id !== userId)
+    const me = players.find((p) => p.user_id === userId || p.represents_user_id === userId)
     if (!me) continue
+    const opponent = players.find((p) => p.id !== me.id)
     if (!game.outcome && game.status !== 'abandoned') continue
 
     const result: CompletedGameRow['result'] = !game.outcome
