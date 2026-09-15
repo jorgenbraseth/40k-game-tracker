@@ -27,6 +27,7 @@ import {
   useForceDispositions,
   useMission,
   useMissionObjectiveLines,
+  useMissionsForPack,
   useSecondaryObjectiveLines,
   useSecondaryObjectives,
 } from '@/lib/queries/referenceData'
@@ -48,13 +49,14 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const secondaryLines = useSecondaryObjectiveLines(secondaries.data?.map((s) => s.id))
   const factions = useFactions()
   const forceDispositions = useForceDispositions()
+  const missionsForPack = useMissionsForPack(detail.game.mission_pack_id)
   const setCurrentRound = useSetCurrentRound(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
   const setPaintedBonus = useSetPaintedBonus(detail.game.id)
   const finishGame = useFinishGame(detail.game.id)
   const abandonGame = useAbandonGame(detail.game.id)
   const deleteGame = useDeleteGame()
-  const updateSetup = useUpdatePlayerSetup(detail.game.id)
+  const updateSetup = useUpdatePlayerSetup(detail.game.id, missionsForPack.data)
   const setRole = useSetRole(detail.game.id)
   const setTurnOrder = useSetTurnOrder(detail.game.id)
 

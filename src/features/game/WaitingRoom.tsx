@@ -16,7 +16,7 @@ import {
   useStartGame,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
-import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
+import { useFactions, useForceDispositions, useMission, useMissionsForPack } from '@/lib/queries/referenceData'
 import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
@@ -27,7 +27,8 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const forceDispositions = useForceDispositions()
   const setRole = useSetRole(detail.game.id)
   const setTurnOrder = useSetTurnOrder(detail.game.id)
-  const updateSetup = useUpdatePlayerSetup(detail.game.id)
+  const missionsForPack = useMissionsForPack(detail.game.mission_pack_id)
+  const updateSetup = useUpdatePlayerSetup(detail.game.id, missionsForPack.data)
   const startGame = useStartGame(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
   const deleteGame = useDeleteGame()
