@@ -288,10 +288,10 @@ cumulative picture regardless of which round is being viewed -- every
 **drawn-but-unscored** one first (badged with which round it was drawn,
 highlighted when that's the round currently being viewed), then already
 **scored** ones below (with which round each was scored in) -- both
-groups ordered by draw round, oldest first -- with a "+ Draw a
-secondary" picker that either draws a specific card or, via "🎲 Draw
-random", picks uniformly at random from whatever's left in that role's
-deck.
+groups ordered by draw round, oldest first -- with two side-by-side
+buttons below, "🎲 Random secondary" (draws uniformly at random from
+whatever's left in that role's deck, immediately, no extra tap) and "+
+Select secondary" (opens a picker to draw a specific card by name).
 
 Fixed vs Tactical is implemented: `secondary_objective_lines.mode`
 (`'fixed' | 'tactical' | null`) already tagged which of a card's lines
