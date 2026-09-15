@@ -170,7 +170,14 @@ original out-of-scope list no longer holds.
 join it, your own or someone else's, from the dedicated Ladders page.
 Tagging a game onto a ladder is entirely optional, chosen at creation
 time on the "Start a game" screen, and stays editable afterwards like
-everything else. Ranking is Elo (see issue #26 for the research behind
+everything else. A ladder's creator can archive it once it's run its
+course -- a season that's over, a group that's disbanded -- which drops
+it out of the browse list and the "tag this game" picker without
+touching anything it already recorded: standings, its game log, and
+every affected game's own ladder name in History/stats all keep working
+exactly as before. Archiving is fully reversible, no confirmation
+needed, same as every other non-destructive toggle in this app. Ranking
+is Elo (see issue #26 for the research behind
 picking it over Glicko-2/TrueSkill/Massey-Colley): everyone starts at
 1500, and beating a much higher-rated opponent gains a lot while beating
 a much lower-rated one barely moves the needle (and the mirror image for
@@ -368,7 +375,23 @@ your games carry one. Standings are computed live in
 readable by any signed-in user, not just its two players
 (`20260310000000_ladder_game_visibility.sql`) -- otherwise a viewer's
 standings would silently only reflect games they personally played in,
-missing every result between other ladder members. Untagged games stay
+missing every result between other ladder members. Archiving a ladder
+is implemented too: `ladders.archived_at` (null = active), settable
+only by that ladder's `created_by` via a new creator-only update policy
+(`20260316000000_archive_ladder.sql`) and `useArchiveLadder`, toggled
+from a "Archive ladder"/"Restore ladder" action in the ladder's own
+expanded row on the Ladders page. Purely a visibility flag, not a
+cascade: `fetchLadders` and the "tag this game" pickers on both the
+Ladders page and "Start a game" filter it out client-side, and
+`create_game`'s own membership check now also rejects an archived
+ladder id server-side (so the client-side filtering can't be bypassed
+by calling the RPC directly) -- but standings, game log, and every
+game's own `ladder_name` keep resolving normally regardless of archived
+status, since none of those read the flag. The Ladders page adds a
+third "Archived" section (only shown for ladders the viewer's a member
+of, or created) alongside "Your ladders"/"Other ladders", so an
+archived ladder's history stays reachable and it can be restored any
+time. Untagged games stay
 participant-only, unchanged.
 
 Ranking is Elo (`src/lib/elo.ts`, K-factor 32, everyone starts at 1500):

@@ -10,6 +10,10 @@ export interface LadderSummary {
   createdAt: string
   memberCount: number
   isMember: boolean
+  /** Set once the creator archives this ladder (fully reversible -- see useArchiveLadder) --
+   * archived ladders drop out of the default browse list and the "tag this game" picker, but
+   * their standings/game log and every game's own ladder name keep working exactly as before. */
+  archivedAt: string | null
 }
 
 export interface LadderMember {
@@ -77,6 +81,7 @@ export async function fetchLadders(userId: string): Promise<LadderSummary[]> {
     createdAt: l.created_at,
     memberCount: memberCountByLadder.get(l.id) ?? 0,
     isMember: isMemberByLadder.has(l.id),
+    archivedAt: l.archived_at,
   }))
 }
 
@@ -97,6 +102,24 @@ export function useCreateLadder() {
       return data
     },
     onError: () => showToast("Couldn't create the ladder. Try again."),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ladders'] }),
+  })
+}
+
+/** Toggles archived_at (now(), or back to null to unarchive) -- fully reversible, gated by the
+ * creator-only update policy on ladders. */
+export function useArchiveLadder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { ladderId: string; archived: boolean }) => {
+      const { error } = await supabase
+        .from('ladders')
+        .update({ archived_at: input.archived ? new Date().toISOString() : null })
+        .eq('id', input.ladderId)
+      if (error) throw error
+    },
+    onError: (_error, input) =>
+      showToast(`Couldn't ${input.archived ? 'archive' : 'restore'} the ladder. Try again.`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ladders'] }),
   })
 }
