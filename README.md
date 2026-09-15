@@ -26,28 +26,35 @@ players' own phones if they'd both rather enter their own numbers.
   the waiting room, live scoreboard, and history/stats -- their email
   address is never shown to, or sent to, anyone else.
 - One player starts a game (mission pack, deployment, points limit,
-  their own faction and army name) and gets a short 6-character code.
+  optionally a ladder to tag it to) and gets a short 6-character code.
+  Nothing about either player's army goes here -- that's all decided in
+  the waiting room next, once both seats actually exist.
 - **One account can be the bookkeeper for a whole game.** The point
   isn't a "solo mode" -- it's that getting a real opponent to create an
   account and log in is friction nobody wants mid-game, so it's never
-  required. The creator fills in Player 2's setup themselves in the
-  waiting room -- same Force Disposition/faction/army/role fields as
-  their own -- and can run the whole game as bookkeeper, entering both
-  sides' scores round by round. Sharing the join code is optional: if a
-  second player does enter it, they're simply added as another person
-  who can also adjust either side's numbers, the same as if they'd been
-  there from the start -- not a required step to use the app.
-- Whoever fills in each side's setup claims their own Force Disposition
-  (their army's strategic role) and either Attacker or Defender -- the
-  app explains in-UI what Attacker/Defender actually determines
-  (battlefield edge, which Secondary Mission deck you draw from), since
-  it's easy to forget between games -- and each side's Primary Mission,
-  determined by the *pairing* of both Force Dispositions per the actual
-  2026-27 ruleset, is revealed once both are chosen. A second, separate
-  roll-off decides who takes the first turn -- "went first"/"went
-  second" is also part of setup, and whoever went first (the "top of
-  round" player, as opposed to "bottom of round") shows first on the
-  live Scoreboard once both have picked.
+  required. Everyone's setup -- the creator's own included, not just
+  Player 2's -- happens in the waiting room, where the creator can also
+  fill in Player 2's themselves and run the whole game as bookkeeper,
+  entering both sides' scores round by round. Sharing the join code is
+  optional: if a second player does enter it, they're simply added as
+  another person who can also adjust either side's numbers, the same as
+  if they'd been there from the start -- not a required step to use the
+  app.
+- The waiting room's setup form is two groups, in that order: **who this
+  seat is** (Force Disposition, faction, army name), then **the game
+  configuration** decided once both seats exist -- terrain layout,
+  Attacker/Defender, and who went first. Whoever fills in each side's
+  setup claims their own Force Disposition (their army's strategic role)
+  and either Attacker or Defender -- the app explains in-UI what
+  Attacker/Defender actually determines (battlefield edge, which
+  Secondary Mission deck you draw from), since it's easy to forget
+  between games -- and each side's Primary Mission, determined by the
+  *pairing* of both Force Dispositions per the actual 2026-27 ruleset, is
+  revealed once both are chosen. A second, separate roll-off decides who
+  takes the first turn -- "went first"/"went second" is also part of
+  setup, and whoever went first (the "top of round" player, as opposed
+  to "bottom of round") shows first on the live Scoreboard once both
+  have picked.
 - Once the game starts, primary VP and secondary objectives are scored
   round by round (5 battle rounds). With two players each on their own
   phone, scores update live for both as they're entered -- no refreshing,
@@ -192,13 +199,14 @@ new cards are drawn each round (`secondary_draws`, one row per
 player/secondary/game -- a card is drawn at most once), and in any round
 a player may score any not-yet-scored secondary drawn *so far this
 game*, not just this round's two. `SecondaryScores` shows the whole
-cumulative picture regardless of which round is being viewed -- already
-**scored** secondaries (with which round each was scored in), and every
-**drawn-but-unscored** one (badged with which round it was drawn,
-highlighted when that's the round currently being viewed) -- with a "+
-Draw a secondary" picker that either draws a specific card or, via "🎲
-Draw random", picks uniformly at random from whatever's left in that
-role's deck. The combined 15VP-per-round cap on secondary scoring isn't
+cumulative picture regardless of which round is being viewed -- every
+**drawn-but-unscored** one first (badged with which round it was drawn,
+highlighted when that's the round currently being viewed), then already
+**scored** ones below (with which round each was scored in) -- both
+groups ordered by draw round, oldest first -- with a "+ Draw a
+secondary" picker that either draws a specific card or, via "🎲 Draw
+random", picks uniformly at random from whatever's left in that role's
+deck. The combined 15VP-per-round cap on secondary scoring isn't
 enforced (or shown) yet -- each secondary is still only clamped to its
 own `max_vp`.
 

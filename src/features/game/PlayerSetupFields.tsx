@@ -11,20 +11,17 @@ type LayoutVariant = Database['public']['Tables']['games']['Row']['layout_varian
 type LayoutMission = Parameters<typeof LayoutVariantPicker>[0]['mission']
 
 /**
- * Force Disposition / Faction / Army name / Role / Turn order -- shared
- * between the waiting room and the in-game "edit your setup" sheet,
- * since a wrong pick here should always be correctable, not just before
- * the game starts.
- * The terrain layout picker lives at the bottom of this same form (when
- * the layout* props are passed) since it's chosen alongside Attacker/
- * Defender, once the mission -- and so the Force Disposition pairing
- * that determines the 3 layout options -- is known.
- *
- * When `me` is an unclaimed seat (no account has joined it -- the
- * bookkeeper is filling it in on that player's behalf, same as any other
- * game) *and* the game is tagged to a ladder, a "Player" picker appears
- * first: which of that ladder's members this seat actually is, so their
- * result counts toward standings even though they never signed in.
+ * The full per-seat setup form -- shared between the waiting room and
+ * the in-game "edit your setup" sheet, since a wrong pick here should
+ * always be correctable, not just before the game starts. Two groups,
+ * in order: who this seat *is* (Force Disposition, Faction, Army name --
+ * plus, first, a "Player" picker when `me` is an unclaimed seat on a
+ * ladder-tagged game, letting the bookkeeper attribute it to a real
+ * ladder member so that player's result counts in standings even though
+ * they never signed in); then the game configuration decided once both
+ * seats are filled in (terrain layout -- shown once the mission's Force
+ * Disposition pairing is known, via the layout* props -- then Attacker/
+ * Defender, then who went first).
  */
 export function PlayerSetupFields({
   me,
@@ -114,6 +111,21 @@ export function PlayerSetupFields({
         onBlur={(e) => onUpdateSetup({ armyName: e.target.value || null })}
       />
 
+      {layoutMission && onSetLayoutVariant && (
+        <div>
+          <LayoutVariantPicker
+            mission={layoutMission}
+            value={layoutVariant ?? null}
+            onChange={onSetLayoutVariant}
+          />
+          {!layoutVariant && (
+            <p className="mt-1.5 text-xs text-paper/50">
+              Pick a layout before starting -- like everything else here, it stays changeable any time.
+            </p>
+          )}
+        </div>
+      )}
+
       <div>
         <p className="mb-1 text-sm font-medium text-paper/80">Role</p>
         <p className="mb-1.5 text-xs text-paper/50">
@@ -168,21 +180,6 @@ export function PlayerSetupFields({
           })}
         </div>
       </div>
-
-      {layoutMission && onSetLayoutVariant && (
-        <div>
-          <LayoutVariantPicker
-            mission={layoutMission}
-            value={layoutVariant ?? null}
-            onChange={onSetLayoutVariant}
-          />
-          {!layoutVariant && (
-            <p className="mt-1.5 text-xs text-paper/50">
-              Pick a layout before starting -- like everything else here, it stays changeable any time.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
