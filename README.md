@@ -328,6 +328,23 @@ client-enforced only, same as everywhere else in this app that trusts
 the UI to already be clamping rather than adding a database trigger for
 it.
 
+`game_totals` itself had a serious bug from its very first definition
+until `20260321000000_fix_game_totals_fanout.sql`: it left-joined
+`round_scores` *and* `secondary_scores` onto `game_players` in one
+query and summed both there -- joining two one-to-many relationships
+in a single query returns their *cross product* per player, not two
+independent row sets, so `sum(primary_vp)` counted each round once per
+secondary scored, and `sum(vp_scored)` counted each secondary once per
+round played, both wrong by different multipliers that grew with every
+round and every secondary. Every consumer inherited it: the live
+running-total bar, Summary, History, ladder standings and Elo, and the
+round/game VP caps above (clamping against an already-inflated total).
+Fixed by aggregating `round_scores` and `secondary_scores` to one row
+per player each in their own subquery *before* joining, so nothing
+downstream can multiply. No backfill needed -- the view is computed
+live, not stored, so every consumer is correct again the next time it's
+queried.
+
 A handful of missions also award a few more VP once, checked only at
 the very end of the game ("End of the Battle" in
 `mission_objective_lines`) rather than in any particular battle round --
