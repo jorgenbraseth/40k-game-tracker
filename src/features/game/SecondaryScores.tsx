@@ -28,8 +28,9 @@ const MAX_SECONDARY_VP_PER_GAME = 45
  * cumulative pool, not just what was drawn this round -- a player may score any not-yet-scored
  * secondary they've drawn so far this game. So this shows every drawn-and-unscored secondary
  * (badged with which round it was drawn, "this round" called out specially) first, then every
- * already-scored one below (badged with which round that happened), regardless of which round is
- * currently being viewed -- only *new* draws/scores get attributed to the viewed round. Within
+ * already-scored one below (badged with both which round it was drawn *and* which round it was
+ * scored in, since those can differ), regardless of which round is currently being viewed -- only
+ * *new* draws/scores get attributed to the viewed round. Within
  * each group, secondaries are ordered by the round they were drawn in, oldest first.
  */
 export function SecondaryScores({
@@ -232,6 +233,7 @@ export function SecondaryScores({
       )}
       {myScores.map((s) => {
         const objective = available.find((a) => a.id === s.secondary_objective_id)
+        const drawnRound = drawnRoundBySecondaryId.get(s.secondary_objective_id)
         return (
           <div key={s.id} className="flex items-center justify-between rounded-lg bg-white/5 px-2.5 py-1.5 text-sm">
             <button
@@ -242,7 +244,9 @@ export function SecondaryScores({
             >
               <span className="min-w-0 truncate text-paper/80">
                 {objective?.name ?? 'Unknown'}
-                <span className="ml-1.5 text-[10px] text-paper/40">R{s.battle_round}</span>
+                <span className="ml-1.5 text-[10px] text-paper/40">
+                  {drawnRound !== undefined ? `Drawn R${drawnRound} · Scored R${s.battle_round}` : `R${s.battle_round}`}
+                </span>
               </span>
               <span className="font-semibold text-gold">{s.vp_scored}VP</span>
             </button>
