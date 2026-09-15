@@ -55,14 +55,7 @@ export function GameConfigPicker({
 
       <div>
         <p className="mb-1 text-sm font-medium text-paper/80">Attacker</p>
-        <p className="mb-1.5 text-xs text-paper/50">
-          Roll off after the Deployment card is drawn -- <strong className="text-paper/70">the winner decides who
-          is Attacker and who is Defender</strong>, not the roll itself. The only part of that pick with a real
-          rules effect: <strong className="text-paper/70">the Defender deploys first, then the Attacker deploys
-          second</strong>, reacting to the Defender's deployment. It also sets which battlefield edge each of you
-          deploys from and which Secondary Mission deck you draw from -- it doesn't change either side's Primary
-          Mission.
-        </p>
+        <p className="mb-1.5 text-xs text-paper/50">The Defender deploys first, then the Attacker.</p>
         <div className="grid grid-cols-2 gap-2">
           <Button
             type="button"
@@ -83,11 +76,6 @@ export function GameConfigPicker({
 
       <div>
         <p className="mb-1 text-sm font-medium text-paper/80">Went first</p>
-        <p className="mb-1.5 text-xs text-paper/50">
-          A separate roll-off decides who takes the first turn -- <strong className="text-paper/70">the
-          winner goes first every battle round</strong> for the rest of the game (the "top of round" player;
-          the other is "bottom of round"). Whoever went first shows first on the live Scoreboard.
-        </p>
         <div className="grid grid-cols-2 gap-2">
           <Button
             type="button"

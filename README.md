@@ -53,14 +53,12 @@ players' own phones if they'd both rather enter their own numbers.
   army's strategic role) determines their Primary Mission -- the
   *pairing* of both Force Dispositions per the actual 2026-27 ruleset --
   revealed once both are chosen. Attacker/Defender is decided by its own
-  roll-off after the Deployment card is drawn -- the app explains in-UI
-  what it actually determines: which battlefield edge each side deploys
-  from, which Secondary Mission deck each side draws from, and the one
-  part with a real rules effect on how the game plays out -- the Defender
-  deploys first, then the Attacker deploys second, reacting to it -- since
-  it's easy to forget between games. A second, separate roll-off decides
-  who takes the first turn -- whoever went first (the "top of round"
-  player, as opposed to "bottom of round") shows first on the live
+  roll-off after the Deployment card is drawn -- the app's only explainer
+  text for it is the one part with a real rules effect on how the game
+  actually plays out: the Defender deploys first, then the Attacker. A
+  second, separate roll-off decides who takes the first turn -- no
+  explainer there, just asked by name -- whoever went first (the "top of
+  round" player, as opposed to "bottom of round") shows first on the live
   Scoreboard once both are picked.
 - Starting a game requires every one of those setup fields filled in for
   *both* seats -- faction and Force Disposition per seat, plus the shared
@@ -392,12 +390,13 @@ server-side), but like every other setup field they stay freely editable
 for the life of the game once chosen -- required-before-start and
 always-editable-after are not in tension.
 
-The Attacker/Defender explainer in `GameConfigPicker` also spells out
-the one part of that pick with an actual rules effect: it's not just
-flavour text or which battlefield edge/Secondary deck each side gets --
-the Defender deploys first, then the Attacker deploys second, reacting
-to it, which is the only thing that meaningfully differs between the two
-roles under the current ruleset.
+`GameConfigPicker`'s explainer text is deliberately terse: Attacker gets
+one line -- "The Defender deploys first, then the Attacker" -- the only
+part of that pick with an actual rules effect, and the only thing that
+meaningfully differs between the two roles under the current ruleset.
+Went first gets no explainer at all -- just the label and the two name
+buttons -- on the assumption a player asking to set it already knows
+it's decided by its own roll-off.
 
 Display names never derive from email: `handle_new_user()`'s fallback
 (when a signup provides no name at all) generates a generic placeholder,
