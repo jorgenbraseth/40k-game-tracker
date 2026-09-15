@@ -492,7 +492,8 @@ pickable there; Attacker/Defender and turn order are asked as "who is
 Attacker?" and "who went first?" by name, once, rather than shown as a
 toggle on both players' own setup forms. `GameConfigPicker` lives in its
 own "Game configuration" card in the waiting room, and behind a "Game
-configuration" link/sheet in the live Scoreboard. The write-mirroring
+configuration" row inside the live Scoreboard's "⋯" menu (see below).
+The write-mirroring
 logic (`setMirroredField`) didn't need to change for any of this --
 picking a name still writes that seat's own field directly and mirrors
 the complement onto the other seat when the viewer is allowed to (their
@@ -503,16 +504,16 @@ server-side), but like every other setup field they stay freely editable
 for the life of the game once chosen -- required-before-start and
 always-editable-after are not in tension.
 
-The post-game `SummaryPage` shows which deployment and terrain layout
-were actually used, images included, the same read-only card style
-`ImageOptionGrid` renders while picking -- so the permanent record a
-game leaves behind covers the battlefield setup, not just the score.
-The layout image comes from either seat's own resolved mission (both
+The post-game `SummaryPage` shows which terrain layout was actually
+used, image included -- so the permanent record a game leaves behind
+covers the battlefield setup, not just the score. Just the layout, not
+the deployment too: the layout image already shows the deployment's
+own battlefield shape underneath the terrain, so a separate deployment
+card next to it would just be a duplicate, blanker view of the same
+board. The image comes from either seat's own resolved mission (both
 carry the same 3 image paths for a shared Force Disposition pairing,
 same reasoning `GameConfigPicker`'s own `layoutMission` prop already
-relies on), and the deployment's from `useDeployments` for the game's
-mission pack -- no new query needed for either, both were already
-fetched reference data.
+relies on) -- no new query needed, already-fetched reference data.
 
 `GameConfigPicker`'s explainer text is deliberately terse: Attacker gets
 one line -- "The Defender deploys first, then the Attacker" -- the only
@@ -537,6 +538,18 @@ horizontal zoom-out on a real phone screen instead of wrapping. The
 footer also picked up the same `max-w-3xl` centering the header and
 main content already had, so it no longer stretches wider than the rest
 of the page on a wide screen.
+
+The live Scoreboard's own round header had the same problem, worse
+after spectating (above) added a "Spectating" badge and an "opponent
+online" indicator alongside the existing "Game configuration"/"Summary"
+links -- up to four non-wrapping inline items was again enough to force
+a phone-width zoom-out. Collapsed the same way: those become rows
+inside a single "⋯" `Sheet` ("Game"), leaving just a small colored dot
+(opponent online/offline, participants only) next to the "⋯" button
+itself in the header row. "Spectating" moved to its own line under the
+round/status text instead (vertical stacking, not another item fighting
+for width in that row) -- `Scores stay editable`/`Layout X` already did
+the same there.
 
 In-page view state lives in the URL, not local component state --
 `Scoreboard`'s viewed round is `?round=N` (pushes a history entry per

@@ -4,7 +4,7 @@ import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { needsVerification, playerLabel, playerUserId, useGame, useVerifySeat } from '@/lib/queries/games'
-import { useDeployments, useMission } from '@/lib/queries/referenceData'
+import { useMission } from '@/lib/queries/referenceData'
 
 export function SummaryPage() {
   const { id } = useParams<{ id: string }>()
@@ -14,7 +14,6 @@ export function SummaryPage() {
   const [p1, p2] = data?.players ?? []
   const p1Mission = useMission(p1?.player.mission_id ?? undefined)
   const p2Mission = useMission(p2?.player.mission_id ?? undefined)
-  const deployments = useDeployments(data?.game.mission_pack_id)
 
   if (isLoading) return <Spinner label="Loading summary…" />
   if (isError || !data) return <ErrorBanner message="Couldn't load this game." onRetry={() => refetch()} />
@@ -43,9 +42,11 @@ export function SummaryPage() {
 
   // Layout images are keyed by the Force Disposition pairing (see LayoutVariantPicker), which is
   // shared between both seats -- either player's own resolved mission carries the same 3 image
-  // paths, same "either one works" reasoning GameConfigPicker's own layoutMission prop already uses.
+  // paths, same "either one works" reasoning GameConfigPicker's own layoutMission prop already
+  // uses. Just the layout, not the deployment too -- the layout image already shows the
+  // deployment's own battlefield shape underneath the terrain, so a separate deployment card next
+  // to it would just be a duplicate, blanker view of the same board.
   const layoutMission = p1Mission.data ?? p2Mission.data
-  const deployment = deployments.data?.find((d) => d.id === game.deployment_id)
   const layoutImageKey = game.layout_variant
     ? (`layout_${game.layout_variant.toLowerCase()}_image_path` as
         | 'layout_a_image_path'
@@ -70,42 +71,21 @@ export function SummaryPage() {
         <p className="text-sm text-paper/50">{game.points_limit} pts</p>
       </div>
 
-      {(deployment || game.layout_variant) && (
-        <div className="grid grid-cols-2 gap-3">
-          {deployment && (
-            <div className="flex flex-col overflow-hidden rounded-lg border border-white/10 bg-white/5">
-              {deployment.image_path ? (
-                <img
-                  src={deployment.image_path}
-                  alt=""
-                  loading="lazy"
-                  className="aspect-[44/60] w-full bg-white/5 object-contain"
-                />
-              ) : (
-                <div className="flex aspect-[44/60] w-full items-center justify-center bg-white/5 text-xs text-paper/30">
-                  No image
-                </div>
-              )}
-              <p className="px-2 py-1.5 text-xs font-medium text-paper/70">{deployment.name}</p>
+      {game.layout_variant && (
+        <div className="mx-auto flex w-full max-w-[12rem] flex-col overflow-hidden rounded-lg border border-white/10 bg-white/5">
+          {layoutImagePath ? (
+            <img
+              src={layoutImagePath}
+              alt=""
+              loading="lazy"
+              className="aspect-[44/60] w-full bg-white/5 object-contain"
+            />
+          ) : (
+            <div className="flex aspect-[44/60] w-full items-center justify-center bg-white/5 text-xs text-paper/30">
+              No image
             </div>
           )}
-          {game.layout_variant && (
-            <div className="flex flex-col overflow-hidden rounded-lg border border-white/10 bg-white/5">
-              {layoutImagePath ? (
-                <img
-                  src={layoutImagePath}
-                  alt=""
-                  loading="lazy"
-                  className="aspect-[44/60] w-full bg-white/5 object-contain"
-                />
-              ) : (
-                <div className="flex aspect-[44/60] w-full items-center justify-center bg-white/5 text-xs text-paper/30">
-                  No image
-                </div>
-              )}
-              <p className="px-2 py-1.5 text-xs font-medium text-paper/70">Layout {game.layout_variant}</p>
-            </div>
-          )}
+          <p className="px-2 py-1.5 text-center text-xs font-medium text-paper/70">Layout {game.layout_variant}</p>
         </div>
       )}
 

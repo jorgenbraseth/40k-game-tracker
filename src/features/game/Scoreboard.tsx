@@ -79,6 +79,7 @@ export function Scoreboard({
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
   const [configSheetOpen, setConfigSheetOpen] = useState(false)
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false)
 
   useWakeLock(detail.game.status === 'active')
 
@@ -201,36 +202,30 @@ export function Scoreboard({
                   ? 'End of game'
                   : `Round ${detail.game.current_round} of ${detail.game.total_rounds}`}
           </p>
+          {!isParticipant && <p className="text-xs text-paper/40">Spectating -- nothing here is yours to change.</p>}
           {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
           {detail.game.layout_variant && (
             <p className="text-xs text-paper/40">
               Layout {detail.game.layout_variant}
-              {isParticipant && ' · change it from "Game configuration" above'}
+              {isParticipant && ' · change it from Game configuration in the ⋯ menu'}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          {!isParticipant && (
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-paper/60">Spectating</span>
-          )}
-          {me && opponent && (
-            <button
-              type="button"
-              onClick={() => setConfigSheetOpen(true)}
-              className="text-xs whitespace-nowrap text-paper/50 underline"
-            >
-              Game configuration
-            </button>
-          )}
-          <Link to={`/game/${detail.game.id}/summary`} className="text-xs whitespace-nowrap text-paper/50 underline">
-            Summary
-          </Link>
+        <div className="flex flex-shrink-0 items-center gap-2">
           {isParticipant && (
-            <span className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}>
-              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
-              opponent {opponentOnline ? 'online' : 'offline'}
-            </span>
+            <span
+              aria-label={opponentOnline ? 'opponent online' : 'opponent offline'}
+              className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`}
+            />
           )}
+          <button
+            type="button"
+            onClick={() => setMoreSheetOpen(true)}
+            aria-label="More"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-paper/60 hover:bg-white/10 hover:text-paper"
+          >
+            ⋯
+          </button>
         </div>
       </div>
 
@@ -453,6 +448,36 @@ export function Scoreboard({
             </Sheet>
           )
         })()}
+
+      <Sheet open={moreSheetOpen} onClose={() => setMoreSheetOpen(false)} title="Game">
+        <div className="flex flex-col gap-1">
+          {me && opponent && (
+            <button
+              type="button"
+              onClick={() => {
+                setMoreSheetOpen(false)
+                setConfigSheetOpen(true)
+              }}
+              className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-white/5"
+            >
+              Game configuration
+            </button>
+          )}
+          <Link
+            to={`/game/${detail.game.id}/summary`}
+            onClick={() => setMoreSheetOpen(false)}
+            className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-white/5"
+          >
+            Summary
+          </Link>
+          {isParticipant && (
+            <p className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-paper/60">
+              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+              Opponent {opponentOnline ? 'online' : 'offline'}
+            </p>
+          )}
+        </div>
+      </Sheet>
 
       {me && opponent && (
         <Sheet open={configSheetOpen} onClose={() => setConfigSheetOpen(false)} title="Game configuration">
