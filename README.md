@@ -178,11 +178,11 @@ have to come with a wall of game rows by default. And wherever a
 player's name shows up -- a ladder's standings or game log, your own
 game history, the live Scoreboard, a game's summary -- it's a link to
 that player's own record: their overall win rate and breakdown by
-faction/mission/opponent, scoped to whatever of their games you're
-actually allowed to see (their own account's games if it's you, or, for
-anyone else, whatever ladder-tagged games you share a ladder with them
-on -- the same rule that already governs whether their results show up
-in a shared ladder's standings at all).
+faction/mission/opponent, across every game they've finished, full stop
+-- every player's stats are open to anyone signed in, not limited to a
+shared ladder or a game the viewer happened to be part of. A game still
+in the lobby or being played is a different matter -- that stays visible
+only to its own participants until it actually finishes, same as always.
 
 **Deployment and terrain layout:** picking a deployment shows its actual
 map image (one of the 6 Chapter Approved deployment cards), not just a
@@ -352,17 +352,21 @@ result table on the live Scoreboard and the post-game Summary, the
 waiting room's "Player 2" -- to a new `/players/:userId` page
 (`PlayerNameLink`, `src/components/`; issue #28). It's the same
 `StatsPage` as `/stats`, just for someone else's account instead of the
-signed-in user's own: `useCompletedGames(targetUserId)` already reads
-whichever of *that* user's games RLS lets the *viewer* see, so a
-stranger's page naturally comes back scoped to only the ladder-tagged
-games they share a ladder with (untagged personal games of theirs stay
-invisible, same as everywhere else) -- no new RLS or query logic needed,
-just calling the existing history query with someone else's id. A name
-only links when there's a stable account behind it (`playerUserId()`):
-an unclaimed, unattributed seat's army name stays plain text, since
-there's nobody to link to yet. Names inside a button that does something
-else (declaring Attacker/turn order, confirming who won) are deliberately
-left unlinked -- navigating away isn't what tapping those does.
+signed-in user's own: `useCompletedGames(targetUserId)` reads every one
+of that user's *finished* games (complete or abandoned), full stop --
+any signed-in user can see them, not just ones shared with a ladder in
+common or personally played in
+(`20260314000000_finished_game_visibility.sql` widens `games`/
+`game_players`/`round_scores`/`secondary_scores` accordingly; a game
+still in the lobby or being played stays participant-only until it
+finishes). No new query logic needed beyond that RLS widening -- calling
+the existing history query with someone else's id already comes back
+right. A name only links when there's a stable account behind it
+(`playerUserId()`): an unclaimed, unattributed seat's army name stays
+plain text, since there's nobody to link to yet. Names inside a button
+that does something else (declaring Attacker/turn order, confirming who
+won) are deliberately left unlinked -- navigating away isn't what
+tapping those does.
 
 Deployment map images, terrain layout selection, Attacker/Defender, and
 turn order are all implemented. "Start a game"'s deployment picker
