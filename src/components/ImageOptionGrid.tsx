@@ -42,10 +42,10 @@ export function ImageOptionGrid({
                   src={option.imagePath}
                   alt=""
                   loading="lazy"
-                  className="aspect-[4/5] w-full bg-white/5 object-contain"
+                  className="aspect-[44/60] w-full bg-white/5 object-contain"
                 />
               ) : (
-                <div className="flex aspect-[4/5] w-full items-center justify-center bg-white/5 text-xs text-paper/30">
+                <div className="flex aspect-[44/60] w-full items-center justify-center bg-white/5 text-xs text-paper/30">
                   No image
                 </div>
               )}
