@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
+  setMirroredField,
   useDeleteGame,
   useSetLayoutVariant,
   useSetReady,
@@ -63,7 +64,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
     }
   }
 
-  if (!me) return null
+  if (!me || !user) return null
 
   return (
     <div className="flex flex-col items-center gap-8 text-center">
@@ -109,8 +110,26 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             factions={factions.data ?? []}
             forceDispositions={forceDispositions.data ?? []}
             onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
-            onSetRole={(role) => setRole.mutate({ gamePlayerId: me.player.id, role })}
-            onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: me.player.id, turnOrder })}
+            onSetRole={(role) =>
+              setMirroredField(
+                (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
+                user.id,
+                me,
+                opponent,
+                role,
+                (r) => (r === 'attacker' ? 'defender' : 'attacker'),
+              )
+            }
+            onSetTurnOrder={(turnOrder) =>
+              setMirroredField(
+                (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
+                user.id,
+                me,
+                opponent,
+                turnOrder,
+                (t) => (t === 'first' ? 'second' : 'first'),
+              )
+            }
             layoutMission={myMission.data ?? opponentMission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
@@ -142,8 +161,26 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               factions={factions.data ?? []}
               forceDispositions={forceDispositions.data ?? []}
               onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: opponent.player.id, ...patch })}
-              onSetRole={(role) => setRole.mutate({ gamePlayerId: opponent.player.id, role })}
-              onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: opponent.player.id, turnOrder })}
+              onSetRole={(role) =>
+                setMirroredField(
+                  (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
+                  user.id,
+                  opponent,
+                  me,
+                  role,
+                  (r) => (r === 'attacker' ? 'defender' : 'attacker'),
+                )
+              }
+              onSetTurnOrder={(turnOrder) =>
+                setMirroredField(
+                  (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
+                  user.id,
+                  opponent,
+                  me,
+                  turnOrder,
+                  (t) => (t === 'first' ? 'second' : 'first'),
+                )
+              }
               ladderId={detail.game.ladder_id}
             />
             <Button
