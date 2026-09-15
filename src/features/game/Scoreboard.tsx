@@ -4,11 +4,13 @@ import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { Sheet } from '@/components/Sheet'
 import { Spinner } from '@/components/Feedback'
+import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { Stepper } from '@/components/Stepper'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
+  playerUserId,
   setMirroredField,
   useAbandonGame,
   useDeleteGame,
@@ -195,7 +197,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           <div key={entry.player.id} className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-center">
               <p className="font-semibold text-paper">
-                {playerLabel(entry, `Seat ${entry.player.seat}`)}
+                <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
                 {entry.player.user_id === user.id && <span className="ml-1 text-xs text-gold">(you)</span>}
                 {!entry.player.user_id && <span className="ml-1 text-xs text-paper/40">(not joined)</span>}
               </p>
@@ -309,7 +311,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           {orderedPlayers.map((entry) => (
             <div key={entry.player.id} className="flex-1 text-center">
-              <p className="truncate text-xs text-paper/50">{playerLabel(entry, `Seat ${entry.player.seat}`)}</p>
+              <p className="truncate text-xs text-paper/50">
+                <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
+              </p>
               <p className="text-2xl font-bold text-gold">{entry.totalVp}</p>
               <p className="text-[11px] text-paper/40">
                 {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
@@ -322,7 +326,8 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
       <Sheet open={endSheetOpen} onClose={() => setEndSheetOpen(false)} title={isActive ? 'End game' : 'Change result'}>
         <div className="flex flex-col gap-3">
           <p className="text-sm text-paper/60">
-            {playerLabel(p1, 'Seat 1')}: {p1?.totalVp ?? 0} · {playerLabel(p2, 'Seat 2')}: {p2?.totalVp ?? 0}
+            <PlayerNameLink userId={playerUserId(p1)} name={playerLabel(p1, 'Seat 1')} />: {p1?.totalVp ?? 0} ·{' '}
+            <PlayerNameLink userId={playerUserId(p2)} name={playerLabel(p2, 'Seat 2')} />: {p2?.totalVp ?? 0}
           </p>
           <Button onClick={() => endGame(suggestedOutcome)} disabled={finishGame.isPending}>
             {suggestedOutcome === 'draw'

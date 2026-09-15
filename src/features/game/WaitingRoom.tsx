@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
+import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
+  playerUserId,
   setMirroredField,
   useDeleteGame,
   useSetLayoutVariant,
@@ -140,7 +142,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         ) : opponent ? (
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-paper">{playerLabel(opponent, 'Player 2')}</p>
+              <p className="font-medium text-paper">
+                <PlayerNameLink userId={playerUserId(opponent)} name={playerLabel(opponent, 'Player 2')} />
+              </p>
               <p className="text-sm text-paper/50">
                 {opponent.factionName ?? 'No faction yet'}
                 {opponent.forceDispositionName ? ` · ${opponent.forceDispositionName}` : ''}

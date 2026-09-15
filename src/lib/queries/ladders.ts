@@ -29,9 +29,26 @@ export interface LadderStandingRow {
   vpAgainst: number
 }
 
+export interface LadderGameSeat {
+  /** The account behind this seat, if any -- their own, or whoever an unclaimed seat was
+   * attributed to -- null when there's nobody to link to. */
+  userId: string | null
+  displayName: string
+  vp: number
+}
+
+export interface LadderGameRow {
+  gameId: string
+  endedAt: string
+  seat1: LadderGameSeat
+  seat2: LadderGameSeat
+  outcome: 'seat_1' | 'seat_2' | 'draw'
+}
+
 export const ladderKeys = {
   list: (userId: string) => ['ladders', userId] as const,
   standings: (ladderId: string) => ['ladder-standings', ladderId] as const,
+  games: (ladderId: string) => ['ladder-games', ladderId] as const,
   members: (ladderId: string) => ['ladder-members', ladderId] as const,
 }
 
@@ -253,6 +270,80 @@ export function useLadderStandings(ladderId: string | undefined) {
   return useQuery({
     queryKey: ladderKeys.standings(ladderId ?? ''),
     queryFn: () => fetchLadderStandings(ladderId as string),
+    enabled: Boolean(ladderId),
+  })
+}
+
+/** Every completed game tagged with this ladder, most recent first -- not just the viewer's own
+ * (same RLS as standings: any signed-in user can read a ladder-tagged game's rows, see
+ * 20260310000000_ladder_game_visibility.sql). Kept as its own query, separate from
+ * fetchLadderStandings, since the games list is opt-in (collapsed until asked for) while
+ * standings load whenever a ladder row is expanded. */
+export async function fetchLadderGames(ladderId: string): Promise<LadderGameRow[]> {
+  const { data: games, error: gamesError } = await supabase
+    .from('games')
+    .select('id, outcome, ended_at, created_at')
+    .eq('ladder_id', ladderId)
+    .eq('status', 'complete')
+    .order('ended_at', { ascending: false })
+  if (gamesError) throw gamesError
+  if (games.length === 0) return []
+
+  const gameIds = games.map((g) => g.id)
+  const [playersRes, totalsRes] = await Promise.all([
+    supabase.from('game_players').select('*').in('game_id', gameIds).order('seat'),
+    supabase.from('game_totals').select('*').in('game_id', gameIds),
+  ])
+  if (playersRes.error) throw playersRes.error
+  if (totalsRes.error) throw totalsRes.error
+
+  const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
+  const playersByGameId = new Map<string, typeof playersRes.data>()
+  for (const p of playersRes.data) {
+    const list = playersByGameId.get(p.game_id) ?? []
+    list.push(p)
+    playersByGameId.set(p.game_id, list)
+  }
+
+  const profileIds = [
+    ...new Set(
+      playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id)),
+    ),
+  ]
+  const profilesRes = profileIds.length
+    ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
+    : { data: [], error: null }
+  if (profilesRes.error) throw profilesRes.error
+  const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+
+  const seatFor = (p: (typeof playersRes.data)[number] | undefined): LadderGameSeat => {
+    if (!p) return { userId: null, displayName: 'No opponent', vp: 0 }
+    const userId = p.user_id ?? p.represents_user_id
+    return {
+      userId,
+      displayName: userId ? (nameByUserId.get(userId) ?? 'Unknown player') : p.army_name || 'Unnamed player',
+      vp: totalByPlayerId.get(p.id) ?? 0,
+    }
+  }
+
+  return games
+    .filter((g): g is typeof g & { outcome: NonNullable<(typeof g)['outcome']> } => Boolean(g.outcome))
+    .map((g) => {
+      const [p1, p2] = playersByGameId.get(g.id) ?? []
+      return {
+        gameId: g.id,
+        endedAt: g.ended_at ?? g.created_at,
+        outcome: g.outcome,
+        seat1: seatFor(p1),
+        seat2: seatFor(p2),
+      }
+    })
+}
+
+export function useLadderGames(ladderId: string | undefined) {
+  return useQuery({
+    queryKey: ladderKeys.games(ladderId ?? ''),
+    queryFn: () => fetchLadderGames(ladderId as string),
     enabled: Boolean(ladderId),
   })
 }
