@@ -15,6 +15,7 @@ import {
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
 import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
+import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
 export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
@@ -109,30 +110,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         <div className="flex flex-col gap-3">
           <PlayerSetupFields
             me={me}
-            opponent={opponent}
             factions={factions.data ?? []}
             forceDispositions={forceDispositions.data ?? []}
             onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
-            onSetRole={(role) =>
-              setMirroredField(
-                (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
-                user.id,
-                me,
-                opponent,
-                role,
-                (r) => (r === 'attacker' ? 'defender' : 'attacker'),
-              )
-            }
-            onSetTurnOrder={(turnOrder) =>
-              setMirroredField(
-                (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
-                user.id,
-                me,
-                opponent,
-                turnOrder,
-                (t) => (t === 'first' ? 'second' : 'first'),
-              )
-            }
             layoutMission={myMission.data ?? opponentMission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
@@ -154,30 +134,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             </p>
             <PlayerSetupFields
               me={opponent}
-              opponent={me}
               factions={factions.data ?? []}
               forceDispositions={forceDispositions.data ?? []}
               onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: opponent.player.id, ...patch })}
-              onSetRole={(role) =>
-                setMirroredField(
-                  (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
-                  user.id,
-                  opponent,
-                  me,
-                  role,
-                  (r) => (r === 'attacker' ? 'defender' : 'attacker'),
-                )
-              }
-              onSetTurnOrder={(turnOrder) =>
-                setMirroredField(
-                  (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
-                  user.id,
-                  opponent,
-                  me,
-                  turnOrder,
-                  (t) => (t === 'first' ? 'second' : 'first'),
-                )
-              }
               ladderId={detail.game.ladder_id}
             />
           </div>
@@ -203,6 +162,36 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
           <p className="text-sm text-paper/50">Waiting for someone to join with the code above…</p>
         )}
       </div>
+
+      {opponent && (
+        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+          <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Game configuration</p>
+          <GameConfigPicker
+            me={me}
+            opponent={opponent}
+            onSetRole={(role) =>
+              setMirroredField(
+                (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
+                user.id,
+                me,
+                opponent,
+                role,
+                (r) => (r === 'attacker' ? 'defender' : 'attacker'),
+              )
+            }
+            onSetTurnOrder={(turnOrder) =>
+              setMirroredField(
+                (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
+                user.id,
+                me,
+                opponent,
+                turnOrder,
+                (t) => (t === 'first' ? 'second' : 'first'),
+              )
+            }
+          />
+        </div>
+      )}
 
       <div className="flex w-full max-w-sm flex-col gap-2">
         <Button disabled={!canStart || startGame.isPending} onClick={() => startGame.mutate()} fullWidth>

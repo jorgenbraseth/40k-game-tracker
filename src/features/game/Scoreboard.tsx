@@ -28,6 +28,7 @@ import {
   useSecondaryObjectives,
 } from '@/lib/queries/referenceData'
 import { useWakeLock } from '@/lib/useWakeLock'
+import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 import { PrimaryScorePanel } from './PrimaryScorePanel'
 import { SecondaryScores } from './SecondaryScores'
@@ -57,6 +58,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const [endSheetOpen, setEndSheetOpen] = useState(false)
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
+  const [configSheetOpen, setConfigSheetOpen] = useState(false)
 
   useWakeLock(detail.game.status === 'active')
 
@@ -94,6 +96,11 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const orderedPlayers = bothTurnOrderSet
     ? [...detail.players].sort((a, b) => turnOrderRank(a) - turnOrderRank(b))
     : detail.players
+
+  // For GameConfigPicker: "me" is whichever seat this viewer's own account controls, regardless
+  // of seat number -- same convention WaitingRoom uses, so "You" always means the right seat.
+  const me = detail.players.find((p) => p.player.user_id === user.id)
+  const opponent = detail.players.find((p) => p.player.id !== me?.player.id)
 
   const getRoundScore = (gamePlayerId: string) =>
     detail.roundScores.find((r) => r.game_player_id === gamePlayerId && r.battle_round === viewRound)?.primary_vp ?? 0
@@ -148,6 +155,15 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           )}
         </div>
         <div className="flex items-center gap-3">
+          {me && opponent && (
+            <button
+              type="button"
+              onClick={() => setConfigSheetOpen(true)}
+              className="text-xs whitespace-nowrap text-paper/50 underline"
+            >
+              Attacker &amp; turn order
+            </button>
+          )}
           <Link to={`/game/${detail.game.id}/summary`} className="text-xs whitespace-nowrap text-paper/50 underline">
             Summary
           </Link>
@@ -317,7 +333,6 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         (() => {
           const editing = detail.players.find((p) => p.player.id === editingPlayerId)
           if (!editing) return null
-          const other = detail.players.find((p) => p.player.id !== editingPlayerId)
           return (
             <Sheet
               open
@@ -326,30 +341,9 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
             >
               <PlayerSetupFields
                 me={editing}
-                opponent={other}
                 factions={factions.data ?? []}
                 forceDispositions={forceDispositions.data ?? []}
                 onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: editing.player.id, ...patch })}
-                onSetRole={(role) =>
-                  setMirroredField(
-                    (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
-                    user.id,
-                    editing,
-                    other,
-                    role,
-                    (r) => (r === 'attacker' ? 'defender' : 'attacker'),
-                  )
-                }
-                onSetTurnOrder={(turnOrder) =>
-                  setMirroredField(
-                    (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
-                    user.id,
-                    editing,
-                    other,
-                    turnOrder,
-                    (t) => (t === 'first' ? 'second' : 'first'),
-                  )
-                }
                 ladderId={detail.game.ladder_id}
                 layoutMission={p1Mission.data ?? p2Mission.data}
                 layoutVariant={detail.game.layout_variant}
@@ -358,6 +352,35 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
             </Sheet>
           )
         })()}
+
+      {me && opponent && (
+        <Sheet open={configSheetOpen} onClose={() => setConfigSheetOpen(false)} title="Attacker & turn order">
+          <GameConfigPicker
+            me={me}
+            opponent={opponent}
+            onSetRole={(role) =>
+              setMirroredField(
+                (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
+                user.id,
+                me,
+                opponent,
+                role,
+                (r) => (r === 'attacker' ? 'defender' : 'attacker'),
+              )
+            }
+            onSetTurnOrder={(turnOrder) =>
+              setMirroredField(
+                (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
+                user.id,
+                me,
+                opponent,
+                turnOrder,
+                (t) => (t === 'first' ? 'second' : 'first'),
+              )
+            }
+          />
+        </Sheet>
+      )}
     </div>
   )
 }
