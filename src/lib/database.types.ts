@@ -9,6 +9,7 @@ export type GameStatus = 'lobby' | 'active' | 'complete' | 'abandoned'
 export type GameOutcome = 'seat_1' | 'seat_2' | 'draw'
 export type SecondaryRole = 'attacker' | 'defender'
 export type PlayerRole = 'attacker' | 'defender'
+export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
 
 export interface Database {
@@ -178,6 +179,7 @@ export interface Database {
           force_disposition_id: string | null
           mission_id: string | null
           role: PlayerRole | null
+          turn_order: TurnOrder | null
           is_ready: boolean
           represents_user_id: string | null
           created_at: string

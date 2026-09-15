@@ -10,6 +10,7 @@ import {
   useSetLayoutVariant,
   useSetReady,
   useSetRole,
+  useSetTurnOrder,
   useStartGame,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
@@ -23,6 +24,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const forceDispositions = useForceDispositions()
   const setReady = useSetReady(detail.game.id)
   const setRole = useSetRole(detail.game.id)
+  const setTurnOrder = useSetTurnOrder(detail.game.id)
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
   const startGame = useStartGame(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
@@ -108,6 +110,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             forceDispositions={forceDispositions.data ?? []}
             onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
             onSetRole={(role) => setRole.mutate({ gamePlayerId: me.player.id, role })}
+            onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: me.player.id, turnOrder })}
             layoutMission={myMission.data ?? opponentMission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
@@ -140,6 +143,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               forceDispositions={forceDispositions.data ?? []}
               onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: opponent.player.id, ...patch })}
               onSetRole={(role) => setRole.mutate({ gamePlayerId: opponent.player.id, role })}
+              onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: opponent.player.id, turnOrder })}
               ladderId={detail.game.ladder_id}
             />
             <Button
@@ -157,6 +161,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
                 {opponent.factionName ?? 'No faction yet'}
                 {opponent.forceDispositionName ? ` · ${opponent.forceDispositionName}` : ''}
                 {opponent.player.role ? ` · ${opponent.player.role}` : ''}
+                {opponent.player.turn_order ? ` · went ${opponent.player.turn_order}` : ''}
               </p>
             </div>
             <span

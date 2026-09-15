@@ -11,9 +11,10 @@ type LayoutVariant = Database['public']['Tables']['games']['Row']['layout_varian
 type LayoutMission = Parameters<typeof LayoutVariantPicker>[0]['mission']
 
 /**
- * Force Disposition / Faction / Army name / Role -- shared between the
- * waiting room and the in-game "edit your setup" sheet, since a wrong
- * pick here should always be correctable, not just before the game starts.
+ * Force Disposition / Faction / Army name / Role / Turn order -- shared
+ * between the waiting room and the in-game "edit your setup" sheet,
+ * since a wrong pick here should always be correctable, not just before
+ * the game starts.
  * The terrain layout picker lives at the bottom of this same form (when
  * the layout* props are passed) since it's chosen alongside Attacker/
  * Defender, once the mission -- and so the Force Disposition pairing
@@ -32,6 +33,7 @@ export function PlayerSetupFields({
   forceDispositions,
   onUpdateSetup,
   onSetRole,
+  onSetTurnOrder,
   layoutMission,
   layoutVariant,
   onSetLayoutVariant,
@@ -48,6 +50,7 @@ export function PlayerSetupFields({
     representsUserId?: string | null
   }) => void
   onSetRole: (role: 'attacker' | 'defender' | null) => void
+  onSetTurnOrder: (turnOrder: 'first' | 'second' | null) => void
   layoutMission?: LayoutMission
   layoutVariant?: LayoutVariant
   onSetLayoutVariant?: (variant: LayoutVariant) => void
@@ -132,6 +135,33 @@ export function PlayerSetupFields({
                 className="capitalize"
               >
                 {role}
+                {takenByOpponent && !mine ? ' (taken)' : ''}
+              </Button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1 text-sm font-medium text-paper/80">Turn order</p>
+        <p className="mb-1.5 text-xs text-paper/50">
+          A separate roll-off decides who takes the first turn -- <strong className="text-paper/70">the
+          winner goes first every battle round</strong> for the rest of the game (the "top of round" player;
+          the other is "bottom of round"). Whoever went first shows first on the live Scoreboard.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {(['first', 'second'] as const).map((turnOrder) => {
+            const takenByOpponent = opponent?.player.turn_order === turnOrder
+            const mine = me.player.turn_order === turnOrder
+            return (
+              <Button
+                key={turnOrder}
+                type="button"
+                variant={mine ? 'primary' : 'secondary'}
+                disabled={takenByOpponent && !mine}
+                onClick={() => onSetTurnOrder(mine ? null : turnOrder)}
+              >
+                Went {turnOrder}
                 {takenByOpponent && !mine ? ' (taken)' : ''}
               </Button>
             )
