@@ -180,7 +180,6 @@ export interface Database {
           mission_id: string | null
           role: PlayerRole | null
           turn_order: TurnOrder | null
-          is_ready: boolean
           represents_user_id: string | null
           created_at: string
         }

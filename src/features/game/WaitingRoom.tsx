@@ -9,7 +9,6 @@ import {
   setMirroredField,
   useDeleteGame,
   useSetLayoutVariant,
-  useSetReady,
   useSetRole,
   useSetTurnOrder,
   useStartGame,
@@ -23,7 +22,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const navigate = useNavigate()
   const factions = useFactions()
   const forceDispositions = useForceDispositions()
-  const setReady = useSetReady(detail.game.id)
   const setRole = useSetRole(detail.game.id)
   const setTurnOrder = useSetTurnOrder(detail.game.id)
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
@@ -35,24 +33,29 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
 
   const me = detail.players.find((p) => p.player.user_id === user?.id)
   const opponent = detail.players.find((p) => p.player.user_id !== user?.id)
-  const bothReady = detail.players.length === 2 && detail.players.every((p) => p.player.is_ready)
-  const bothRolesAssigned = detail.players.length === 2 && detail.players.every((p) => p.player.role)
   const missionResolved = detail.players.length === 2 && detail.players.every((p) => p.player.mission_id)
+  const bothFactionsSet = detail.players.length === 2 && detail.players.every((p) => p.player.faction_id)
   const layoutChosen = Boolean(detail.game.layout_variant)
-  const canStart = bothReady && bothRolesAssigned && missionResolved && layoutChosen
+  const bothRolesAssigned = detail.players.length === 2 && detail.players.every((p) => p.player.role)
+  const bothTurnOrderSet = detail.players.length === 2 && detail.players.every((p) => p.player.turn_order)
+  const canStart = missionResolved && bothFactionsSet && layoutChosen && bothRolesAssigned && bothTurnOrderSet
 
   const myMission = useMission(me?.player.mission_id ?? undefined)
   const opponentMission = useMission(opponent?.player.mission_id ?? undefined)
 
+  // Mirrors the setup form's own order: who this seat is, then the game
+  // configuration. Army name is the only field that never gates this.
   const startBlockedReason = !missionResolved
     ? 'Waiting on both Force Dispositions to reveal the mission'
-    : !layoutChosen
-      ? 'Pick a terrain layout below'
-      : !bothRolesAssigned
-        ? 'Both players need to claim Attacker or Defender'
-        : !bothReady
-          ? 'Waiting for both players to be ready'
-          : null
+    : !bothFactionsSet
+      ? 'Both players need to pick a faction'
+      : !layoutChosen
+        ? 'Pick a terrain layout below'
+        : !bothRolesAssigned
+          ? 'Both players need to claim Attacker or Defender'
+          : !bothTurnOrderSet
+            ? 'Both players need to say who went first'
+            : null
 
   const copyCode = async () => {
     try {
@@ -135,12 +138,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
           />
 
-          <Button
-            variant={me.player.is_ready ? 'secondary' : 'primary'}
-            onClick={() => setReady.mutate({ gamePlayerId: me.player.id, isReady: !me.player.is_ready })}
-          >
-            {me.player.is_ready ? 'Ready ✓ (tap to undo)' : "I'm ready"}
-          </Button>
           <p className="text-center text-xs text-paper/40">
             Picked something wrong? All of this stays editable after the game starts too.
           </p>
@@ -183,12 +180,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               }
               ladderId={detail.game.ladder_id}
             />
-            <Button
-              variant={opponent.player.is_ready ? 'secondary' : 'primary'}
-              onClick={() => setReady.mutate({ gamePlayerId: opponent.player.id, isReady: !opponent.player.is_ready })}
-            >
-              {opponent.player.is_ready ? 'Ready ✓ (tap to undo)' : 'Mark Player 2 ready'}
-            </Button>
           </div>
         ) : opponent ? (
           <div className="flex items-center justify-between">
@@ -210,9 +201,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
           </div>
         ) : (
           <p className="text-sm text-paper/50">Waiting for someone to join with the code above…</p>
-        )}
-        {opponent?.player.user_id && (
-          <p className="mt-2 text-sm text-paper/50">{opponent.player.is_ready ? 'Ready ✓' : 'Not ready yet'}</p>
         )}
       </div>
 
