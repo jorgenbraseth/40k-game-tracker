@@ -203,7 +203,12 @@ or leaving any ladder is a self-service `ladder_members` row (no invite
 code), "Start a game" gets an optional ladder picker (only shown once
 you're in at least one), and History gets a ladder filter once any of
 your games carry one. Standings are computed live in
-`src/lib/queries/ladders.ts`, not stored.
+`src/lib/queries/ladders.ts`, not stored. A ladder-tagged game is
+readable by any signed-in user, not just its two players
+(`20260310000000_ladder_game_visibility.sql`) -- otherwise a viewer's
+standings would silently only reflect games they personally played in,
+missing every result between other ladder members. Untagged games stay
+participant-only, unchanged.
 
 Deployment map images and terrain layout selection are implemented:
 "Start a game"'s deployment picker (`ImageOptionGrid`) shows each
