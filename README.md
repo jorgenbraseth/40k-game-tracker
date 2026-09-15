@@ -290,7 +290,8 @@ this round's total, and what it's actually still capped at (same
 picture regardless of which round is being viewed -- every
 **drawn-but-unscored** one first (badged with which round it was drawn,
 highlighted when that's the round currently being viewed), then already
-**scored** ones below (with which round each was scored in) -- both
+**scored** ones below (badged with both which round it was drawn *and*
+which round it was scored in, since those can differ) -- both
 groups ordered by draw round, oldest first -- with two side-by-side
 buttons below, "🎲 Random secondary" (draws uniformly at random from
 whatever's left in that role's deck, immediately, no extra tap) and "+
