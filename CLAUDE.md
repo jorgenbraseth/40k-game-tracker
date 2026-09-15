@@ -21,3 +21,38 @@ them. When you make a change:
 This applies whether the change comes from this repo's own session or a
 fresh one -- treat README.md as living documentation of the product, not
 a one-time snapshot from when the app was first built.
+
+## In-page view state belongs in the URL
+
+Any state that determines *what a page is showing* -- which round of a
+game is on screen, which ladder a list is filtered to, which item in a
+list is selected, a page number, a search/sort choice -- must live in
+the URL (`useSearchParams`, or a route param for a whole separate
+resource like `/players/:userId`), not in a plain `useState`. The bar:
+if a user would reasonably want to bookmark, share, or hit browser
+back/forward to return to a particular view, it needs to be
+URL-addressable. `Scoreboard`'s `viewRound` (`?round=N`) and
+`HistoryPage`'s `ladderFilter` (`?ladder=<id>`) are the reference
+examples.
+
+Excluded -- these stay local `useState`, not URL params:
+- A modal/sheet's open-or-closed-ness (`Sheet`, `ConfirmSheet`) and
+  which record it's currently open for (e.g. `editingPlayerId`,
+  `scoringObjectiveId`) -- transient UI, not a distinct page view.
+- An accordion/disclosure toggle showing or hiding a block of content
+  already on the page (e.g. a ladder row's expanded standings) -- same
+  reasoning as a modal, and multiple independent toggles on one page
+  don't have a clean single-value URL encoding.
+- Draft/in-progress form input not yet submitted (text fields, a
+  password, an unconfirmed pick) -- putting a draft in the URL is
+  wrong even when the *submitted* result of that form would belong
+  there once it exists.
+- Purely transient feedback (a "Copied!" flash, a saving/saved
+  indicator, an inline error message).
+
+When a URL param change represents genuinely moving between distinct
+views the user might step back through (Scoreboard's round), push a new
+history entry (`setSearchParams`'s default). When it's closer to
+refining the current view in place (a filter dropdown), pass `{ replace:
+true }` so back/forward isn't cluttered with one entry per keystroke or
+selection.

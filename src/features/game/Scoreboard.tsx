@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { Sheet } from '@/components/Sheet'
@@ -60,7 +60,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const setRole = useSetRole(detail.game.id)
   const setTurnOrder = useSetTurnOrder(detail.game.id)
 
-  const [viewRound, setViewRound] = useState(detail.game.current_round)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [endSheetOpen, setEndSheetOpen] = useState(false)
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
@@ -94,6 +94,26 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   // bonus -- same round_scores/primary_objective_ticks machinery as a real round (see the
   // 20260312000000 migration), just a round number no mission ever uses for its own windows.
   const endOfGameRound = detail.game.total_rounds + 1
+
+  // Which round is being viewed lives in the URL (?round=N), not local state -- bookmarkable,
+  // shareable, and back/forward moves between rounds, per this app's general rule that in-page
+  // view state (as opposed to a modal/sheet's open/closed-ness) belongs in the URL. Falls back to
+  // the game's actual current round when the URL doesn't pin one (a plain link to the game, or an
+  // out-of-range leftover from a shorter game) -- that fallback is deliberately never written
+  // back into the URL itself, so just opening the game doesn't pre-pin a round that keeps advancing.
+  const requestedRound = Number(searchParams.get('round'))
+  const viewRound =
+    Number.isInteger(requestedRound) && requestedRound >= 1 && requestedRound <= endOfGameRound
+      ? requestedRound
+      : detail.game.current_round
+  const setViewRound = (round: number) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('round', String(round))
+      return next
+    })
+  }
+
   const isActive = detail.game.status === 'active'
   const isLastRound = viewRound === endOfGameRound
   const isViewingCurrent = viewRound === detail.game.current_round

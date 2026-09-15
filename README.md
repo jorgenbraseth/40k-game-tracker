@@ -69,10 +69,16 @@ players' own phones if they'd both rather enter their own numbers.
   just start the game.
 - Once the game starts, primary VP and secondary objectives are scored
   round by round (5 battle rounds, then an End of Game step -- see
-  below). With two players each on their own phone, scores update live
-  for both as they're entered -- no refreshing, no "did you get that?"
-  across the table -- and either one can enter either side's score,
-  since players agree scores verbally at the table anyway. Bookkeeping
+  below), and whichever round is on screen is part of the URL -- so
+  jumping back to check an earlier round is bookmarkable/shareable, and
+  the browser's own back/forward moves between rounds, the same as any
+  other distinct view in the app: what a page is currently showing is
+  never state a URL alone can't reproduce (a modal's open-or-closed-ness
+  is the one deliberate exception). With two players each on their own
+  phone, scores update live for both as they're entered -- no
+  refreshing, no "did you get that?" across the table -- and either one
+  can enter either side's score, since players agree scores verbally at
+  the table anyway. Bookkeeping
   both sides yourself works the same way, just from one phone.
 - Scoring is pick-what-you-achieved, not type-a-number: the round
   overview shows a player's primary VP as the actual scoring conditions
@@ -422,6 +428,17 @@ horizontal zoom-out on a real phone screen instead of wrapping. The
 footer also picked up the same `max-w-3xl` centering the header and
 main content already had, so it no longer stretches wider than the rest
 of the page on a wide screen.
+
+In-page view state lives in the URL, not local component state --
+`Scoreboard`'s viewed round is `?round=N` (pushes a history entry per
+change, so back/forward steps between rounds -- exactly what made it
+bookmarkable and shareable in the first place) and `HistoryPage`'s
+ladder filter is `?ladder=<id>` (replaces in place, so picking a
+different ladder doesn't clutter back/forward with one entry per
+selection). See `CLAUDE.md`'s "In-page view state belongs in the URL"
+for the general rule this follows and what's deliberately excluded from
+it (a `Sheet`/modal's open-or-closed-ness, an accordion toggle, an
+unsubmitted form draft, transient feedback).
 
 Everything else -- auth, live game creation/joining, the Force
 Disposition/mission-pairing flow, live round-by-round scoring, realtime
