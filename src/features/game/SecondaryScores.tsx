@@ -292,10 +292,10 @@ export function SecondaryScores({
               <button
                 type="button"
                 onClick={() => drawOne(objective.id)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
+                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
               >
-                <span className="text-paper">{objective.name}</span>
-                <span className="text-xs text-paper/40">up to {objective.max_vp}VP</span>
+                <span className="min-w-0 flex-1 text-paper">{objective.name}</span>
+                <span className="flex-shrink-0 text-xs text-paper/40">up to {objective.max_vp}VP</span>
               </button>
             </li>
           ))}
