@@ -217,7 +217,12 @@ already had. When that unclaimed seat's game is tagged to a ladder, the
 bookkeeper can also attribute it to a specific ladder member
 (`game_players.represents_user_id`, a picker in `PlayerSetupFields`) so
 that player's win/loss counts in standings even though they never
-signed in -- see "Ladders" above.
+signed in -- see "Ladders" above. `fetchCompletedGames` (History, and
+`StatsPage`/`/players/:userId`) resolves a user's own games the same
+way fetchLadderStandings does -- `user_id` or `represents_user_id`, not
+just `user_id` -- so a solo-entered, represents_user_id-attributed game
+shows up in that player's own history and stats too, not only in ladder
+standings.
 
 Turn order is implemented: `game_players.turn_order` ('first'/'second')
 is modeled exactly like `role` at the schema level (a partial unique
