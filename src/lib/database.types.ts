@@ -11,6 +11,7 @@ export type SecondaryRole = 'attacker' | 'defender'
 export type PlayerRole = 'attacker' | 'defender'
 export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
+export type SecondaryMode = 'fixed' | 'tactical'
 
 export interface Database {
   public: {
@@ -182,6 +183,7 @@ export interface Database {
           turn_order: TurnOrder | null
           represents_user_id: string | null
           painted_bonus: boolean
+          secondary_mode: SecondaryMode | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['game_players']['Row']> & {
@@ -321,7 +323,7 @@ export interface Database {
           vp_value: number
           is_counter: boolean
           is_cumulative_bonus: boolean
-          mode: 'fixed' | 'tactical' | null
+          mode: SecondaryMode | null
           sort_order: number
           created_at: string
         }

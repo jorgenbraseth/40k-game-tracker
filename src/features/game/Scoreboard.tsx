@@ -275,6 +275,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 ticks={detail.secondaryTicks}
                 userId={user.id}
                 editable
+                playerMode={entry.player.secondary_mode}
               />
             )}
           </div>

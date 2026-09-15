@@ -1,21 +1,24 @@
 import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
+import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import { useLadderMembers } from '@/lib/queries/ladders'
 
 type PlayerEntry = GameDetail['players'][number]
+type SecondaryMode = Database['public']['Tables']['game_players']['Row']['secondary_mode']
 
 /**
- * A single seat's own setup: who this seat *is* (Faction, Force Disposition, Army name -- plus,
- * first, a "Player" picker when `me` is an unclaimed seat on a ladder-tagged game, letting the
- * bookkeeper attribute it to a real ladder member so that player's result counts in standings
- * even though they never signed in). Shared between the waiting room and the in-game "edit your
- * setup" sheet, since a wrong pick here should always be correctable, not just before the game
- * starts.
+ * A single seat's own setup: who this seat *is* (Faction, Force Disposition, which of Fixed or
+ * Tactical they're playing Secondary Missions as, Army name -- plus, first, a "Player" picker
+ * when `me` is an unclaimed seat on a ladder-tagged game, letting the bookkeeper attribute it to
+ * a real ladder member so that player's result counts in standings even though they never signed
+ * in). Shared between the waiting room and the in-game "edit your setup" sheet, since a wrong
+ * pick here should always be correctable, not just before the game starts.
  *
  * Terrain layout, Attacker/Defender, and turn order are *not* here -- none of them are a single
  * seat's own property, they're shared decisions about the game as a whole, so they live in their
- * own GameConfigPicker instead.
+ * own GameConfigPicker instead. Fixed/Tactical, unlike those, *is* each seat's own independent
+ * choice (not a shared roll-off outcome), so it belongs here alongside Faction/Force Disposition.
  */
 export function PlayerSetupFields({
   me,
@@ -32,6 +35,7 @@ export function PlayerSetupFields({
     armyName?: string | null
     forceDispositionId?: string | null
     representsUserId?: string | null
+    secondaryMode?: SecondaryMode
   }) => void
   ladderId?: string | null
 }) {
@@ -86,6 +90,22 @@ export function PlayerSetupFields({
           </option>
         ))}
       </Select>
+
+      <div>
+        <Select
+          label="Secondaries"
+          value={me.player.secondary_mode ?? ''}
+          onChange={(e) => onUpdateSetup({ secondaryMode: (e.target.value || null) as SecondaryMode })}
+        >
+          <option value="">Not sure yet</option>
+          <option value="tactical">Tactical</option>
+          <option value="fixed">Fixed</option>
+        </Select>
+        <p className="mt-1.5 text-xs text-paper/50">
+          A few secondary cards score differently as a Fixed pick than as a Tactical draw --
+          setting this shows only the scoring that actually applies to this seat.
+        </p>
+      </div>
 
       <TextField
         label="Army name"

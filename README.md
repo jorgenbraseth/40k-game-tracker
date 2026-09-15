@@ -41,7 +41,8 @@ players' own phones if they'd both rather enter their own numbers.
   if they'd been there from the start -- not a required step to use the
   app.
 - The waiting room has each seat's own setup (faction, Force Disposition,
-  army name) side by side, plus one shared **game configuration** section
+  which of Fixed or Tactical they're playing Secondary Missions as, army
+  name) side by side, plus one shared **game configuration** section
   below both, covering everything that's a property of the game rather
   than of one seat: terrain layout, and who's Attacker and who went
   first -- none of those are really two people's separate opinions,
@@ -101,6 +102,11 @@ players' own phones if they'd both rather enter their own numbers.
   game* -- not just the two from this particular round. The app always
   shows the whole cumulative picture -- what's scored, and what's drawn
   but still sitting there unscored -- not just the current round's two.
+  A handful of secondary cards score differently depending on whether a
+  player is playing Secondary Missions as Fixed picks or Tactical draws
+  -- once a seat has declared which in setup, the round screen only
+  shows the scoring conditions that actually apply to them, instead of
+  both sets at once.
 - The app knows the actual current missions, deployments, and secondary
   objectives for whichever Chapter Approved mission pack is active --
   this isn't a generic point counter, it understands the ruleset. When a
@@ -277,6 +283,21 @@ groups ordered by draw round, oldest first -- with a "+ Draw a
 secondary" picker that either draws a specific card or, via "🎲 Draw
 random", picks uniformly at random from whatever's left in that role's
 deck.
+
+Fixed vs Tactical is implemented: `secondary_objective_lines.mode`
+(`'fixed' | 'tactical' | null`) already tagged which of a card's lines
+apply to which -- 4 of the 18 secondaries (A Grievous Blow, Engage on
+All Fronts, Assassination, Bring It Down) have every line tagged one way
+or the other, the remaining 14 are mode-agnostic throughout -- but
+nothing read it before now, so the round screen showed every line for a
+split card at once, "(fixed)"/"(tactical)" label and all. A new
+`game_players.secondary_mode` column (optional, own seat's own choice,
+alongside Faction/Force Disposition in `PlayerSetupFields`, not a shared
+GameConfigPicker decision) records which a seat is playing; once set,
+`SecondaryScores` filters a card's scoring lines to just that mode (plus
+any mode-agnostic ones) -- until set, every line still shows, same as
+before this existed, so nothing regresses for a seat that hasn't picked
+yet.
 
 Ladders are implemented: the Ladders page lists every ladder (yours and
 others'), `create_ladder` makes a new one and seats its creator, joining

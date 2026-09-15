@@ -342,12 +342,14 @@ export function useUpdatePlayerSetup(gameId: string) {
       armyName?: string | null
       forceDispositionId?: string | null
       representsUserId?: string | null
+      secondaryMode?: Database['public']['Tables']['game_players']['Row']['secondary_mode']
     }) => {
       const patch: Database['public']['Tables']['game_players']['Update'] = {}
       if ('factionId' in input) patch.faction_id = input.factionId
       if ('armyName' in input) patch.army_name = input.armyName
       if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
       if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
+      if ('secondaryMode' in input) patch.secondary_mode = input.secondaryMode
 
       const { error } = await supabase.from('game_players').update(patch).eq('id', input.gamePlayerId)
       if (error) throw error
@@ -368,6 +370,7 @@ export function useUpdatePlayerSetup(gameId: string) {
       if ('armyName' in input) patch.army_name = input.armyName
       if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
       if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
+      if ('secondaryMode' in input) patch.secondary_mode = input.secondaryMode
       if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, patch))
       return { previous }
     },

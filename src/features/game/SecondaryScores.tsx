@@ -15,6 +15,7 @@ import { ObjectiveChecklist } from './ObjectiveChecklist'
 type SecondaryObjective = Database['public']['Tables']['secondary_objectives']['Row']
 type SecondaryObjectiveLine = Database['public']['Tables']['secondary_objective_lines']['Row']
 type SecondaryTick = Database['public']['Tables']['secondary_objective_ticks']['Row']
+type SecondaryMode = Database['public']['Tables']['game_players']['Row']['secondary_mode']
 
 /** Same core-rule caps as primary (see PrimaryScorePanel): no matter how many secondaries a
  * player scores, no more than 15VP from secondary in a single round or 45VP over the game --
@@ -42,6 +43,7 @@ export function SecondaryScores({
   ticks,
   userId,
   editable,
+  playerMode,
 }: {
   gameId: string
   gamePlayerId: string
@@ -53,6 +55,10 @@ export function SecondaryScores({
   ticks: SecondaryTick[]
   userId: string
   editable: boolean
+  /** This player's declared Fixed/Tactical choice (game_players.secondary_mode) -- null until
+   * they've picked one, in which case every line is still shown (see scoringLines below), same
+   * as before this existed. */
+  playerMode: SecondaryMode
 }) {
   const upsert = useUpsertSecondaryScore(gameId)
   const remove = useRemoveSecondaryScore(gameId)
@@ -81,7 +87,12 @@ export function SecondaryScores({
 
   const scoringObjective = available.find((a) => a.id === scoringObjectiveId)
   const scoringScore = myScores.find((s) => s.secondary_objective_id === scoringObjectiveId)
-  const scoringLines = lines.filter((l) => l.secondary_objective_id === scoringObjectiveId)
+  // A handful of cards score differently as a Fixed pick than as a Tactical draw (see the `mode`
+  // column) -- once this player has declared which they're playing, only the matching lines (plus
+  // any mode-agnostic ones) show; undeclared, every line still shows, same as before this existed.
+  const scoringLines = lines.filter(
+    (l) => l.secondary_objective_id === scoringObjectiveId && (!playerMode || !l.mode || l.mode === playerMode),
+  )
   const counts = new Map(
     ticks
       .filter(
