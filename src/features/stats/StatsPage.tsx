@@ -9,11 +9,12 @@ import { RecordGroup } from './RecordGroup'
 /**
  * Serves both `/stats` (no route param -- always the signed-in user's own record) and
  * `/players/:userId` (anyone else's, reached by tapping a linked player name elsewhere in the
- * app). The same query works for either: `useCompletedGames` already reads whichever games RLS
- * lets the *viewer* see for that `userId` -- their own if it's their own account, or, for someone
- * else, only the ladder-tagged games they share a ladder with (untagged personal games of a
- * stranger's stay invisible, same as everywhere else in this app -- see issue #28 and
- * 20260310000000_ladder_game_visibility.sql) -- so nothing here needs to know the difference.
+ * app). The same query works for either: `useCompletedGames` reads every one of that `userId`'s
+ * *finished* games (complete or abandoned) -- any signed-in user can see them, not just a shared
+ * ladder or a game they personally played in (see issue #28 and
+ * 20260314000000_finished_game_visibility.sql) -- so nothing here needs to know the difference. A
+ * game still in the lobby or being played stays invisible to everyone but its own participants
+ * until it actually finishes.
  */
 export function StatsPage() {
   const { userId: routeUserId } = useParams<{ userId?: string }>()
@@ -36,9 +37,7 @@ export function StatsPage() {
       <EmptyState
         title="No stats to show"
         description={
-          isOwn
-            ? 'Finish a game to start building your record.'
-            : "No games between you two share a ladder for yet -- only ladder-tagged games are visible here, same as ladder standings."
+          isOwn ? 'Finish a game to start building your record.' : "This player hasn't finished a game yet."
         }
       />
     )
