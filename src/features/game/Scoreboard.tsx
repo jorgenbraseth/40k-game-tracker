@@ -39,7 +39,17 @@ import { PlayerSetupFields } from './PlayerSetupFields'
 import { PrimaryScorePanel } from './PrimaryScorePanel'
 import { SecondaryScores } from './SecondaryScores'
 
-export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
+export function Scoreboard({
+  detail,
+  opponentOnline,
+  isParticipant,
+}: {
+  detail: GameDetail
+  opponentOnline: boolean
+  /** False for a spectator (any signed-in user other than this game's two seats, see
+   * GamePage) -- everything below stays visible, nothing stays clickable. */
+  isParticipant: boolean
+}) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [p1, p2] = detail.players
@@ -133,9 +143,13 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
     : detail.players
 
   // For GameConfigPicker: "me" is whichever seat this viewer's own account controls, regardless
-  // of seat number -- same convention WaitingRoom uses, so "You" always means the right seat.
-  const me = detail.players.find((p) => p.player.user_id === user.id)
-  const opponent = detail.players.find((p) => p.player.id !== me?.player.id)
+  // of seat number -- same convention WaitingRoom uses, so "You" always means the right seat. A
+  // spectator has no seat of their own, so this falls back to plain seat order -- GameConfigPicker
+  // renders identically either way (see its own doc comment), just non-interactively (disabled
+  // below) and with real names instead of a "You" that wouldn't mean anything to a spectator.
+  const myPlayer = detail.players.find((p) => p.player.user_id === user.id)
+  const me = myPlayer ?? p1
+  const opponent = myPlayer ? detail.players.find((p) => p.player.id !== myPlayer.player.id) : p2
   const ladderOptions = (ladders.data ?? [])
     .filter((l) => (l.isMember && !l.archivedAt) || l.id === detail.game.ladder_id)
     .map((l) => ({ id: l.id, name: l.name }))
@@ -190,11 +204,15 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
           {detail.game.layout_variant && (
             <p className="text-xs text-paper/40">
-              Layout {detail.game.layout_variant} · change it from "Game configuration" above
+              Layout {detail.game.layout_variant}
+              {isParticipant && ' · change it from "Game configuration" above'}
             </p>
           )}
         </div>
         <div className="flex items-center gap-3">
+          {!isParticipant && (
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-paper/60">Spectating</span>
+          )}
           {me && opponent && (
             <button
               type="button"
@@ -207,10 +225,12 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           <Link to={`/game/${detail.game.id}/summary`} className="text-xs whitespace-nowrap text-paper/50 underline">
             Summary
           </Link>
-          <span className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}>
-            <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
-            opponent {opponentOnline ? 'online' : 'offline'}
-          </span>
+          {isParticipant && (
+            <span className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}>
+              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+              opponent {opponentOnline ? 'online' : 'offline'}
+            </span>
+          )}
         </div>
       </div>
 
@@ -244,7 +264,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               {missionByPlayerId.get(entry.player.id)?.name && (
                 <p className="mt-1 text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
               )}
-              {(entry.player.user_id === user.id || !entry.player.user_id) && (
+              {isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) && (
                 <button
                   type="button"
                   onClick={() => setEditingPlayerId(entry.player.id)}
@@ -266,10 +286,11 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               lines={linesByPlayerId.get(entry.player.id) ?? []}
               ticks={detail.primaryTicks}
               userId={user.id}
+              editable={isParticipant}
             />
 
             {viewRound === endOfGameRound ? (
-              entry.player.user_id === user.id || !entry.player.user_id ? (
+              isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) ? (
                 <label className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm">
                   <span className="text-paper/80">
                     Army painted <span className="text-paper/40">(+10VP)</span>
@@ -305,7 +326,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 lines={secondaryLines.data ?? []}
                 ticks={detail.secondaryTicks}
                 userId={user.id}
-                editable
+                editable={isParticipant}
                 playerMode={entry.player.secondary_mode}
               />
             )}
@@ -313,27 +334,29 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         ))}
       </div>
 
-      <div className="flex flex-col gap-2">
-        {isActive && isViewingCurrent && (detail.game.current_round > 1 || !isLastRound) && (
-          <div className="flex gap-2">
-            {detail.game.current_round > 1 && (
-              <Button variant="secondary" className="flex-1" onClick={goBackRound}>
-                Back to round {detail.game.current_round - 1}
-              </Button>
-            )}
-            {!isLastRound && (
-              <Button variant="secondary" className="flex-1" onClick={advanceRound}>
-                {detail.game.current_round + 1 === endOfGameRound
-                  ? 'Advance to End of Game'
-                  : `Advance to round ${detail.game.current_round + 1}`}
-              </Button>
-            )}
-          </div>
-        )}
-        <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
-          {isActive ? 'End game' : 'Change result'}
-        </Button>
-      </div>
+      {isParticipant && (
+        <div className="flex flex-col gap-2">
+          {isActive && isViewingCurrent && (detail.game.current_round > 1 || !isLastRound) && (
+            <div className="flex gap-2">
+              {detail.game.current_round > 1 && (
+                <Button variant="secondary" className="flex-1" onClick={goBackRound}>
+                  Back to round {detail.game.current_round - 1}
+                </Button>
+              )}
+              {!isLastRound && (
+                <Button variant="secondary" className="flex-1" onClick={advanceRound}>
+                  {detail.game.current_round + 1 === endOfGameRound
+                    ? 'Advance to End of Game'
+                    : `Advance to round ${detail.game.current_round + 1}`}
+                </Button>
+              )}
+            </div>
+          )}
+          <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
+            {isActive ? 'End game' : 'Change result'}
+          </Button>
+        </div>
+      )}
 
       {/* Running totals -- always visible without scrolling, per the design brief. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
@@ -436,6 +459,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           <GameConfigPicker
             me={me}
             opponent={opponent}
+            disabled={!isParticipant}
             layoutMission={p1Mission.data ?? p2Mission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}

@@ -6,6 +6,10 @@ import { supabase } from '@/lib/supabase'
 interface PresenceMeta {
   userId: string
   displayName: string
+  /** 'spectator' for a signed-in viewer who isn't one of this game's two seats -- excluded from
+   * the "opponent online" indicator (see below), which is about the other *player*, not just
+   * anyone else currently looking at the page. */
+  role: 'player' | 'spectator'
 }
 
 /**
@@ -70,10 +74,10 @@ export function useGameChannel(gameId: string | undefined, me: PresenceMeta | nu
       )
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceMeta>()
-        const others = Object.values(state)
+        const otherPlayers = Object.values(state)
           .flat()
-          .filter((p) => p.userId !== me.userId)
-        setOpponentOnline(others.length > 0)
+          .filter((p) => p.userId !== me.userId && p.role === 'player')
+        setOpponentOnline(otherPlayers.length > 0)
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {

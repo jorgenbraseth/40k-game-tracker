@@ -24,10 +24,14 @@ export function ObjectiveChecklist({
   lines,
   counts,
   onChangeCount,
+  editable = true,
 }: {
   lines: ChecklistLine[]
   counts: Map<string, number>
   onChangeCount: (lineId: string, count: number) => void
+  /** False for a spectator viewing someone else's game -- the checklist still shows exactly what's
+   * ticked, just with no tap targets that would try (and fail server-side) to change it. */
+  editable?: boolean
 }) {
   const withHeaders = lines.map((line, i) => ({
     line,
@@ -73,7 +77,7 @@ export function ObjectiveChecklist({
                   <button
                     type="button"
                     aria-label="Decrease count"
-                    disabled={count <= 0}
+                    disabled={!editable || count <= 0}
                     onClick={() => onChangeCount(line.id, count - 1)}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-paper active:scale-95 disabled:opacity-30"
                   >
@@ -83,8 +87,9 @@ export function ObjectiveChecklist({
                   <button
                     type="button"
                     aria-label="Increase count"
+                    disabled={!editable}
                     onClick={() => onChangeCount(line.id, count + 1)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-paper active:scale-95"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-paper active:scale-95 disabled:opacity-30"
                   >
                     +
                   </button>
@@ -92,9 +97,10 @@ export function ObjectiveChecklist({
               ) : (
                 <button
                   type="button"
+                  disabled={!editable}
                   onClick={() => onChangeCount(line.id, achieved ? 0 : 1)}
                   className={clsx(
-                    'flex h-9 flex-shrink-0 items-center justify-center rounded-lg px-3 text-sm font-medium active:scale-95',
+                    'flex h-9 flex-shrink-0 items-center justify-center rounded-lg px-3 text-sm font-medium active:scale-95 disabled:cursor-default disabled:active:scale-100',
                     achieved ? 'bg-gold text-ink' : 'bg-white/10 text-paper/60',
                   )}
                 >

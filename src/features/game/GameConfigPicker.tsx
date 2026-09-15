@@ -32,6 +32,7 @@ export function GameConfigPicker({
   ladderId,
   ladderOptions,
   onSetLadder,
+  disabled,
 }: {
   me: PlayerEntry
   opponent: PlayerEntry
@@ -47,6 +48,9 @@ export function GameConfigPicker({
    * just vanishes from the dropdown. */
   ladderOptions?: { id: string; name: string }[]
   onSetLadder?: (ladderId: string | null) => void
+  /** True for a spectator -- shows the exact same picks, just with nothing tappable (a write
+   * would fail server-side regardless; this just avoids offering it). */
+  disabled?: boolean
 }) {
   const myLabel = playerLabel(me, 'You')
   const opponentLabel = playerLabel(opponent, 'Player 2')
@@ -58,6 +62,7 @@ export function GameConfigPicker({
           label="Ladder game? (optional)"
           value={ladderId ?? ''}
           onChange={(e) => onSetLadder(e.target.value || null)}
+          disabled={disabled}
         >
           <option value="">Not a ladder game</option>
           {(ladderOptions ?? []).map((l) => (
@@ -86,6 +91,7 @@ export function GameConfigPicker({
           <Button
             type="button"
             variant={me.player.role === 'attacker' ? 'primary' : 'secondary'}
+            disabled={disabled}
             onClick={() => onSetRole(me.player.role === 'attacker' ? null : 'attacker')}
           >
             {myLabel}
@@ -93,6 +99,7 @@ export function GameConfigPicker({
           <Button
             type="button"
             variant={opponent.player.role === 'attacker' ? 'primary' : 'secondary'}
+            disabled={disabled}
             onClick={() => onSetRole(me.player.role === 'defender' ? null : 'defender')}
           >
             {opponentLabel}
@@ -106,6 +113,7 @@ export function GameConfigPicker({
           <Button
             type="button"
             variant={me.player.turn_order === 'first' ? 'primary' : 'secondary'}
+            disabled={disabled}
             onClick={() => onSetTurnOrder(me.player.turn_order === 'first' ? null : 'first')}
           >
             {myLabel}
@@ -113,6 +121,7 @@ export function GameConfigPicker({
           <Button
             type="button"
             variant={opponent.player.turn_order === 'first' ? 'primary' : 'secondary'}
+            disabled={disabled}
             onClick={() => onSetTurnOrder(me.player.turn_order === 'second' ? null : 'second')}
           >
             {opponentLabel}

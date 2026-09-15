@@ -20,11 +20,11 @@ players' own phones if they'd both rather enter their own numbers.
 
 **The intended experience, end to end:**
 
-- Anyone can sign up -- with Google or with email/password. No invite
-  needed, no spectator mode, players only. Signing up registers a display
-  name (editable any time from Profile) that's what other players see in
-  the waiting room, live scoreboard, and history/stats -- their email
-  address is never shown to, or sent to, anyone else.
+- Anyone can sign up -- with Google or with email/password, no invite
+  needed. Signing up registers a display name (editable any time from
+  Profile) that's what other players see in the waiting room, live
+  scoreboard, and history/stats -- their email address is never shown
+  to, or sent to, anyone else.
 - One player starts a game (mission pack, deployment, points limit,
   optionally a ladder to tag it to) and gets a short 6-character code.
   Nothing about either player's army goes here -- that's all decided in
@@ -93,6 +93,14 @@ players' own phones if they'd both rather enter their own numbers.
   can enter either side's score, since players agree scores verbally at
   the table anyway. Bookkeeping
   both sides yourself works the same way, just from one phone.
+- Any signed-in user can also just open a game and watch -- the waiting
+  room's setup, or the live scoreboard round by round, exactly as its
+  two players see it, updating live the same way. There's no separate
+  spectator account type or invite for this: watching is just opening
+  the link, same as playing is. The only thing that differs is that
+  nothing on screen is tappable -- a spectator sees the same state as
+  the players, but only the game's own two seats can ever change
+  anything about it.
 - Scoring is pick-what-you-achieved, not type-a-number: the round
   overview shows a player's primary VP as the actual scoring conditions
   printed on the resolved mission's card, right there -- not hidden
@@ -160,13 +168,14 @@ players' own phones if they'd both rather enter their own numbers.
   number inputs, the screen stays on during an active game, and it copes
   with a flaky venue wifi connection dropping and reconnecting.
 
-**What this deliberately is not (out of scope):** spectator mode,
+**What this deliberately is not (out of scope):**
 tournaments/events, an army list builder, in-app chat, push
 notifications, rematch chains, CP/painting scoring, offline-first play,
 or native mobile apps. See section 11 of `40k-tracker-plan.md` for the
-original v1 scoping -- superseded on one point since: ladders/ranking
-(below) turned out to be wanted after all, so that line from the
-original out-of-scope list no longer holds.
+original v1 scoping -- superseded on two points since: ladders/ranking
+(below) and spectating (above) both turned out to be wanted after all,
+so those two lines from the
+original out-of-scope list no longer hold.
 
 **Ladders:** a ladder is just a named group of players
 (`ladders`/`ladder_members`) -- create one, and anyone can browse and
@@ -539,6 +548,30 @@ selection). See `CLAUDE.md`'s "In-page view state belongs in the URL"
 for the general rule this follows and what's deliberately excluded from
 it (a `Sheet`/modal's open-or-closed-ness, an accordion toggle, an
 unsubmitted form draft, transient feedback).
+
+Spectating is implemented: any signed-in user can open `/game/:id` and
+watch its current state, participant or not
+(`20260320000000_spectating.sql` widens every game-related table's
+`SELECT` policy to `using (true)` for any authenticated user -- write
+policies are untouched, still gated on `is_game_participant`/seat
+ownership, so a spectator can see everything and change nothing).
+`GamePage` no longer hard-blocks a non-participant behind a "you're not
+a participant" error; it computes `isParticipant` and threads it into
+`WaitingRoom` and `Scoreboard`. `WaitingRoom` renders an entirely
+separate read-only branch for a spectator (same primary-mission and
+setup info, no join code, no editable forms, no Start/Cancel buttons).
+`Scoreboard` reuses its existing markup for everyone, but every control
+that would write something -- the round-advance buttons, End
+game/Change result, Edit setup, the painted-bonus checkbox -- is gated
+behind `isParticipant` on top of whatever per-seat check it already
+had, and `PrimaryScorePanel`/`SecondaryScores`/`GameConfigPicker` all
+gained an `editable`/`disabled` prop so a spectator sees the exact same
+checklist, draws, and Attacker/turn-order/layout picks with nothing
+tappable, rather than an interactive control that would just fail
+server-side. Realtime presence now tags each viewer `player` or
+`spectator`, so a spectator showing up never flips the real opponent's
+"online" indicator on. `SummaryPage` needed no changes -- its own
+controls were already gated on the viewer actually being a seat.
 
 Everything else -- auth, live game creation/joining, the Force
 Disposition/mission-pairing flow, live round-by-round scoring, realtime
