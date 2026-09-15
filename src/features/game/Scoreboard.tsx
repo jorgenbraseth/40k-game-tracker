@@ -210,6 +210,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               gamePlayerId={entry.player.id}
               round={viewRound}
               scores={detail.secondaryScores}
+              draws={detail.secondaryDraws}
               available={(secondaries.data ?? []).filter((s) => !entry.player.role || s.role === entry.player.role)}
               lines={secondaryLines.data ?? []}
               ticks={detail.secondaryTicks}

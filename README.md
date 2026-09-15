@@ -62,6 +62,12 @@ players' own phones if they'd both rather enter their own numbers.
   total is computed from what's ticked. The total still stays directly
   editable too (same "always editable" rule as everything else), for
   whatever the checklist doesn't cover.
+- Secondaries follow the real Tactical deck flow: each round a player
+  draws 2 new secondary cards (manually, or at random), and in any round
+  may score any not-yet-scored secondary they've drawn *so far this
+  game* -- not just the two from this particular round. The app always
+  shows the whole cumulative picture -- what's scored, and what's drawn
+  but still sitting there unscored -- not just the current round's two.
 - The app knows the actual current missions, deployments, and secondary
   objectives for whichever Chapter Approved mission pack is active --
   this isn't a generic point counter, it understands the ruleset. When a
@@ -175,6 +181,21 @@ primary and secondary VP: `mission_objective_lines` and
 `primary_objective_ticks`/`secondary_objective_ticks` record what was
 ticked while `round_scores`/`secondary_scores` stay the computed,
 directly-editable source of truth.
+
+Secondaries are tracked the way Tactical secondaries actually work: 2
+new cards are drawn each round (`secondary_draws`, one row per
+player/secondary/game -- a card is drawn at most once), and in any round
+a player may score any not-yet-scored secondary drawn *so far this
+game*, not just this round's two. `SecondaryScores` shows the whole
+cumulative picture regardless of which round is being viewed -- already
+**scored** secondaries (with which round each was scored in), and every
+**drawn-but-unscored** one (badged with which round it was drawn,
+highlighted when that's the round currently being viewed) -- with a "+
+Draw a secondary" picker that either draws a specific card or, via "🎲
+Draw random", picks uniformly at random from whatever's left in that
+role's deck. The combined 15VP-per-round cap on secondary scoring isn't
+enforced (or shown) yet -- each secondary is still only clamped to its
+own `max_vp`.
 
 Ladders are implemented: the Ladders page lists every ladder (yours and
 others'), `create_ladder` makes a new one and seats its creator, joining

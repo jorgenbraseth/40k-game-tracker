@@ -1,19 +1,35 @@
 import { useState } from 'react'
 import { Sheet } from '@/components/Sheet'
+import { clsx } from '@/lib/clsx'
 import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
-import { useRemoveSecondaryScore, useUpsertSecondaryObjectiveTick, useUpsertSecondaryScore } from '@/lib/queries/games'
+import {
+  useDrawSecondary,
+  useRemoveSecondaryScore,
+  useUndrawSecondary,
+  useUpsertSecondaryObjectiveTick,
+  useUpsertSecondaryScore,
+} from '@/lib/queries/games'
 import { ObjectiveChecklist } from './ObjectiveChecklist'
 
 type SecondaryObjective = Database['public']['Tables']['secondary_objectives']['Row']
 type SecondaryObjectiveLine = Database['public']['Tables']['secondary_objective_lines']['Row']
 type SecondaryTick = Database['public']['Tables']['secondary_objective_ticks']['Row']
 
+/**
+ * Tactical secondaries are drawn cumulatively (2 more each round) and scored from that whole
+ * cumulative pool, not just what was drawn this round -- a player may score any not-yet-scored
+ * secondary they've drawn so far this game. So this shows every drawn-and-unscored secondary
+ * (badged with which round it was drawn, "this round" called out specially), separately from
+ * every already-scored one (badged with which round that happened), regardless of which round is
+ * currently being viewed -- only *new* draws/scores get attributed to the viewed round.
+ */
 export function SecondaryScores({
   gameId,
   gamePlayerId,
   round,
   scores,
+  draws,
   available,
   lines,
   ticks,
@@ -24,6 +40,7 @@ export function SecondaryScores({
   gamePlayerId: string
   round: number
   scores: GameDetail['secondaryScores']
+  draws: GameDetail['secondaryDraws']
   available: SecondaryObjective[]
   lines: SecondaryObjectiveLine[]
   ticks: SecondaryTick[]
@@ -32,17 +49,24 @@ export function SecondaryScores({
 }) {
   const upsert = useUpsertSecondaryScore(gameId)
   const remove = useRemoveSecondaryScore(gameId)
+  const draw = useDrawSecondary(gameId)
+  const undraw = useUndrawSecondary(gameId)
   const tick = useUpsertSecondaryObjectiveTick(gameId)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [scoringObjectiveId, setScoringObjectiveId] = useState<string | null>(null)
   const [manualDraft, setManualDraft] = useState<string | null>(null)
 
-  const mine = scores.filter((s) => s.game_player_id === gamePlayerId && s.battle_round === round)
-  const usedIds = new Set(mine.map((s) => s.secondary_objective_id))
-  const pickable = available.filter((a) => !usedIds.has(a.id))
+  const myScores = scores.filter((s) => s.game_player_id === gamePlayerId)
+  const scoredIds = new Set(myScores.map((s) => s.secondary_objective_id))
+  const myDraws = draws.filter((d) => d.game_player_id === gamePlayerId)
+  const drawnIds = new Set(myDraws.map((d) => d.secondary_objective_id))
+  const availableToScore = myDraws
+    .filter((d) => !scoredIds.has(d.secondary_objective_id))
+    .sort((a, b) => b.battle_round - a.battle_round)
+  const notYetDrawn = available.filter((a) => !drawnIds.has(a.id))
 
   const scoringObjective = available.find((a) => a.id === scoringObjectiveId)
-  const scoringScore = mine.find((s) => s.secondary_objective_id === scoringObjectiveId)
+  const scoringScore = myScores.find((s) => s.secondary_objective_id === scoringObjectiveId)
   const scoringLines = lines.filter((l) => l.secondary_objective_id === scoringObjectiveId)
   const counts = new Map(
     ticks
@@ -71,9 +95,23 @@ export function SecondaryScores({
     setManualDraft(null)
   }
 
+  const drawOne = (secondaryObjectiveId: string) => {
+    draw.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId, userId })
+    setPickerOpen(false)
+  }
+
+  const drawRandom = () => {
+    if (notYetDrawn.length === 0) return
+    const pick = notYetDrawn[Math.floor(Math.random() * notYetDrawn.length)]
+    drawOne(pick.id)
+  }
+
   return (
     <div className="flex w-full flex-col gap-1.5">
-      {mine.map((s) => {
+      {myScores.length > 0 && (
+        <p className="text-[11px] font-semibold tracking-wide text-paper/40 uppercase">Scored</p>
+      )}
+      {myScores.map((s) => {
         const objective = available.find((a) => a.id === s.secondary_objective_id)
         return (
           <div key={s.id} className="flex items-center justify-between rounded-lg bg-white/5 px-2.5 py-1.5 text-sm">
@@ -83,7 +121,10 @@ export function SecondaryScores({
               disabled={!editable}
               className="flex flex-1 items-center justify-between gap-2 text-left disabled:cursor-default"
             >
-              <span className="truncate text-paper/80">{objective?.name ?? 'Unknown'}</span>
+              <span className="min-w-0 truncate text-paper/80">
+                {objective?.name ?? 'Unknown'}
+                <span className="ml-1.5 text-[10px] text-paper/40">R{s.battle_round}</span>
+              </span>
               <span className="font-semibold text-gold">{s.vp_scored}VP</span>
             </button>
             {editable && (
@@ -91,7 +132,7 @@ export function SecondaryScores({
                 type="button"
                 aria-label={`Remove ${objective?.name}`}
                 onClick={() =>
-                  remove.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId: s.secondary_objective_id })
+                  remove.mutate({ gamePlayerId, battleRound: s.battle_round, secondaryObjectiveId: s.secondary_objective_id })
                 }
                 className="ml-2 text-paper/40 hover:text-red-400"
               >
@@ -102,41 +143,86 @@ export function SecondaryScores({
         )
       })}
 
-      {editable && pickable.length > 0 && (
+      {availableToScore.length > 0 && (
+        <p className="mt-1 text-[11px] font-semibold tracking-wide text-paper/40 uppercase">
+          Drawn, not yet scored
+        </p>
+      )}
+      {availableToScore.map((d) => {
+        const objective = available.find((a) => a.id === d.secondary_objective_id)
+        const drawnThisRound = d.battle_round === round
+        return (
+          <div
+            key={d.id}
+            className={clsx(
+              'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm',
+              drawnThisRound ? 'bg-gold/10 ring-1 ring-gold/30' : 'bg-white/5',
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => editable && setScoringObjectiveId(d.secondary_objective_id)}
+              disabled={!editable}
+              className="flex flex-1 items-center justify-between gap-2 text-left disabled:cursor-default"
+            >
+              <span className="min-w-0 truncate text-paper/80">{objective?.name ?? 'Unknown'}</span>
+              <span
+                className={clsx(
+                  'flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                  drawnThisRound ? 'bg-gold/20 text-gold' : 'bg-white/10 text-paper/50',
+                )}
+              >
+                {drawnThisRound ? 'Drawn this round' : `Drawn R${d.battle_round}`}
+              </span>
+            </button>
+            {editable && (
+              <button
+                type="button"
+                aria-label={`Undo draw of ${objective?.name}`}
+                onClick={() => undraw.mutate({ gamePlayerId, secondaryObjectiveId: d.secondary_objective_id })}
+                className="ml-2 text-paper/40 hover:text-red-400"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )
+      })}
+
+      {editable && notYetDrawn.length > 0 && (
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
           className="min-h-9 rounded-lg border border-dashed border-white/20 py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
         >
-          + Add secondary
+          + Draw a secondary
         </button>
       )}
 
-      <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title="Score a secondary">
-        <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-          {pickable.map((objective) => (
-            <li key={objective.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  upsert.mutate({
-                    gamePlayerId,
-                    battleRound: round,
-                    secondaryObjectiveId: objective.id,
-                    vpScored: 0,
-                    userId,
-                  })
-                  setPickerOpen(false)
-                  setScoringObjectiveId(objective.id)
-                }}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
-              >
-                <span className="text-paper">{objective.name}</span>
-                <span className="text-xs text-paper/40">up to {objective.max_vp}VP</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title="Draw a secondary">
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={drawRandom}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gold/40 bg-gold/10 py-3 text-sm font-semibold text-gold hover:bg-gold/20"
+          >
+            🎲 Draw random
+          </button>
+          <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+            {notYetDrawn.map((objective) => (
+              <li key={objective.id}>
+                <button
+                  type="button"
+                  onClick={() => drawOne(objective.id)}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
+                >
+                  <span className="text-paper">{objective.name}</span>
+                  <span className="text-xs text-paper/40">up to {objective.max_vp}VP</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Sheet>
 
       {scoringObjectiveId && (

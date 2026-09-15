@@ -27,17 +27,19 @@ export interface GameDetail {
   }>
   roundScores: Database['public']['Tables']['round_scores']['Row'][]
   secondaryScores: Database['public']['Tables']['secondary_scores']['Row'][]
+  secondaryDraws: Database['public']['Tables']['secondary_draws']['Row'][]
   primaryTicks: Database['public']['Tables']['primary_objective_ticks']['Row'][]
   secondaryTicks: Database['public']['Tables']['secondary_objective_ticks']['Row'][]
 }
 
 export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
-  const [gameRes, playersRes, roundRes, secondaryRes, totalsRes, primaryTicksRes, secondaryTicksRes] =
+  const [gameRes, playersRes, roundRes, secondaryRes, secondaryDrawsRes, totalsRes, primaryTicksRes, secondaryTicksRes] =
     await Promise.all([
       supabase.from('games').select('*').eq('id', gameId).single(),
       supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
       supabase.from('round_scores').select('*').eq('game_id', gameId),
       supabase.from('secondary_scores').select('*').eq('game_id', gameId),
+      supabase.from('secondary_draws').select('*').eq('game_id', gameId),
       supabase.from('game_totals').select('*').eq('game_id', gameId),
       supabase.from('primary_objective_ticks').select('*').eq('game_id', gameId),
       supabase.from('secondary_objective_ticks').select('*').eq('game_id', gameId),
@@ -47,6 +49,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (playersRes.error) throw playersRes.error
   if (roundRes.error) throw roundRes.error
   if (secondaryRes.error) throw secondaryRes.error
+  if (secondaryDrawsRes.error) throw secondaryDrawsRes.error
   if (totalsRes.error) throw totalsRes.error
   if (primaryTicksRes.error) throw primaryTicksRes.error
   if (secondaryTicksRes.error) throw secondaryTicksRes.error
@@ -109,6 +112,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     }),
     roundScores: roundRes.data,
     secondaryScores: secondaryRes.data,
+    secondaryDraws: secondaryDrawsRes.data,
     primaryTicks: primaryTicksRes.data,
     secondaryTicks: secondaryTicksRes.data,
   }
@@ -221,6 +225,46 @@ function patchSecondaryRemove(
       p.player.id === input.gamePlayerId
         ? { ...p, secondaryTotal: p.secondaryTotal - existing.vp_scored, totalVp: p.totalVp - existing.vp_scored }
         : p,
+    ),
+  }
+}
+
+function patchSecondaryDraw(
+  detail: GameDetail,
+  input: { gamePlayerId: string; battleRound: number; secondaryObjectiveId: string; userId: string },
+): GameDetail {
+  if (
+    detail.secondaryDraws.some(
+      (d) => d.game_player_id === input.gamePlayerId && d.secondary_objective_id === input.secondaryObjectiveId,
+    )
+  ) {
+    return detail
+  }
+  return {
+    ...detail,
+    secondaryDraws: [
+      ...detail.secondaryDraws,
+      {
+        id: `optimistic-${input.gamePlayerId}-${input.secondaryObjectiveId}`,
+        game_id: detail.game.id,
+        game_player_id: input.gamePlayerId,
+        secondary_objective_id: input.secondaryObjectiveId,
+        battle_round: input.battleRound,
+        drawn_by: input.userId,
+        drawn_at: new Date().toISOString(),
+      },
+    ],
+  }
+}
+
+function patchSecondaryUndraw(
+  detail: GameDetail,
+  input: { gamePlayerId: string; secondaryObjectiveId: string },
+): GameDetail {
+  return {
+    ...detail,
+    secondaryDraws: detail.secondaryDraws.filter(
+      (d) => !(d.game_player_id === input.gamePlayerId && d.secondary_objective_id === input.secondaryObjectiveId),
     ),
   }
 }
@@ -578,6 +622,63 @@ export function useRemoveSecondaryScore(gameId: string) {
     onError: (_error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't remove that secondary. Check your connection and try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+export function useDrawSecondary(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      gamePlayerId: string
+      battleRound: number
+      secondaryObjectiveId: string
+      userId: string
+    }) => {
+      const { error } = await supabase.from('secondary_draws').insert({
+        game_id: gameId,
+        game_player_id: input.gamePlayerId,
+        secondary_objective_id: input.secondaryObjectiveId,
+        battle_round: input.battleRound,
+        drawn_by: input.userId,
+      })
+      if (error) throw error
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchSecondaryDraw(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't draw that secondary. Check your connection and try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+export function useUndrawSecondary(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { gamePlayerId: string; secondaryObjectiveId: string }) => {
+      const { error } = await supabase
+        .from('secondary_draws')
+        .delete()
+        .eq('game_player_id', input.gamePlayerId)
+        .eq('secondary_objective_id', input.secondaryObjectiveId)
+      if (error) throw error
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchSecondaryUndraw(previous, input))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't undo that draw. Check your connection and try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
