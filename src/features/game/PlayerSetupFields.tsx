@@ -1,14 +1,22 @@
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
+import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
+import { LayoutVariantPicker } from './LayoutVariantPicker'
 
 type PlayerEntry = GameDetail['players'][number]
+type LayoutVariant = Database['public']['Tables']['games']['Row']['layout_variant']
+type LayoutMission = Parameters<typeof LayoutVariantPicker>[0]['mission']
 
 /**
  * Force Disposition / Faction / Army name / Role -- shared between the
  * waiting room and the in-game "edit your setup" sheet, since a wrong
  * pick here should always be correctable, not just before the game starts.
+ * The terrain layout picker lives at the bottom of this same form (when
+ * the layout* props are passed) since it's chosen alongside Attacker/
+ * Defender, once the mission -- and so the Force Disposition pairing
+ * that determines the 3 layout options -- is known.
  */
 export function PlayerSetupFields({
   me,
@@ -17,6 +25,9 @@ export function PlayerSetupFields({
   forceDispositions,
   onUpdateSetup,
   onSetRole,
+  layoutMission,
+  layoutVariant,
+  onSetLayoutVariant,
 }: {
   me: PlayerEntry
   opponent: PlayerEntry | undefined
@@ -28,6 +39,9 @@ export function PlayerSetupFields({
     forceDispositionId?: string | null
   }) => void
   onSetRole: (role: 'attacker' | 'defender' | null) => void
+  layoutMission?: LayoutMission
+  layoutVariant?: LayoutVariant
+  onSetLayoutVariant?: (variant: LayoutVariant) => void
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -66,9 +80,9 @@ export function PlayerSetupFields({
       <div>
         <p className="mb-1 text-sm font-medium text-paper/80">Role</p>
         <p className="mb-1.5 text-xs text-paper/50">
-          Attacker and Defender are decided by a roll-off after the Deployment card is drawn (winner picks). It sets
-          which battlefield edge you deploy from and which Secondary Mission deck you draw from -- it doesn't change
-          your Primary Mission.
+          Roll off after the Deployment card is drawn -- <strong className="text-paper/70">the winner decides who
+          is Attacker and who is Defender</strong>, not the roll itself. It sets which battlefield edge you deploy
+          from and which Secondary Mission deck you draw from -- it doesn't change your Primary Mission.
         </p>
         <div className="grid grid-cols-2 gap-2">
           {(['attacker', 'defender'] as const).map((role) => {
@@ -90,6 +104,21 @@ export function PlayerSetupFields({
           })}
         </div>
       </div>
+
+      {layoutMission && onSetLayoutVariant && (
+        <div>
+          <LayoutVariantPicker
+            mission={layoutMission}
+            value={layoutVariant ?? null}
+            onChange={onSetLayoutVariant}
+          />
+          {!layoutVariant && (
+            <p className="mt-1.5 text-xs text-paper/50">
+              Pick a layout before starting -- like everything else here, it stays changeable any time.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

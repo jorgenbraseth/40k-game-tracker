@@ -14,7 +14,6 @@ import {
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
 import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
-import { LayoutVariantPicker } from './LayoutVariantPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
 export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
@@ -36,18 +35,21 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const bothReady = detail.players.length === 2 && detail.players.every((p) => p.player.is_ready)
   const bothRolesAssigned = detail.players.length === 2 && detail.players.every((p) => p.player.role)
   const missionResolved = detail.players.length === 2 && detail.players.every((p) => p.player.mission_id)
-  const canStart = bothReady && bothRolesAssigned && missionResolved
+  const layoutChosen = Boolean(detail.game.layout_variant)
+  const canStart = bothReady && bothRolesAssigned && missionResolved && layoutChosen
 
   const myMission = useMission(me?.player.mission_id ?? undefined)
   const opponentMission = useMission(opponent?.player.mission_id ?? undefined)
 
   const startBlockedReason = !missionResolved
     ? 'Waiting on both Force Dispositions to reveal the mission'
-    : !bothRolesAssigned
-      ? 'Both players need to claim Attacker or Defender'
-      : !bothReady
-        ? 'Waiting for both players to be ready'
-        : null
+    : !layoutChosen
+      ? 'Pick a terrain layout below'
+      : !bothRolesAssigned
+        ? 'Both players need to claim Attacker or Defender'
+        : !bothReady
+          ? 'Waiting for both players to be ready'
+          : null
 
   const copyCode = async () => {
     try {
@@ -87,13 +89,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               <span className="text-xs text-paper/50">Opponent: </span>
               <span className="text-lg font-semibold text-gold">{opponentMission.data?.name ?? '…'}</span>
             </p>
-            <div className="mt-2">
-              <LayoutVariantPicker
-                mission={myMission.data ?? opponentMission.data}
-                value={detail.game.layout_variant}
-                onChange={(variant) => setLayoutVariant.mutate(variant)}
-              />
-            </div>
           </div>
         ) : (
           <p className="text-sm text-paper/50">
@@ -113,6 +108,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             forceDispositions={forceDispositions.data ?? []}
             onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
             onSetRole={(role) => setRole.mutate({ gamePlayerId: me.player.id, role })}
+            layoutMission={myMission.data ?? opponentMission.data}
+            layoutVariant={detail.game.layout_variant}
+            onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
           />
 
           <Button
