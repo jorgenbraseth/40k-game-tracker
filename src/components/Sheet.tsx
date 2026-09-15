@@ -36,14 +36,14 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-md rounded-t-2xl bg-[#1a1b21] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl"
+        className="relative z-10 w-full max-w-md overflow-x-hidden rounded-t-2xl bg-[#1a1b21] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl"
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-paper">{title}</h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="min-w-0 flex-1 text-lg font-semibold text-paper">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 min-w-11 rounded-full text-paper/60 hover:bg-white/10 hover:text-paper"
+            className="min-h-11 min-w-11 flex-shrink-0 rounded-full text-paper/60 hover:bg-white/10 hover:text-paper"
             aria-label="Close"
           >
             ✕
