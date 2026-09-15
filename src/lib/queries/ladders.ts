@@ -124,6 +124,22 @@ export function useArchiveLadder() {
   })
 }
 
+/** Permanently deletes a ladder -- distinct from archiving, this actually removes the row.
+ * ladder_members cascades and games.ladder_id is `on delete set null` (see
+ * 20260306000000_ladders.sql), so tagged games simply become untagged rather than losing any
+ * history. Gated by the creator-only delete policy on ladders. */
+export function useDeleteLadder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (ladderId: string) => {
+      const { error } = await supabase.from('ladders').delete().eq('id', ladderId)
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't delete the ladder. Try again."),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ladders'] }),
+  })
+}
+
 export function useJoinLadder() {
   const queryClient = useQueryClient()
   return useMutation({

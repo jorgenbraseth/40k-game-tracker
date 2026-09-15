@@ -176,8 +176,13 @@ it out of the browse list and the "tag this game" picker without
 touching anything it already recorded: standings, its game log, and
 every affected game's own ladder name in History/stats all keep working
 exactly as before. Archiving is fully reversible, no confirmation
-needed, same as every other non-destructive toggle in this app. Ranking
-is Elo (see issue #26 for the research behind
+needed, same as every other non-destructive toggle in this app. For the
+other case -- a ladder created by mistake, a duplicate, a one-off test
+-- the creator can also delete it outright, permanently: games tagged
+to it aren't deleted, they just become untagged, same as if they'd
+never been tagged to a ladder at all. Unlike archiving, this can't be
+undone, so it's gated behind an explicit confirmation. Ranking is Elo
+(see issue #26 for the research behind
 picking it over Glicko-2/TrueSkill/Massey-Colley): everyone starts at
 1500, and beating a much higher-rated opponent gains a lot while beating
 a much lower-rated one barely moves the needle (and the mirror image for
@@ -391,7 +396,15 @@ status, since none of those read the flag. The Ladders page adds a
 third "Archived" section (only shown for ladders the viewer's a member
 of, or created) alongside "Your ladders"/"Other ladders", so an
 archived ladder's history stays reachable and it can be restored any
-time. Untagged games stay
+time. Permanent deletion is implemented too, alongside archiving: a new
+creator-only delete policy (`20260317000000_delete_ladder.sql`,
+`useDeleteLadder`) and a "Delete ladder permanently" action in the same
+expanded row, behind a `ConfirmSheet` since -- unlike archiving --
+there's no undo. No extra cleanup needed for what a deleted ladder
+leaves behind: `ladder_members` already cascades and `games.ladder_id`
+is already `on delete set null` (both from the original ladders
+migration), so a tagged game just becomes untagged rather than losing
+its own history. Untagged games stay
 participant-only, unchanged.
 
 Which ladder a game's tagged to also stays editable for the life of the
