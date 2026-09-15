@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 export const referenceKeys = {
   currentMissionPack: ['reference', 'current-mission-pack'] as const,
   mission: (missionId: string) => ['reference', 'mission', missionId] as const,
+  missionsForPack: (missionPackId: string) => ['reference', 'missions-for-pack', missionPackId] as const,
   deployments: (missionPackId: string) => ['reference', 'deployments', missionPackId] as const,
   secondaries: (missionPackId: string) => ['reference', 'secondaries', missionPackId] as const,
   missionObjectiveLines: (missionId: string) => ['reference', 'mission-objective-lines', missionId] as const,
@@ -43,6 +44,23 @@ export function useMission(missionId: string | undefined) {
       return data
     },
     enabled: Boolean(missionId),
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+/** Every mission in a pack (all Force Disposition pairings -- reference-scale, ~25 rows), so a
+ * seat's own mission can be predicted client-side the instant both Force Dispositions are known
+ * (see src/lib/missionResolution.ts), without waiting on the resolve_game_mission RPC round trip
+ * first. */
+export function useMissionsForPack(missionPackId: string | undefined) {
+  return useQuery({
+    queryKey: referenceKeys.missionsForPack(missionPackId ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('missions').select('*').eq('mission_pack_id', missionPackId as string)
+      if (error) throw error
+      return data
+    },
+    enabled: Boolean(missionPackId),
     staleTime: Number.POSITIVE_INFINITY,
   })
 }

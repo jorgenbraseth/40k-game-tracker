@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Database } from '@/lib/database.types'
+import { resolveMissionId } from '@/lib/missionResolution'
+import { referenceKeys } from '@/lib/queries/referenceData'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
+
+type MissionPairingRow = Database['public']['Tables']['missions']['Row']
 
 type GamePlayerRow = Database['public']['Tables']['game_players']['Row']
 type GameRow = Database['public']['Tables']['games']['Row']
@@ -341,7 +345,15 @@ export function useJoinGame() {
   })
 }
 
-export function useUpdatePlayerSetup(gameId: string) {
+/**
+ * `missions` is this game's whole mission pack (see useMissionsForPack) -- only used to predict
+ * each seat's mission optimistically (see onMutate below) the instant both Force Dispositions are
+ * known, purely client-side. The actual write still always goes through resolve_game_mission
+ * server-side, same as before; onSettled's invalidate reconciles with whatever it actually
+ * computed, so a wrong or stale local guess (there shouldn't be one -- the same lookup the RPC
+ * does) can never stick.
+ */
+export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow[] = []) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: {
@@ -373,13 +385,38 @@ export function useUpdatePlayerSetup(gameId: string) {
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (!previous) return { previous }
+
       const patch: Partial<GamePlayerRow> = {}
       if ('factionId' in input) patch.faction_id = input.factionId
       if ('armyName' in input) patch.army_name = input.armyName
       if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
       if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
       if ('secondaryMode' in input) patch.secondary_mode = input.secondaryMode
-      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, patch))
+      let next = patchPlayerField(previous, input.gamePlayerId, patch)
+
+      // Predict resolve_game_mission's result so anything depending on a resolved mission (the
+      // terrain layout picker, the primary scoring checklist) doesn't sit waiting on the RPC
+      // round trip -- same "patch now, reconcile on settle" as every other mutation here. Also
+      // seeds useMission's own cache entry for each predicted id directly from the already-
+      // in-memory pack (rather than just setting the id and letting useMission go fetch it by
+      // id), since the row is right there -- so the mission's name/layout images appear the same
+      // render as the id does, not one more round trip later.
+      if ('forceDispositionId' in input && missions.length > 0) {
+        const [p1, p2] = next.players
+        if (p1 && p2) {
+          const p1MissionId = resolveMissionId(missions, p1.player.force_disposition_id, p2.player.force_disposition_id)
+          const p2MissionId = resolveMissionId(missions, p2.player.force_disposition_id, p1.player.force_disposition_id)
+          next = patchPlayerField(next, p1.player.id, { mission_id: p1MissionId })
+          next = patchPlayerField(next, p2.player.id, { mission_id: p2MissionId })
+          for (const missionId of [p1MissionId, p2MissionId]) {
+            const mission = missionId ? missions.find((m) => m.id === missionId) : undefined
+            if (mission) queryClient.setQueryData(referenceKeys.mission(mission.id), mission)
+          }
+        }
+      }
+
+      queryClient.setQueryData(gameKeys.detail(gameId), next)
       return { previous }
     },
     onError: (_error, _input, context) => {

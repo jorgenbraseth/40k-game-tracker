@@ -42,10 +42,10 @@ export function GameConfigPicker({
 
   return (
     <div className="flex flex-col gap-4">
-      {layoutMission && onSetLayoutVariant && (
+      {onSetLayoutVariant && (
         <div>
           <LayoutVariantPicker mission={layoutMission} value={layoutVariant ?? null} onChange={onSetLayoutVariant} />
-          {!layoutVariant && (
+          {layoutMission && !layoutVariant && (
             <p className="mt-1.5 text-xs text-paper/50">
               Pick a layout before starting -- like everything else here, it stays changeable any time.
             </p>

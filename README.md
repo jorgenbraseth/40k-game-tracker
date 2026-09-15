@@ -526,6 +526,25 @@ Secondary objectives are also split into separate Attacker/Defender decks
 (`secondary_objectives.role`), though the 18 cards in each are identical.
 See `supabase/migrations/20260201000000_asymmetric_primary_missions.sql`.
 
+Picking a Force Disposition resolves its mission (and, once both are
+resolved, unlocks the terrain layout picker) without waiting on the
+`resolve_game_mission` round trip: `useUpdatePlayerSetup` now predicts
+the same result client-side (`src/lib/missionResolution.ts`'s
+`resolveMissionId`, an exact mirror of the RPC's own lookup) the moment
+a Force Disposition patch lands, seeding both the resolved mission id
+*and* `useMission`'s own cache entry for it (from the whole pack, already
+fetched via `useMissionsForPack` -- reference-scale, ~25 rows, fetched
+once) -- so the mission's name and layout images show up the same render
+as the id does, not a further fetch later. Same "patch now, reconcile
+on settle" pattern as every other mutation in this app; the RPC still
+runs and is still what actually gets written, this is purely a client-
+side head start on it. `LayoutVariantPicker` also renders a same-sized
+skeleton (`LayoutVariantSkeleton`, three pulsing placeholder cells)
+instead of nothing while a mission genuinely isn't resolved yet (still
+waiting on the *other* player's Force Disposition, which the above can't
+shortcut) -- so its card doesn't visibly grow the instant it does
+resolve.
+
 The real Chapter Approved 2026-27 deck content -- names, Force
 Disposition pairings and VP values, sourced from the public card text
 and mission generator at
