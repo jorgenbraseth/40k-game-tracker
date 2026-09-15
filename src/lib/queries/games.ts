@@ -102,6 +102,17 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
 
 /** Optimistic-patch helpers -- keep the score UI responsive (and correct while offline/paused) without waiting on a round-trip. */
 
+function patchPlayerField(detail: GameDetail, gamePlayerId: string, patch: Partial<GamePlayerRow>): GameDetail {
+  return {
+    ...detail,
+    players: detail.players.map((p) => (p.player.id === gamePlayerId ? { ...p, player: { ...p.player, ...patch } } : p)),
+  }
+}
+
+function patchGame(detail: GameDetail, patch: Partial<GameRow>): GameDetail {
+  return { ...detail, game: { ...detail.game, ...patch } }
+}
+
 function patchRoundScore(
   detail: GameDetail,
   input: { gamePlayerId: string; battleRound: number; primaryVp: number; userId: string },
@@ -269,8 +280,18 @@ export function useSetReady(gameId: string) {
         .eq('id', input.gamePlayerId)
       if (error) throw error
     },
-    onError: () => showToast("Couldn't update ready status. Try again."),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous)
+        queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, { is_ready: input.isReady }))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't update ready status. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
 
@@ -299,8 +320,21 @@ export function useUpdatePlayerSetup(gameId: string) {
         await supabase.rpc('resolve_game_mission', { p_game_id: gameId })
       }
     },
-    onError: () => showToast("Couldn't save your setup. Try again."),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      const patch: Partial<GamePlayerRow> = {}
+      if ('factionId' in input) patch.faction_id = input.factionId
+      if ('armyName' in input) patch.army_name = input.armyName
+      if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, patch))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save your setup. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
 
@@ -311,8 +345,17 @@ export function useSetRole(gameId: string) {
       const { error } = await supabase.from('game_players').update({ role: input.role }).eq('id', input.gamePlayerId)
       if (error) throw error
     },
-    onError: () => showToast("Couldn't update your role. Try again."),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, { role: input.role }))
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't update your role. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
 
@@ -336,8 +379,17 @@ export function useSetCurrentRound(gameId: string) {
       const { error } = await supabase.from('games').update({ current_round: round }).eq('id', gameId)
       if (error) throw error
     },
-    onError: () => showToast("Couldn't advance the round. Try again."),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onMutate: async (round) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchGame(previous, { current_round: round }))
+      return { previous }
+    },
+    onError: (_error, _round, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't advance the round. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
 
@@ -348,8 +400,17 @@ export function useSetLayoutVariant(gameId: string) {
       const { error } = await supabase.from('games').update({ layout_variant: layoutVariant }).eq('id', gameId)
       if (error) throw error
     },
-    onError: () => showToast("Couldn't set the layout. Try again."),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onMutate: async (layoutVariant) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchGame(previous, { layout_variant: layoutVariant }))
+      return { previous }
+    },
+    onError: (_error, _layoutVariant, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't set the layout. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
 
