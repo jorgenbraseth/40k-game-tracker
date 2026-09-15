@@ -199,6 +199,7 @@ export interface Database {
           name: string
           created_by: string | null
           created_at: string
+          archived_at: string | null
         }
         Insert: Partial<Database['public']['Tables']['ladders']['Row']> & { name: string }
         Update: Partial<Database['public']['Tables']['ladders']['Row']>

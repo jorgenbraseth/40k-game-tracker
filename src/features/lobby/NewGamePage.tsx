@@ -64,11 +64,11 @@ export function NewGamePage() {
           ))}
         </Select>
 
-        {(ladders.data ?? []).some((l) => l.isMember) && (
+        {(ladders.data ?? []).some((l) => l.isMember && !l.archivedAt) && (
           <Select label="Ladder game? (optional)" value={ladderId} onChange={(e) => setLadderId(e.target.value)}>
             <option value="">Not a ladder game</option>
             {(ladders.data ?? [])
-              .filter((l) => l.isMember)
+              .filter((l) => l.isMember && !l.archivedAt)
               .map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}

@@ -6,6 +6,7 @@ import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import {
+  useArchiveLadder,
   useCreateLadder,
   useJoinLadder,
   useLadderGames,
@@ -147,12 +148,18 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
   const [expanded, setExpanded] = useState(false)
   const join = useJoinLadder()
   const leave = useLeaveLadder()
+  const archive = useArchiveLadder()
+  const isCreator = ladder.createdBy === userId
+  const isArchived = Boolean(ladder.archivedAt)
 
   return (
     <li className="rounded-xl border border-white/10 bg-white/5 p-4">
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={() => setExpanded((v) => !v)} className="min-w-0 flex-1 text-left">
-          <p className="truncate font-medium text-paper">{ladder.name}</p>
+          <p className="truncate font-medium text-paper">
+            {ladder.name}
+            {isArchived && <span className="ml-2 text-xs font-normal text-paper/40">Archived</span>}
+          </p>
           <p className="text-xs text-paper/50">
             {ladder.memberCount} member{ladder.memberCount === 1 ? '' : 's'}
             {ladder.isMember ? ' · you’re in' : ''}
@@ -174,6 +181,22 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
         <div className="mt-3 border-t border-white/10 pt-3">
           <StandingsTable ladderId={ladder.id} />
           <GamesList ladderId={ladder.id} />
+          {isCreator && (
+            <div className="mt-3 border-t border-white/10 pt-3">
+              <Button
+                variant="ghost"
+                disabled={archive.isPending}
+                onClick={() => archive.mutate({ ladderId: ladder.id, archived: !isArchived })}
+              >
+                {archive.isPending ? 'Saving…' : isArchived ? 'Restore ladder' : 'Archive ladder'}
+              </Button>
+              <p className="mt-1 text-xs text-paper/40">
+                {isArchived
+                  ? 'Brings it back into the browse list and the "tag this game" picker.'
+                  : "Hides it from the browse list and the \"tag this game\" picker -- standings and game history stay exactly as they are, and you can restore it any time."}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </li>
@@ -190,8 +213,13 @@ export function LaddersPage() {
   if (ladders.isError) return <ErrorBanner message="Couldn't load ladders." onRetry={() => ladders.refetch()} />
   if (!user) return null
 
-  const mine = (ladders.data ?? []).filter((l) => l.isMember)
-  const others = (ladders.data ?? []).filter((l) => !l.isMember)
+  const active = (ladders.data ?? []).filter((l) => !l.archivedAt)
+  const mine = active.filter((l) => l.isMember)
+  const others = active.filter((l) => !l.isMember)
+  // Archived ladders the viewer's a member of (or created) -- not everyone else's, since an
+  // archived ladder is no longer meant to be browsed/joined by people not already in it, unlike
+  // the "Other ladders" section above for active ones.
+  const archived = (ladders.data ?? []).filter((l) => l.archivedAt && (l.isMember || l.createdBy === user.id))
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -242,6 +270,17 @@ export function LaddersPage() {
           <h2 className="mb-2 text-sm font-semibold tracking-wide text-paper/60 uppercase">Other ladders</h2>
           <ul className="flex flex-col gap-2">
             {others.map((l) => (
+              <LadderRow key={l.id} ladder={l} userId={user.id} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {archived.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold tracking-wide text-paper/60 uppercase">Archived</h2>
+          <ul className="flex flex-col gap-2">
+            {archived.map((l) => (
               <LadderRow key={l.id} ladder={l} userId={user.id} />
             ))}
           </ul>
