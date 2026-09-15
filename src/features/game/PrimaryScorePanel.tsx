@@ -34,6 +34,7 @@ export function PrimaryScorePanel({
   lines,
   ticks,
   userId,
+  editable = true,
 }: {
   gameId: string
   gamePlayerId: string
@@ -47,6 +48,9 @@ export function PrimaryScorePanel({
   lines: ChecklistLine[]
   ticks: PrimaryTick[]
   userId: string
+  /** False for a spectator -- shows the exact same checklist and total, just with no way to
+   * change either (a write would fail server-side regardless; this just avoids offering it). */
+  editable?: boolean
 }) {
   const [manualDraft, setManualDraft] = useState<string | null>(null)
   const tick = useUpsertPrimaryObjectiveTick(gameId)
@@ -90,42 +94,49 @@ export function PrimaryScorePanel({
             : 'No primary scoring available this round.'}
         </p>
       ) : (
-        <ObjectiveChecklist lines={applicableLines} counts={counts} onChangeCount={handleChangeCount} />
+        <ObjectiveChecklist
+          lines={applicableLines}
+          counts={counts}
+          onChangeCount={handleChangeCount}
+          editable={editable}
+        />
       )}
 
-      <div className="border-t border-white/10 pt-2">
-        {manualDraft === null ? (
-          <button
-            type="button"
-            onClick={() => setManualDraft(String(currentRoundVp))}
-            className="text-xs text-paper/40 underline hover:text-paper"
-          >
-            Or set the total directly
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-paper/70" htmlFor={`manual-primary-vp-${gamePlayerId}-${battleRound}`}>
-              Total {isEndOfGame ? 'end-of-battle' : 'this round'}
-            </label>
-            <input
-              id={`manual-primary-vp-${gamePlayerId}-${battleRound}`}
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={roundCap}
-              autoFocus
-              value={manualDraft}
-              onChange={(e) => setManualDraft(e.target.value)}
-              onBlur={() => {
-                const vp = Math.max(0, Math.min(roundCap, Number(manualDraft) || 0))
-                upsertRound.mutate({ gamePlayerId, battleRound, primaryVp: vp, userId })
-                setManualDraft(null)
-              }}
-              className="w-20 rounded border border-white/15 bg-white/5 px-2 py-1 text-center text-paper focus:border-gold focus:outline-none"
-            />
-          </div>
-        )}
-      </div>
+      {editable && (
+        <div className="border-t border-white/10 pt-2">
+          {manualDraft === null ? (
+            <button
+              type="button"
+              onClick={() => setManualDraft(String(currentRoundVp))}
+              className="text-xs text-paper/40 underline hover:text-paper"
+            >
+              Or set the total directly
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-paper/70" htmlFor={`manual-primary-vp-${gamePlayerId}-${battleRound}`}>
+                Total {isEndOfGame ? 'end-of-battle' : 'this round'}
+              </label>
+              <input
+                id={`manual-primary-vp-${gamePlayerId}-${battleRound}`}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={roundCap}
+                autoFocus
+                value={manualDraft}
+                onChange={(e) => setManualDraft(e.target.value)}
+                onBlur={() => {
+                  const vp = Math.max(0, Math.min(roundCap, Number(manualDraft) || 0))
+                  upsertRound.mutate({ gamePlayerId, battleRound, primaryVp: vp, userId })
+                  setManualDraft(null)
+                }}
+                className="w-20 rounded border border-white/15 bg-white/5 px-2 py-1 text-center text-paper focus:border-gold focus:outline-none"
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

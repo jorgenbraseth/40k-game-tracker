@@ -22,7 +22,17 @@ import { useFactions, useForceDispositions, useMission, useMissionsForPack } fro
 import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
-export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
+export function WaitingRoom({
+  detail,
+  opponentOnline,
+  isParticipant,
+}: {
+  detail: GameDetail
+  opponentOnline: boolean
+  /** False for a spectator (any signed-in user other than this game's two seats, see
+   * GamePage) -- everything below stays visible, nothing stays clickable. */
+  isParticipant: boolean
+}) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const factions = useFactions()
@@ -55,6 +65,15 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
 
   const myMission = useMission(me?.player.mission_id ?? undefined)
   const opponentMission = useMission(opponent?.player.mission_id ?? undefined)
+  const [p1, p2] = detail.players
+  const p1Mission = useMission(p1?.player.mission_id ?? undefined)
+  const p2Mission = useMission(p2?.player.mission_id ?? undefined)
+  const missionByPlayerId = new Map([
+    [p1?.player.id, p1Mission.data],
+    [p2?.player.id, p2Mission.data],
+  ])
+  const attackerEntry = detail.players.find((p) => p.player.role === 'attacker')
+  const wentFirstEntry = detail.players.find((p) => p.player.turn_order === 'first')
 
   // Mirrors the setup form's own order: who this seat is, then the game
   // configuration. Army name is the only field that never gates this.
@@ -82,7 +101,117 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
     }
   }
 
-  if (!me || !user) return null
+  if (!user) return null
+
+  if (!isParticipant) {
+    return (
+      <div className="flex flex-col items-center gap-8 text-center">
+        <p className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-paper/60">Spectating</p>
+
+        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
+          <p className="mb-1 text-sm font-semibold text-paper/60 uppercase">Primary missions</p>
+          {missionResolved ? (
+            <div className="flex flex-col gap-2">
+              {detail.players.map((entry) => (
+                <p key={entry.player.id}>
+                  <span className="text-xs text-paper/50">
+                    <PlayerNameLink
+                      userId={playerUserId(entry)}
+                      name={playerLabel(entry, `Seat ${entry.player.seat}`)}
+                    />
+                    :{' '}
+                  </span>
+                  <span className="text-lg font-semibold text-gold">
+                    {missionByPlayerId.get(entry.player.id)?.name ?? '…'}
+                  </span>
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-paper/50">
+              Revealed once both players have picked a Force Disposition -- each gets their own mission, based on
+              their opponent's choice.
+            </p>
+          )}
+        </div>
+
+        <div className="flex w-full max-w-sm flex-col gap-3">
+          {detail.players.map((entry) => (
+            <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-paper">
+                  <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
+                  {!entry.player.user_id && <span className="ml-1 text-xs text-paper/40">(not joined)</span>}
+                </p>
+                {entry.player.user_id && (
+                  <span
+                    className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}
+                  >
+                    <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+                    {opponentOnline ? 'online' : 'offline'}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-paper/50">
+                {entry.factionName ?? 'No faction yet'}
+                {entry.forceDispositionName ? ` · ${entry.forceDispositionName}` : ''}
+                {entry.player.army_name ? ` · ${entry.player.army_name}` : ''}
+              </p>
+              {entry.player.secondary_mode && (
+                <p className="mt-0.5 text-xs text-paper/40 capitalize">{entry.player.secondary_mode} secondaries</p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {detail.players.length === 2 && (
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+            <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Game configuration</p>
+            <dl className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-paper/50">Ladder</dt>
+                <dd className="text-paper">{detail.game.ladder_id ? 'Tagged' : 'Not a ladder game'}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-paper/50">Terrain layout</dt>
+                <dd className="text-paper">
+                  {detail.game.layout_variant ? `Layout ${detail.game.layout_variant}` : 'Not picked yet'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-paper/50">Attacker</dt>
+                <dd className="text-paper">
+                  {attackerEntry ? (
+                    <PlayerNameLink
+                      userId={playerUserId(attackerEntry)}
+                      name={playerLabel(attackerEntry, `Seat ${attackerEntry.player.seat}`)}
+                    />
+                  ) : (
+                    'Not decided yet'
+                  )}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-paper/50">Went first</dt>
+                <dd className="text-paper">
+                  {wentFirstEntry ? (
+                    <PlayerNameLink
+                      userId={playerUserId(wentFirstEntry)}
+                      name={playerLabel(wentFirstEntry, `Seat ${wentFirstEntry.player.seat}`)}
+                    />
+                  ) : (
+                    'Not decided yet'
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (!me) return null
 
   return (
     <div className="flex flex-col items-center gap-8 text-center">
