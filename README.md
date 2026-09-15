@@ -409,6 +409,15 @@ name for email/password accounts so that fallback is rarely even hit.
 Realtime presence -- broadcast to everyone subscribed to a game's channel
 -- sends the profile display name, never the raw email, fixed alongside.
 
+`Layout`'s header nav (5 links plus Sign out) is responsive: shown
+inline from `sm:` breakpoint up, collapsed behind a "☰" button at phone
+width, opening the same bottom `Sheet` used everywhere else in the app
+rather than a bespoke dropdown -- the 6-item row used to force a
+horizontal zoom-out on a real phone screen instead of wrapping. The
+footer also picked up the same `max-w-3xl` centering the header and
+main content already had, so it no longer stretches wider than the rest
+of the page on a wide screen.
+
 Everything else -- auth, live game creation/joining, the Force
 Disposition/mission-pairing flow, live round-by-round scoring, realtime
 sync, game history, and win/loss stats -- is built, deployed, and
