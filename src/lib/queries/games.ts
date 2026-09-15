@@ -37,20 +37,51 @@ export interface GameDetail {
   secondaryDraws: Database['public']['Tables']['secondary_draws']['Row'][]
   primaryTicks: Database['public']['Tables']['primary_objective_ticks']['Row'][]
   secondaryTicks: Database['public']['Tables']['secondary_objective_ticks']['Row'][]
+  /** One row per seat that's been verified by the ladder member it represents (issue #46) --
+   * see needsVerification() for what "still needs it" means. */
+  verifications: Database['public']['Tables']['game_player_verifications']['Row'][]
+}
+
+/** A solo-entered seat's result hasn't been confirmed by the real player it was attributed to
+ * yet: still unclaimed (user_id null) and attributed (represents_user_id set), the game has
+ * actually finished (verifying a still-in-progress score is premature), and nobody's verified it.
+ * A seat that was never attributed at all (no ladder member to ask) is never "unverified" -- there's
+ * nobody who could confirm it. */
+export function needsVerification(
+  entry: Pick<GameDetail['players'][number], 'player'>,
+  gameStatus: GameRow['status'],
+  verifications: GameDetail['verifications'],
+): boolean {
+  return (
+    Boolean(entry.player.represents_user_id) &&
+    !entry.player.user_id &&
+    (gameStatus === 'complete' || gameStatus === 'abandoned') &&
+    !verifications.some((v) => v.game_player_id === entry.player.id)
+  )
 }
 
 export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
-  const [gameRes, playersRes, roundRes, secondaryRes, secondaryDrawsRes, totalsRes, primaryTicksRes, secondaryTicksRes] =
-    await Promise.all([
-      supabase.from('games').select('*').eq('id', gameId).single(),
-      supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
-      supabase.from('round_scores').select('*').eq('game_id', gameId),
-      supabase.from('secondary_scores').select('*').eq('game_id', gameId),
-      supabase.from('secondary_draws').select('*').eq('game_id', gameId),
-      supabase.from('game_totals').select('*').eq('game_id', gameId),
-      supabase.from('primary_objective_ticks').select('*').eq('game_id', gameId),
-      supabase.from('secondary_objective_ticks').select('*').eq('game_id', gameId),
-    ])
+  const [
+    gameRes,
+    playersRes,
+    roundRes,
+    secondaryRes,
+    secondaryDrawsRes,
+    totalsRes,
+    primaryTicksRes,
+    secondaryTicksRes,
+    verificationsRes,
+  ] = await Promise.all([
+    supabase.from('games').select('*').eq('id', gameId).single(),
+    supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
+    supabase.from('round_scores').select('*').eq('game_id', gameId),
+    supabase.from('secondary_scores').select('*').eq('game_id', gameId),
+    supabase.from('secondary_draws').select('*').eq('game_id', gameId),
+    supabase.from('game_totals').select('*').eq('game_id', gameId),
+    supabase.from('primary_objective_ticks').select('*').eq('game_id', gameId),
+    supabase.from('secondary_objective_ticks').select('*').eq('game_id', gameId),
+    supabase.from('game_player_verifications').select('*').eq('game_id', gameId),
+  ])
 
   if (gameRes.error) throw gameRes.error
   if (playersRes.error) throw playersRes.error
@@ -60,6 +91,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (totalsRes.error) throw totalsRes.error
   if (primaryTicksRes.error) throw primaryTicksRes.error
   if (secondaryTicksRes.error) throw secondaryTicksRes.error
+  if (verificationsRes.error) throw verificationsRes.error
 
   // A seat nobody has joined yet has user_id = null (the bookkeeper can
   // fill it in themselves, on behalf of a player who never needs to sign
@@ -123,6 +155,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     secondaryDraws: secondaryDrawsRes.data,
     primaryTicks: primaryTicksRes.data,
     secondaryTicks: secondaryTicksRes.data,
+    verifications: verificationsRes.data,
   }
 }
 
@@ -594,6 +627,50 @@ export function useSetPaintedBonus(gameId: string) {
     onError: (_error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save the painted bonus. Try again.")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+/**
+ * The represented player confirming a solo-entered result is theirs (issue #46) -- insert-only,
+ * no "unverify": RLS only lets `verified_by` insert this for their own still-unclaimed,
+ * represents_user_id-attributed seat on a finished game (see 20260315000000_seat_verification.sql
+ * for why this is its own table rather than a column on game_players).
+ */
+export function useVerifySeat(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { gamePlayerId: string; userId: string }) => {
+      const { error } = await supabase.from('game_player_verifications').insert({
+        game_player_id: input.gamePlayerId,
+        game_id: gameId,
+        verified_by: input.userId,
+      })
+      if (error) throw error
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous && !previous.verifications.some((v) => v.game_player_id === input.gamePlayerId)) {
+        queryClient.setQueryData(gameKeys.detail(gameId), {
+          ...previous,
+          verifications: [
+            ...previous.verifications,
+            {
+              game_player_id: input.gamePlayerId,
+              game_id: gameId,
+              verified_by: input.userId,
+              verified_at: new Date().toISOString(),
+            },
+          ],
+        })
+      }
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't verify this result. Try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })

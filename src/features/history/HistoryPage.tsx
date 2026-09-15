@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useCompletedGames } from '@/lib/queries/history'
-import { useDeleteGame } from '@/lib/queries/games'
+import { type CompletedGameRow, useCompletedGames } from '@/lib/queries/history'
+import { useDeleteGame, useVerifySeat } from '@/lib/queries/games'
 import { clsx } from '@/lib/clsx'
 
 export function HistoryPage() {
@@ -68,44 +69,12 @@ export function HistoryPage() {
 
       <ul className="flex flex-col gap-2">
         {visible.map((game) => (
-          <li key={game.gameId} className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
-            <div className="flex items-center justify-between gap-2 px-4 pt-3">
-              <p className="min-w-0 truncate text-sm text-paper">
-                {game.missionName} · vs{' '}
-                <PlayerNameLink userId={game.opponentUserId} name={game.opponentName} className="font-medium text-paper" />
-              </p>
-              <button
-                type="button"
-                aria-label="Cancel game"
-                onClick={() => setCancelingGameId(game.gameId)}
-                className="flex-shrink-0 text-paper/40 hover:text-red-400"
-              >
-                ✕
-              </button>
-            </div>
-            <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3">
-              <p className="min-w-0 truncate text-xs text-paper/50">
-                {game.myFactionName ?? 'No faction'} · {game.pointsLimit} pts ·{' '}
-                {new Date(game.endedAt).toLocaleDateString()}
-                {game.ladderName ? ` · ${game.ladderName}` : ''}
-              </p>
-              <div className="flex flex-shrink-0 items-center gap-2 text-right">
-                <span
-                  className={clsx(
-                    'rounded-full px-2 py-0.5 text-xs font-semibold uppercase',
-                    game.result === 'win' && 'bg-green-900/50 text-green-300',
-                    game.result === 'loss' && 'bg-red-900/50 text-red-300',
-                    (game.result === 'draw' || game.result === 'abandoned') && 'bg-white/10 text-paper/60',
-                  )}
-                >
-                  {game.result}
-                </span>
-                <span className="text-sm text-paper/50">
-                  {game.myTotalVp}-{game.opponentTotalVp}
-                </span>
-              </div>
-            </Link>
-          </li>
+          <HistoryGameRow
+            key={game.gameId}
+            game={game}
+            userId={user?.id}
+            onCancel={() => setCancelingGameId(game.gameId)}
+          />
         ))}
       </ul>
 
@@ -127,5 +96,79 @@ export function HistoryPage() {
         pending={deleteGame.isPending}
       />
     </div>
+  )
+}
+
+function HistoryGameRow({
+  game,
+  userId,
+  onCancel,
+}: {
+  game: CompletedGameRow
+  userId: string | undefined
+  onCancel: () => void
+}) {
+  // Bound per-row so each game verifies independently -- HistoryPage lists games across many
+  // gameIds at once, unlike SummaryPage's single-game useVerifySeat(id).
+  const verifySeat = useVerifySeat(game.gameId)
+
+  return (
+    <li className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
+      <div className="flex items-center justify-between gap-2 px-4 pt-3">
+        <p className="min-w-0 truncate text-sm text-paper">
+          {game.missionName} · vs{' '}
+          <PlayerNameLink userId={game.opponentUserId} name={game.opponentName} className="font-medium text-paper" />
+        </p>
+        <button
+          type="button"
+          aria-label="Cancel game"
+          onClick={onCancel}
+          className="flex-shrink-0 text-paper/40 hover:text-red-400"
+        >
+          ✕
+        </button>
+      </div>
+      <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3">
+        <p className="min-w-0 truncate text-xs text-paper/50">
+          {game.myFactionName ?? 'No faction'} · {game.pointsLimit} pts · {new Date(game.endedAt).toLocaleDateString()}
+          {game.ladderName ? ` · ${game.ladderName}` : ''}
+        </p>
+        <div className="flex flex-shrink-0 items-center gap-2 text-right">
+          <span
+            className={clsx(
+              'rounded-full px-2 py-0.5 text-xs font-semibold uppercase',
+              game.result === 'win' && 'bg-green-900/50 text-green-300',
+              game.result === 'loss' && 'bg-red-900/50 text-red-300',
+              (game.result === 'draw' || game.result === 'abandoned') && 'bg-white/10 text-paper/60',
+            )}
+          >
+            {game.result}
+          </span>
+          <span className="text-sm text-paper/50">
+            {game.myTotalVp}-{game.opponentTotalVp}
+          </span>
+        </div>
+      </Link>
+      {game.needsMyVerification && userId && (
+        <div className="flex items-center justify-between gap-2 border-t border-white/10 px-4 py-2">
+          <p className="text-[11px] text-paper/40">Entered on your behalf -- does this look right?</p>
+          <Button
+            variant="secondary"
+            disabled={verifySeat.isPending}
+            onClick={(e) => {
+              e.preventDefault()
+              verifySeat.mutate({ gamePlayerId: game.myGamePlayerId, userId })
+            }}
+          >
+            {verifySeat.isPending ? 'Verifying…' : 'Verify'}
+          </Button>
+        </div>
+      )}
+      {!game.needsMyVerification && game.opponentUnverified && (
+        <p className="border-t border-white/10 px-4 py-2 text-[11px] text-paper/40">
+          Unverified -- awaiting {game.opponentName}'s confirmation
+        </p>
+      )}
+    </li>
   )
 }

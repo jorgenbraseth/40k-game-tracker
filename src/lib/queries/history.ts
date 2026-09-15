@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { needsVerification } from '@/lib/queries/games'
 import { supabase } from '@/lib/supabase'
 
 export interface CompletedGameRow {
@@ -10,6 +11,7 @@ export interface CompletedGameRow {
   deploymentName: string
   pointsLimit: number
   mySeat: 1 | 2
+  myGamePlayerId: string
   myFactionName: string | null
   myArmyName: string | null
   myTotalVp: number
@@ -22,6 +24,12 @@ export interface CompletedGameRow {
   result: 'win' | 'loss' | 'draw' | 'abandoned'
   ladderId: string | null
   ladderName: string | null
+  /** True when this game was solo-entered on the viewer's behalf and the viewer hasn't confirmed
+   * it yet (issue #46) -- HistoryPage offers a "Verify" action right on the row for this. */
+  needsMyVerification: boolean
+  /** True when the *opponent's* seat is the one still awaiting their confirmation -- informational
+   * only, the viewer can't act on someone else's verification. */
+  opponentUnverified: boolean
 }
 
 export const historyKeys = {
@@ -57,18 +65,20 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   const deploymentIds = [...new Set(games.map((g) => g.deployment_id))]
   const ladderIds = [...new Set(games.map((g) => g.ladder_id).filter((id): id is string => Boolean(id)))]
 
-  const [playersRes, totalsRes, deploymentsRes, laddersRes] = await Promise.all([
+  const [playersRes, totalsRes, deploymentsRes, laddersRes, verificationsRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', completeGameIds),
     supabase.from('game_totals').select('*').in('game_id', completeGameIds),
     supabase.from('deployments').select('id, name').in('id', deploymentIds),
     ladderIds.length
       ? supabase.from('ladders').select('id, name').in('id', ladderIds)
       : Promise.resolve({ data: [], error: null }),
+    supabase.from('game_player_verifications').select('*').in('game_id', completeGameIds),
   ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
   if (deploymentsRes.error) throw deploymentsRes.error
   if (laddersRes.error) throw laddersRes.error
+  if (verificationsRes.error) throw verificationsRes.error
 
   const missionIds = [
     ...new Set(playersRes.data.map((p) => p.mission_id).filter((id): id is string => Boolean(id))),
@@ -133,6 +143,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
       deploymentName: deploymentById.get(game.deployment_id) ?? 'Unknown deployment',
       pointsLimit: game.points_limit,
       mySeat: me.seat,
+      myGamePlayerId: me.id,
       myFactionName: me.faction_id ? (factionById.get(me.faction_id) ?? null) : null,
       myArmyName: me.army_name,
       myTotalVp: totalByPlayerId.get(me.id) ?? 0,
@@ -149,6 +160,10 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
       result,
       ladderId: game.ladder_id,
       ladderName: game.ladder_id ? (ladderById.get(game.ladder_id) ?? 'Unknown ladder') : null,
+      needsMyVerification: needsVerification({ player: me }, game.status, verificationsRes.data),
+      opponentUnverified: opponent
+        ? needsVerification({ player: opponent }, game.status, verificationsRes.data)
+        : false,
     })
   }
 

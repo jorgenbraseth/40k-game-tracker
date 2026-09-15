@@ -40,6 +40,18 @@ players' own phones if they'd both rather enter their own numbers.
   another person who can also adjust either side's numbers, the same as
   if they'd been there from the start -- not a required step to use the
   app.
+- When a solo-entered, ladder-attributed seat (`represents_user_id` set,
+  never actually joined) belongs to a finished game, that result shows
+  as **unverified** until the real player it was entered for confirms
+  it themselves -- a one-tap "Verify this result", offered wherever that
+  game shows up for them (its own summary, their history list). This is
+  informational, not a gate: an unverified game still counts toward
+  standings and stats immediately, the same as any other result: the
+  point is letting the represented player see and flag a wrong score,
+  not blocking anything on their confirmation. There's no dispute/reject
+  flow -- if a score's wrong, it's fixed the same way every other value
+  in this app is, by editing it directly, same as
+  correcting a fat-fingered tap.
 - The waiting room has each seat's own setup (faction, Force Disposition,
   which of Fixed or Tactical they're playing Secondary Missions as, army
   name) side by side, plus one shared **game configuration** section
@@ -229,6 +241,29 @@ way fetchLadderStandings does -- `user_id` or `represents_user_id`, not
 just `user_id` -- so a solo-entered, represents_user_id-attributed game
 shows up in that player's own history and stats too, not only in ladder
 standings.
+
+Solo-entered-game verification (issue #46) is implemented via a
+dedicated `game_player_verifications` table
+(`20260315000000_seat_verification.sql`), not a column on
+`game_players`: Postgres RLS ORs multiple permissive policies together
+per-row, not per-column, so a `verified_at`/`verified_by` column there
+would end up writable by the bookkeeper too (via the existing broader
+"players can update their own seat, or claim/fill an unclaimed one"
+policy), defeating the point. The new table's own INSERT policy is the
+sole gatekeeper instead: only the represented account, for a seat still
+unclaimed (`user_id is null`) and attributed to them, on a game that's
+actually finished. `needsVerification()` (`src/lib/queries/games.ts`) is
+the shared predicate for "does this seat still need it" -- attributed,
+unclaimed, finished, no verification row yet -- used by both
+`SummaryPage` (a "Verify this result" button on the represented
+player's own card, or a read-only "awaiting confirmation" pill for the
+other seat) and `HistoryPage` (the same button/pill inline per row, via
+`useVerifySeat`). Verifying never blocks or changes anything else --
+Elo/standings/stats already count the game either way -- it only
+records that the represented player looked at it and confirmed it's
+right. Games solo-entered before this shipped aren't backfilled: they
+simply show as unverified like any other qualifying game rather than
+fabricating a confirmation that was never actually given.
 
 Turn order is implemented: `game_players.turn_order` ('first'/'second')
 is modeled exactly like `role` at the schema level (a partial unique
