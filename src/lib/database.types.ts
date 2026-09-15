@@ -237,6 +237,25 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['round_scores']['Row']>
         Relationships: []
       }
+      command_points: {
+        Row: {
+          id: string
+          game_id: string
+          game_player_id: string
+          battle_round: number
+          cp_gained: number
+          cp_spent: number
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['command_points']['Row']> & {
+          game_id: string
+          game_player_id: string
+          battle_round: number
+        }
+        Update: Partial<Database['public']['Tables']['command_points']['Row']>
+        Relationships: []
+      }
       secondary_scores: {
         Row: {
           id: string

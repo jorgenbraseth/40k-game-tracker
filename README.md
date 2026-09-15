@@ -133,6 +133,15 @@ players' own phones if they'd both rather enter their own numbers.
   start (a two-button toggle, not a dropdown with a no-op "undecided"
   option), so the round screen always knows to show only the scoring
   conditions that actually apply to them, instead of both sets at once.
+- Command Points are tracked too, round by round: how many a player
+  gained and how many they spent that round, entered the same
+  pick-what-happened way as everything else here -- the well-known "+1
+  CP per round" isn't auto-granted, since this is a bookkeeping tool,
+  not a rules engine that plays the game for you. Each player's
+  remaining CP (everything gained so far, minus everything spent) is
+  shown alongside, live, so nobody has to do the running maths
+  mid-game, and the post-game summary keeps the final remaining total
+  as part of the permanent record.
 - The app knows the actual current missions, deployments, and secondary
   objectives for whichever Chapter Approved mission pack is active --
   this isn't a generic point counter, it understands the ruleset. When a
@@ -402,6 +411,18 @@ one before the game can start (`WaitingRoom`'s `canStart`, and
 `start_game` server-side via `20260318000000_require_secondary_mode.sql`),
 so a game can no longer be played all the way through without either
 seat ever having actually declared one.
+
+Command Points are implemented: a new `command_points` table
+(`20260322000000_command_points.sql`) holds `cp_gained`/`cp_spent` per
+seat per battle round (1-5, not the End of Game pseudo-round -- no
+CP-related scoring happens there), written manually via
+`CommandPointsPanel`'s +/- counters, same "either participant can enter
+either side's" RLS as round/secondary scores. There's no matching SQL
+view the way `game_totals` has one for VP -- CP doesn't feed
+Elo/standings, so `remainingCp()` (`src/lib/queries/games.ts`) just sums
+`GameDetail.commandPoints` client-side wherever it's shown: live next to
+the counters on `Scoreboard` (a running "N remaining" figure, updating
+every round), and as a final total on `SummaryPage`'s per-player card.
 
 Ladders are implemented: the Ladders page lists every ladder (yours and
 others'), `create_ladder` makes a new one and seats its creator, joining

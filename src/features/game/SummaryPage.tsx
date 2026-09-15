@@ -3,7 +3,7 @@ import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { needsVerification, playerLabel, playerUserId, useGame, useVerifySeat } from '@/lib/queries/games'
+import { needsVerification, playerLabel, playerUserId, remainingCp, useGame, useVerifySeat } from '@/lib/queries/games'
 import { useMission } from '@/lib/queries/referenceData'
 
 export function SummaryPage() {
@@ -105,6 +105,11 @@ export function SummaryPage() {
                 {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
                 {entry.paintedBonusVp > 0 && ` + ${entry.paintedBonusVp} painted`}
               </p>
+              {data.commandPoints.some((cp) => cp.game_player_id === entry.player.id) && (
+                <p className="mt-0.5 text-xs text-paper/40">
+                  {remainingCp(data.commandPoints, entry.player.id)} CP remaining
+                </p>
+              )}
               {unverified &&
                 (iAmRepresented ? (
                   <div className="mt-3 flex flex-col gap-1.5">

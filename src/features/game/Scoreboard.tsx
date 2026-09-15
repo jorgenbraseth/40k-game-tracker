@@ -11,6 +11,7 @@ import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
   playerUserId,
+  remainingCp,
   setMirroredField,
   useAbandonGame,
   useDeleteGame,
@@ -34,6 +35,7 @@ import {
   useSecondaryObjectives,
 } from '@/lib/queries/referenceData'
 import { useWakeLock } from '@/lib/useWakeLock'
+import { CommandPointsPanel } from './CommandPointsPanel'
 import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 import { PrimaryScorePanel } from './PrimaryScorePanel'
@@ -157,6 +159,9 @@ export function Scoreboard({
 
   const getRoundScore = (gamePlayerId: string) =>
     detail.roundScores.find((r) => r.game_player_id === gamePlayerId && r.battle_round === viewRound)?.primary_vp ?? 0
+
+  const getCommandPoints = (gamePlayerId: string) =>
+    detail.commandPoints.find((cp) => cp.game_player_id === gamePlayerId && cp.battle_round === viewRound)
 
   const advanceRound = () => {
     const next = Math.min(endOfGameRound, detail.game.current_round + 1)
@@ -283,6 +288,27 @@ export function Scoreboard({
               userId={user.id}
               editable={isParticipant}
             />
+
+            {viewRound === endOfGameRound ? (
+              <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-paper/60">
+                <span className="text-xs font-medium tracking-wide uppercase">Command Points</span>
+                <span className="font-semibold text-gold">
+                  {remainingCp(detail.commandPoints, entry.player.id)}
+                  <span className="ml-1 text-xs font-normal text-paper/40">remaining</span>
+                </span>
+              </p>
+            ) : (
+              <CommandPointsPanel
+                gameId={detail.game.id}
+                gamePlayerId={entry.player.id}
+                battleRound={viewRound}
+                cpGained={getCommandPoints(entry.player.id)?.cp_gained ?? 0}
+                cpSpent={getCommandPoints(entry.player.id)?.cp_spent ?? 0}
+                remaining={remainingCp(detail.commandPoints, entry.player.id)}
+                userId={user.id}
+                editable={isParticipant}
+              />
+            )}
 
             {viewRound === endOfGameRound ? (
               isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) ? (
