@@ -1,34 +1,27 @@
 import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
-import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import { useLadderMembers } from '@/lib/queries/ladders'
-import { LayoutVariantPicker } from './LayoutVariantPicker'
 
 type PlayerEntry = GameDetail['players'][number]
-type LayoutVariant = Database['public']['Tables']['games']['Row']['layout_variant']
-type LayoutMission = Parameters<typeof LayoutVariantPicker>[0]['mission']
 
 /**
  * A single seat's own setup: who this seat *is* (Faction, Force Disposition, Army name -- plus,
  * first, a "Player" picker when `me` is an unclaimed seat on a ladder-tagged game, letting the
  * bookkeeper attribute it to a real ladder member so that player's result counts in standings
- * even though they never signed in), then terrain layout -- shown once the mission's Force
- * Disposition pairing is known, via the layout* props. Shared between the waiting room and the
- * in-game "edit your setup" sheet, since a wrong pick here should always be correctable, not just
- * before the game starts.
+ * even though they never signed in). Shared between the waiting room and the in-game "edit your
+ * setup" sheet, since a wrong pick here should always be correctable, not just before the game
+ * starts.
  *
- * Attacker/Defender and turn order are *not* here -- they're a single shared decision between
- * both seats, not a per-seat one, so they live in their own GameConfigPicker instead.
+ * Terrain layout, Attacker/Defender, and turn order are *not* here -- none of them are a single
+ * seat's own property, they're shared decisions about the game as a whole, so they live in their
+ * own GameConfigPicker instead.
  */
 export function PlayerSetupFields({
   me,
   factions,
   forceDispositions,
   onUpdateSetup,
-  layoutMission,
-  layoutVariant,
-  onSetLayoutVariant,
   ladderId,
 }: {
   me: PlayerEntry
@@ -40,9 +33,6 @@ export function PlayerSetupFields({
     forceDispositionId?: string | null
     representsUserId?: string | null
   }) => void
-  layoutMission?: LayoutMission
-  layoutVariant?: LayoutVariant
-  onSetLayoutVariant?: (variant: LayoutVariant) => void
   ladderId?: string | null
 }) {
   const isUnclaimedSeat = !me.player.user_id
@@ -102,21 +92,6 @@ export function PlayerSetupFields({
         defaultValue={me.player.army_name ?? ''}
         onBlur={(e) => onUpdateSetup({ armyName: e.target.value || null })}
       />
-
-      {layoutMission && onSetLayoutVariant && (
-        <div>
-          <LayoutVariantPicker
-            mission={layoutMission}
-            value={layoutVariant ?? null}
-            onChange={onSetLayoutVariant}
-          />
-          {!layoutVariant && (
-            <p className="mt-1.5 text-xs text-paper/50">
-              Pick a layout before starting -- like everything else here, it stays changeable any time.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
