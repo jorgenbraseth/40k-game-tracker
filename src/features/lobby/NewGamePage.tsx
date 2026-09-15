@@ -4,11 +4,10 @@ import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { ImageOptionGrid } from '@/components/ImageOptionGrid'
 import { Select } from '@/components/Select'
-import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useCreateGame } from '@/lib/queries/games'
 import { useLadders } from '@/lib/queries/ladders'
-import { useCurrentMissionPack, useDeployments, useFactions, useForceDispositions } from '@/lib/queries/referenceData'
+import { useCurrentMissionPack, useDeployments } from '@/lib/queries/referenceData'
 
 const POINTS_OPTIONS = [500, 1000, 1500, 2000, 2500, 3000]
 
@@ -17,16 +16,11 @@ export function NewGamePage() {
   const { user } = useAuth()
   const missionPack = useCurrentMissionPack()
   const deployments = useDeployments(missionPack.data?.id)
-  const forceDispositions = useForceDispositions()
-  const factions = useFactions()
   const ladders = useLadders(user?.id)
   const createGame = useCreateGame()
 
   const [deploymentId, setDeploymentId] = useState('')
   const [pointsLimit, setPointsLimit] = useState(2000)
-  const [forceDispositionId, setForceDispositionId] = useState('')
-  const [factionId, setFactionId] = useState('')
-  const [armyName, setArmyName] = useState('')
   const [ladderId, setLadderId] = useState('')
 
   if (missionPack.isLoading) return <Spinner label="Loading mission pack…" />
@@ -42,9 +36,6 @@ export function NewGamePage() {
     const gameId = await createGame.mutateAsync({
       deploymentId: effectiveDeploymentId,
       pointsLimit,
-      forceDispositionId: forceDispositionId || undefined,
-      factionId: factionId || undefined,
-      armyName: armyName.trim() || undefined,
       ladderId: ladderId || undefined,
     })
     navigate(`/game/${gameId}`)
@@ -72,40 +63,6 @@ export function NewGamePage() {
             </option>
           ))}
         </Select>
-
-        <Select
-          label="Your Force Disposition (optional)"
-          value={forceDispositionId}
-          onChange={(e) => setForceDispositionId(e.target.value)}
-        >
-          <option value="">Pick later</option>
-          {forceDispositions.data?.map((fd) => (
-            <option key={fd.id} value={fd.id}>
-              {fd.name}
-            </option>
-          ))}
-        </Select>
-        <p className="-mt-2 text-xs text-paper/40">
-          The Primary Mission is determined by both players' Force Dispositions together. Bookkeeping for both
-          sides? You can fill in Player 2's Force Disposition yourself from the waiting room -- no account needed
-          for them.
-        </p>
-
-        <Select label="Your faction (optional)" value={factionId} onChange={(e) => setFactionId(e.target.value)}>
-          <option value="">Pick later</option>
-          {factions.data?.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </Select>
-
-        <TextField
-          label="Your army name (optional)"
-          value={armyName}
-          onChange={(e) => setArmyName(e.target.value)}
-          placeholder="e.g. The Iron Talons"
-        />
 
         {(ladders.data ?? []).some((l) => l.isMember) && (
           <Select label="Ladder game? (optional)" value={ladderId} onChange={(e) => setLadderId(e.target.value)}>

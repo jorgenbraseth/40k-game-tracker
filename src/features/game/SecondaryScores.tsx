@@ -20,9 +20,10 @@ type SecondaryTick = Database['public']['Tables']['secondary_objective_ticks']['
  * Tactical secondaries are drawn cumulatively (2 more each round) and scored from that whole
  * cumulative pool, not just what was drawn this round -- a player may score any not-yet-scored
  * secondary they've drawn so far this game. So this shows every drawn-and-unscored secondary
- * (badged with which round it was drawn, "this round" called out specially), separately from
- * every already-scored one (badged with which round that happened), regardless of which round is
- * currently being viewed -- only *new* draws/scores get attributed to the viewed round.
+ * (badged with which round it was drawn, "this round" called out specially) first, then every
+ * already-scored one below (badged with which round that happened), regardless of which round is
+ * currently being viewed -- only *new* draws/scores get attributed to the viewed round. Within
+ * each group, secondaries are ordered by the round they were drawn in, oldest first.
  */
 export function SecondaryScores({
   gameId,
@@ -56,13 +57,20 @@ export function SecondaryScores({
   const [scoringObjectiveId, setScoringObjectiveId] = useState<string | null>(null)
   const [manualDraft, setManualDraft] = useState<string | null>(null)
 
-  const myScores = scores.filter((s) => s.game_player_id === gamePlayerId)
-  const scoredIds = new Set(myScores.map((s) => s.secondary_objective_id))
   const myDraws = draws.filter((d) => d.game_player_id === gamePlayerId)
+  const drawnRoundBySecondaryId = new Map(myDraws.map((d) => [d.secondary_objective_id, d.battle_round]))
+  const myScores = scores
+    .filter((s) => s.game_player_id === gamePlayerId)
+    .sort(
+      (a, b) =>
+        (drawnRoundBySecondaryId.get(a.secondary_objective_id) ?? a.battle_round) -
+        (drawnRoundBySecondaryId.get(b.secondary_objective_id) ?? b.battle_round),
+    )
+  const scoredIds = new Set(myScores.map((s) => s.secondary_objective_id))
   const drawnIds = new Set(myDraws.map((d) => d.secondary_objective_id))
   const availableToScore = myDraws
     .filter((d) => !scoredIds.has(d.secondary_objective_id))
-    .sort((a, b) => b.battle_round - a.battle_round)
+    .sort((a, b) => a.battle_round - b.battle_round)
   const notYetDrawn = available.filter((a) => !drawnIds.has(a.id))
 
   const scoringObjective = available.find((a) => a.id === scoringObjectiveId)
@@ -108,43 +116,8 @@ export function SecondaryScores({
 
   return (
     <div className="flex w-full flex-col gap-1.5">
-      {myScores.length > 0 && (
-        <p className="text-[11px] font-semibold tracking-wide text-paper/40 uppercase">Scored</p>
-      )}
-      {myScores.map((s) => {
-        const objective = available.find((a) => a.id === s.secondary_objective_id)
-        return (
-          <div key={s.id} className="flex items-center justify-between rounded-lg bg-white/5 px-2.5 py-1.5 text-sm">
-            <button
-              type="button"
-              onClick={() => editable && setScoringObjectiveId(s.secondary_objective_id)}
-              disabled={!editable}
-              className="flex flex-1 items-center justify-between gap-2 text-left disabled:cursor-default"
-            >
-              <span className="min-w-0 truncate text-paper/80">
-                {objective?.name ?? 'Unknown'}
-                <span className="ml-1.5 text-[10px] text-paper/40">R{s.battle_round}</span>
-              </span>
-              <span className="font-semibold text-gold">{s.vp_scored}VP</span>
-            </button>
-            {editable && (
-              <button
-                type="button"
-                aria-label={`Remove ${objective?.name}`}
-                onClick={() =>
-                  remove.mutate({ gamePlayerId, battleRound: s.battle_round, secondaryObjectiveId: s.secondary_objective_id })
-                }
-                className="ml-2 text-paper/40 hover:text-red-400"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        )
-      })}
-
       {availableToScore.length > 0 && (
-        <p className="mt-1 text-[11px] font-semibold tracking-wide text-paper/40 uppercase">
+        <p className="text-[11px] font-semibold tracking-wide text-paper/40 uppercase">
           Drawn, not yet scored
         </p>
       )}
@@ -180,6 +153,41 @@ export function SecondaryScores({
                 type="button"
                 aria-label={`Undo draw of ${objective?.name}`}
                 onClick={() => undraw.mutate({ gamePlayerId, secondaryObjectiveId: d.secondary_objective_id })}
+                className="ml-2 text-paper/40 hover:text-red-400"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )
+      })}
+
+      {myScores.length > 0 && (
+        <p className="mt-1 text-[11px] font-semibold tracking-wide text-paper/40 uppercase">Scored</p>
+      )}
+      {myScores.map((s) => {
+        const objective = available.find((a) => a.id === s.secondary_objective_id)
+        return (
+          <div key={s.id} className="flex items-center justify-between rounded-lg bg-white/5 px-2.5 py-1.5 text-sm">
+            <button
+              type="button"
+              onClick={() => editable && setScoringObjectiveId(s.secondary_objective_id)}
+              disabled={!editable}
+              className="flex flex-1 items-center justify-between gap-2 text-left disabled:cursor-default"
+            >
+              <span className="min-w-0 truncate text-paper/80">
+                {objective?.name ?? 'Unknown'}
+                <span className="ml-1.5 text-[10px] text-paper/40">R{s.battle_round}</span>
+              </span>
+              <span className="font-semibold text-gold">{s.vp_scored}VP</span>
+            </button>
+            {editable && (
+              <button
+                type="button"
+                aria-label={`Remove ${objective?.name}`}
+                onClick={() =>
+                  remove.mutate({ gamePlayerId, battleRound: s.battle_round, secondaryObjectiveId: s.secondary_objective_id })
+                }
                 className="ml-2 text-paper/40 hover:text-red-400"
               >
                 ✕
