@@ -73,12 +73,13 @@ players' own phones if they'd both rather enter their own numbers.
   round" player, as opposed to "bottom of round") shows first on the live
   Scoreboard once both are picked.
 - Starting a game requires every one of those setup fields filled in for
-  *both* seats -- faction and Force Disposition per seat, plus the shared
-  terrain layout, Attacker/Defender, and who-went-first picks -- with one
-  deliberate exception: army name, which is flavour text with no
-  gameplay effect, stays optional forever. There is no separate "ready"
-  step on top of that; once the fields are filled in, either player can
-  just start the game.
+  *both* seats -- faction, Force Disposition, and which of Fixed or
+  Tactical they're playing Secondary Missions as, per seat, plus the
+  shared terrain layout, Attacker/Defender, and who-went-first picks --
+  with one deliberate exception: army name, which is flavour text with
+  no gameplay effect, stays optional forever. There is no separate
+  "ready" step on top of that; once the fields are filled in, either
+  player can just start the game.
 - Once the game starts, primary VP and secondary objectives are scored
   round by round (5 battle rounds, then an End of Game step -- see
   below), and whichever round is on screen is part of the URL -- so
@@ -120,9 +121,10 @@ players' own phones if they'd both rather enter their own numbers.
   but still sitting there unscored -- not just the current round's two.
   A handful of secondary cards score differently depending on whether a
   player is playing Secondary Missions as Fixed picks or Tactical draws
-  -- once a seat has declared which in setup, the round screen only
-  shows the scoring conditions that actually apply to them, instead of
-  both sets at once.
+  -- every seat has to declare which, in setup, before the game can
+  start (a two-button toggle, not a dropdown with a no-op "undecided"
+  option), so the round screen always knows to show only the scoring
+  conditions that actually apply to them, instead of both sets at once.
 - The app knows the actual current missions, deployments, and secondary
   objectives for whichever Chapter Approved mission pack is active --
   this isn't a generic point counter, it understands the ruleset. When a
@@ -362,14 +364,18 @@ apply to which -- 4 of the 18 secondaries (A Grievous Blow, Engage on
 All Fronts, Assassination, Bring It Down) have every line tagged one way
 or the other, the remaining 14 are mode-agnostic throughout -- but
 nothing read it before now, so the round screen showed every line for a
-split card at once, "(fixed)"/"(tactical)" label and all. A new
-`game_players.secondary_mode` column (optional, own seat's own choice,
-alongside Faction/Force Disposition in `PlayerSetupFields`, not a shared
+split card at once, "(fixed)"/"(tactical)" label and all. A
+`game_players.secondary_mode` column (own seat's own choice, alongside
+Faction/Force Disposition in `PlayerSetupFields`, not a shared
 GameConfigPicker decision) records which a seat is playing; once set,
 `SecondaryScores` filters a card's scoring lines to just that mode (plus
-any mode-agnostic ones) -- until set, every line still shows, same as
-before this existed, so nothing regresses for a seat that hasn't picked
-yet.
+any mode-agnostic ones). It's picked via a two-button Fixed/Tactical
+toggle, not a dropdown with an "undecided" option -- and, like faction,
+Force Disposition, role, and turn order, both seats have to have picked
+one before the game can start (`WaitingRoom`'s `canStart`, and
+`start_game` server-side via `20260318000000_require_secondary_mode.sql`),
+so a game can no longer be played all the way through without either
+seat ever having actually declared one.
 
 Ladders are implemented: the Ladders page lists every ladder (yours and
 others'), `create_ladder` makes a new one and seats its creator, joining

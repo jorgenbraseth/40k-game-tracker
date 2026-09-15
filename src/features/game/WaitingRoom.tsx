@@ -49,7 +49,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const layoutChosen = Boolean(detail.game.layout_variant)
   const bothRolesAssigned = detail.players.length === 2 && detail.players.every((p) => p.player.role)
   const bothTurnOrderSet = detail.players.length === 2 && detail.players.every((p) => p.player.turn_order)
-  const canStart = missionResolved && bothFactionsSet && layoutChosen && bothRolesAssigned && bothTurnOrderSet
+  const bothSecondaryModesSet = detail.players.length === 2 && detail.players.every((p) => p.player.secondary_mode)
+  const canStart =
+    missionResolved && bothFactionsSet && layoutChosen && bothRolesAssigned && bothTurnOrderSet && bothSecondaryModesSet
 
   const myMission = useMission(me?.player.mission_id ?? undefined)
   const opponentMission = useMission(opponent?.player.mission_id ?? undefined)
@@ -66,7 +68,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
           ? 'Both players need to claim Attacker or Defender'
           : !bothTurnOrderSet
             ? 'Both players need to say who went first'
-            : null
+            : !bothSecondaryModesSet
+              ? 'Both players need to pick Fixed or Tactical secondaries'
+              : null
 
   const copyCode = async () => {
     try {
