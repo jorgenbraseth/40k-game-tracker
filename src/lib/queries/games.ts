@@ -384,7 +384,6 @@ export function useGame(gameId: string | undefined) {
 export function useCreateGame() {
   return useMutation({
     mutationFn: async (input: {
-      deploymentId: string
       pointsLimit: number
       forceDispositionId?: string
       factionId?: string
@@ -392,7 +391,6 @@ export function useCreateGame() {
       ladderId?: string
     }) => {
       const { data, error } = await supabase.rpc('create_game', {
-        p_deployment_id: input.deploymentId,
         p_points_limit: input.pointsLimit,
         p_force_disposition_id: input.forceDispositionId ?? null,
         p_faction_id: input.factionId ?? null,

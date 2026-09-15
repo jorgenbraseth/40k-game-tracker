@@ -5,7 +5,6 @@ export const referenceKeys = {
   currentMissionPack: ['reference', 'current-mission-pack'] as const,
   mission: (missionId: string) => ['reference', 'mission', missionId] as const,
   missionsForPack: (missionPackId: string) => ['reference', 'missions-for-pack', missionPackId] as const,
-  deployments: (missionPackId: string) => ['reference', 'deployments', missionPackId] as const,
   secondaries: (missionPackId: string) => ['reference', 'secondaries', missionPackId] as const,
   missionObjectiveLines: (missionId: string) => ['reference', 'mission-objective-lines', missionId] as const,
   factions: ['reference', 'factions'] as const,
@@ -57,23 +56,6 @@ export function useMissionsForPack(missionPackId: string | undefined) {
     queryKey: referenceKeys.missionsForPack(missionPackId ?? ''),
     queryFn: async () => {
       const { data, error } = await supabase.from('missions').select('*').eq('mission_pack_id', missionPackId as string)
-      if (error) throw error
-      return data
-    },
-    enabled: Boolean(missionPackId),
-    staleTime: Number.POSITIVE_INFINITY,
-  })
-}
-
-export function useDeployments(missionPackId: string | undefined) {
-  return useQuery({
-    queryKey: referenceKeys.deployments(missionPackId ?? ''),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('deployments')
-        .select('*')
-        .eq('mission_pack_id', missionPackId as string)
-        .order('name')
       if (error) throw error
       return data
     },
