@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
+import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useCompletedGames } from '@/lib/queries/history'
@@ -52,21 +53,27 @@ export function HistoryPage() {
 
       <ul className="flex flex-col gap-2">
         {visible.map((game) => (
-          <li
-            key={game.gameId}
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 pr-2 hover:bg-white/10"
-          >
-            <Link to={`/game/${game.gameId}/summary`} className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-paper">
-                  {game.missionName} · vs {game.opponentName}
-                </p>
-                <p className="truncate text-xs text-paper/50">
-                  {game.myFactionName ?? 'No faction'} · {game.pointsLimit} pts ·{' '}
-                  {new Date(game.endedAt).toLocaleDateString()}
-                  {game.ladderName ? ` · ${game.ladderName}` : ''}
-                </p>
-              </div>
+          <li key={game.gameId} className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
+            <div className="flex items-center justify-between gap-2 px-4 pt-3">
+              <p className="min-w-0 truncate text-sm text-paper">
+                {game.missionName} · vs{' '}
+                <PlayerNameLink userId={game.opponentUserId} name={game.opponentName} className="font-medium text-paper" />
+              </p>
+              <button
+                type="button"
+                aria-label="Cancel game"
+                onClick={() => setCancelingGameId(game.gameId)}
+                className="flex-shrink-0 text-paper/40 hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
+            <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3">
+              <p className="min-w-0 truncate text-xs text-paper/50">
+                {game.myFactionName ?? 'No faction'} · {game.pointsLimit} pts ·{' '}
+                {new Date(game.endedAt).toLocaleDateString()}
+                {game.ladderName ? ` · ${game.ladderName}` : ''}
+              </p>
               <div className="flex flex-shrink-0 items-center gap-2 text-right">
                 <span
                   className={clsx(
@@ -83,14 +90,6 @@ export function HistoryPage() {
                 </span>
               </div>
             </Link>
-            <button
-              type="button"
-              aria-label="Cancel game"
-              onClick={() => setCancelingGameId(game.gameId)}
-              className="min-h-11 min-w-11 rounded-lg text-paper/40 hover:bg-white/10 hover:text-red-400"
-            >
-              ✕
-            </button>
           </li>
         ))}
       </ul>

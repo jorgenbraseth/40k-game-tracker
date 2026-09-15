@@ -15,6 +15,7 @@ function row(overrides: Partial<CompletedGameRow>): CompletedGameRow {
     myArmyName: null,
     myTotalVp: 80,
     opponentName: 'Rival',
+    opponentUserId: null,
     opponentFactionName: 'Orks',
     opponentTotalVp: 60,
     result: 'win',

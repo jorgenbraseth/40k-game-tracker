@@ -14,6 +14,9 @@ export interface CompletedGameRow {
   myArmyName: string | null
   myTotalVp: number
   opponentName: string
+  /** The account behind opponentName, if there is one (their own, or whoever an unclaimed seat
+   * was attributed to) -- null when there's nobody to link to (unclaimed and unattributed). */
+  opponentUserId: string | null
   opponentFactionName: string | null
   opponentTotalVp: number
   result: 'win' | 'loss' | 'draw' | 'abandoned'
@@ -134,6 +137,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
           : opponent.represents_user_id
             ? (profileById.get(opponent.represents_user_id) ?? 'Unknown opponent')
             : opponent.army_name || 'Unnamed opponent',
+      opponentUserId: opponent ? (opponent.user_id ?? opponent.represents_user_id ?? null) : null,
       opponentFactionName: opponent?.faction_id ? (factionById.get(opponent.faction_id) ?? null) : null,
       opponentTotalVp: opponent ? (totalByPlayerId.get(opponent.id) ?? 0) : 0,
       result,

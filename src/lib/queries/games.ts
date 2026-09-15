@@ -279,6 +279,14 @@ export function playerLabel(entry: GameDetail['players'][number] | undefined, fa
   return entry?.profile?.display_name ?? entry?.representsDisplayName ?? entry?.player.army_name ?? fallback
 }
 
+/** The stable account behind a seat, if any -- for `PlayerNameLink` -- same priority as
+ * `playerLabel`'s identity sources (own account, then whoever an unclaimed seat was attributed
+ * to), but null when both are missing since there's nobody to link to yet (an army name alone
+ * isn't a linkable identity). */
+export function playerUserId(entry: GameDetail['players'][number] | undefined): string | null {
+  return entry?.player.user_id ?? entry?.player.represents_user_id ?? null
+}
+
 export function useGame(gameId: string | undefined) {
   return useQuery({
     queryKey: gameKeys.detail(gameId ?? ''),

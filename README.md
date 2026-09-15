@@ -171,7 +171,18 @@ they never signed in themselves.
 History can be filtered down to a single ladder's games. See
 `40k-tracker-plan.md`'s superseded out-of-scope note above, and issue
 #18 for the fuller design writeup (including why a stored, sequential
-rating like ELO/Glicko was deliberately not used).
+rating like ELO/Glicko was deliberately not used). A ladder's own page
+also lists every game that went into its standings -- everyone's, not
+just yours -- collapsed until asked for, so a look at the numbers doesn't
+have to come with a wall of game rows by default. And wherever a
+player's name shows up -- a ladder's standings or game log, your own
+game history, the live Scoreboard, a game's summary -- it's a link to
+that player's own record: their overall win rate and breakdown by
+faction/mission/opponent, scoped to whatever of their games you're
+actually allowed to see (their own account's games if it's you, or, for
+anyone else, whatever ladder-tagged games you share a ladder with them
+on -- the same rule that already governs whether their results show up
+in a shared ladder's standings at all).
 
 **Deployment and terrain layout:** picking a deployment shows its actual
 map image (one of the 6 Chapter Approved deployment cards), not just a
@@ -324,6 +335,34 @@ Glicko-2 (simpler, still delivers the core "gain less / lose more
 against a weaker opponent" ask; Glicko-2's added confidence-tracking is
 a possible later upgrade) and over Massey-Colley (no natural per-game
 "you gained/lost N points" story, which is most of the point).
+
+Each ladder's own game log is implemented too, alongside its standings:
+a second "Show games" disclosure inside an already-expanded ladder row
+(`LaddersPage`'s `GamesList`, `fetchLadderGames` in
+`src/lib/queries/ladders.ts`) lists every completed game tagged to that
+ladder -- not just the viewer's own, same visibility as standings --
+most recent first, each linking to that game's summary. Collapsed by
+default, nested one level deeper than the ladder row itself, so opening
+a ladder to see its standings doesn't also dump its whole history onto
+the screen.
+
+Player names are linked wherever they're shown -- the ladder standings
+and games list above, History's opponent, both players' cards and the
+result table on the live Scoreboard and the post-game Summary, the
+waiting room's "Player 2" -- to a new `/players/:userId` page
+(`PlayerNameLink`, `src/components/`; issue #28). It's the same
+`StatsPage` as `/stats`, just for someone else's account instead of the
+signed-in user's own: `useCompletedGames(targetUserId)` already reads
+whichever of *that* user's games RLS lets the *viewer* see, so a
+stranger's page naturally comes back scoped to only the ladder-tagged
+games they share a ladder with (untagged personal games of theirs stay
+invisible, same as everywhere else) -- no new RLS or query logic needed,
+just calling the existing history query with someone else's id. A name
+only links when there's a stable account behind it (`playerUserId()`):
+an unclaimed, unattributed seat's army name stays plain text, since
+there's nobody to link to yet. Names inside a button that does something
+else (declaring Attacker/turn order, confirming who won) are deliberately
+left unlinked -- navigating away isn't what tapping those does.
 
 Deployment map images, terrain layout selection, Attacker/Defender, and
 turn order are all implemented. "Start a game"'s deployment picker
