@@ -11,6 +11,7 @@ function row(overrides: Partial<CompletedGameRow>): CompletedGameRow {
     deploymentName: 'Hammer and Anvil',
     pointsLimit: 2000,
     mySeat: 1,
+    myGamePlayerId: crypto.randomUUID(),
     myFactionName: 'Space Marines',
     myArmyName: null,
     myTotalVp: 80,
@@ -21,6 +22,8 @@ function row(overrides: Partial<CompletedGameRow>): CompletedGameRow {
     result: 'win',
     ladderId: null,
     ladderName: null,
+    needsMyVerification: false,
+    opponentUnverified: false,
     ...overrides,
   }
 }

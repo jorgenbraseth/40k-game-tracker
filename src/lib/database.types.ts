@@ -275,6 +275,21 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['secondary_draws']['Row']>
         Relationships: []
       }
+      game_player_verifications: {
+        Row: {
+          game_player_id: string
+          game_id: string
+          verified_by: string
+          verified_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['game_player_verifications']['Row']> & {
+          game_player_id: string
+          game_id: string
+          verified_by: string
+        }
+        Update: Partial<Database['public']['Tables']['game_player_verifications']['Row']>
+        Relationships: []
+      }
       join_attempts: {
         Row: {
           id: string

@@ -3,13 +3,14 @@ import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { playerLabel, playerUserId, useGame } from '@/lib/queries/games'
+import { needsVerification, playerLabel, playerUserId, useGame, useVerifySeat } from '@/lib/queries/games'
 import { useMission } from '@/lib/queries/referenceData'
 
 export function SummaryPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { data, isLoading, isError, refetch } = useGame(id)
+  const verifySeat = useVerifySeat(id ?? '')
   const [p1, p2] = data?.players ?? []
   const p1Mission = useMission(p1?.player.mission_id ?? undefined)
   const p2Mission = useMission(p2?.player.mission_id ?? undefined)
@@ -56,20 +57,43 @@ export function SummaryPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {players.map((entry) => (
-          <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-            <p className="font-medium text-paper">
-              <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
-            </p>
-            <p className="text-xs text-paper/50">{entry.factionName ?? 'No faction'}</p>
-            <p className="mt-1 text-xs text-paper/40">{missionByPlayerId.get(entry.player.id) ?? 'Unknown mission'}</p>
-            <p className="mt-2 text-3xl font-bold text-gold">{entry.totalVp}</p>
-            <p className="text-xs text-paper/40">
-              {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
-              {entry.paintedBonusVp > 0 && ` + ${entry.paintedBonusVp} painted`}
-            </p>
-          </div>
-        ))}
+        {players.map((entry) => {
+          const unverified = needsVerification(entry, game.status, data.verifications)
+          const iAmRepresented = unverified && user?.id === entry.player.represents_user_id
+          return (
+            <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+              <p className="font-medium text-paper">
+                <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
+              </p>
+              <p className="text-xs text-paper/50">{entry.factionName ?? 'No faction'}</p>
+              <p className="mt-1 text-xs text-paper/40">{missionByPlayerId.get(entry.player.id) ?? 'Unknown mission'}</p>
+              <p className="mt-2 text-3xl font-bold text-gold">{entry.totalVp}</p>
+              <p className="text-xs text-paper/40">
+                {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
+                {entry.paintedBonusVp > 0 && ` + ${entry.paintedBonusVp} painted`}
+              </p>
+              {unverified &&
+                (iAmRepresented ? (
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    <Button
+                      variant="secondary"
+                      disabled={verifySeat.isPending}
+                      onClick={() => verifySeat.mutate({ gamePlayerId: entry.player.id, userId: user.id })}
+                    >
+                      {verifySeat.isPending ? 'Verifying…' : 'Verify this result'}
+                    </Button>
+                    <p className="text-[11px] text-paper/40">
+                      Entered on your behalf -- doesn't look right? Ask them to fix it directly.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-paper/50">
+                    Unverified -- awaiting {playerLabel(entry, 'their')}'s confirmation
+                  </p>
+                ))}
+            </div>
+          )
+        })}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -109,14 +133,18 @@ export function SummaryPage() {
         </table>
       </div>
 
-      <Link to={`/game/${game.id}`}>
-        <Button variant="secondary" fullWidth>
-          Edit scores / result
-        </Button>
-      </Link>
-      <p className="-mt-3 text-center text-xs text-paper/40">
-        Nothing here is final -- go back any time to fix a score, a secondary, or the declared result.
-      </p>
+      {me && (
+        <>
+          <Link to={`/game/${game.id}`}>
+            <Button variant="secondary" fullWidth>
+              Edit scores / result
+            </Button>
+          </Link>
+          <p className="-mt-3 text-center text-xs text-paper/40">
+            Nothing here is final -- go back any time to fix a score, a secondary, or the declared result.
+          </p>
+        </>
+      )}
 
       <div className="flex gap-3">
         <Link to="/home" className="flex-1">
