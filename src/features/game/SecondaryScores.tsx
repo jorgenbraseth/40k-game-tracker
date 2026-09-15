@@ -236,39 +236,39 @@ export function SecondaryScores({
       })}
 
       {editable && notYetDrawn.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          className="min-h-9 rounded-lg border border-dashed border-white/20 py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
-        >
-          + Draw a secondary
-        </button>
-      )}
-
-      <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title="Draw a secondary">
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={drawRandom}
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gold/40 bg-gold/10 py-3 text-sm font-semibold text-gold hover:bg-gold/20"
+            className="min-h-9 rounded-lg border border-dashed border-white/20 py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
           >
-            🎲 Draw random
+            🎲 Random secondary
           </button>
-          <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
-            {notYetDrawn.map((objective) => (
-              <li key={objective.id}>
-                <button
-                  type="button"
-                  onClick={() => drawOne(objective.id)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
-                >
-                  <span className="text-paper">{objective.name}</span>
-                  <span className="text-xs text-paper/40">up to {objective.max_vp}VP</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="min-h-9 rounded-lg border border-dashed border-white/20 py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
+          >
+            + Select secondary
+          </button>
         </div>
+      )}
+
+      <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title="Select a secondary">
+        <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+          {notYetDrawn.map((objective) => (
+            <li key={objective.id}>
+              <button
+                type="button"
+                onClick={() => drawOne(objective.id)}
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
+              >
+                <span className="text-paper">{objective.name}</span>
+                <span className="text-xs text-paper/40">up to {objective.max_vp}VP</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </Sheet>
 
       {scoringObjectiveId && (
