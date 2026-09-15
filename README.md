@@ -115,11 +115,16 @@ original out-of-scope list no longer holds.
 join it, your own or someone else's, from the dedicated Ladders page.
 Tagging a game onto a ladder is entirely optional, chosen at creation
 time on the "Start a game" screen, and stays editable afterwards like
-everything else. Standings (points: 3 for a win, 1 for a draw, VP
-differential as tiebreak) are computed live from whichever completed
-games are currently tagged with that ladder -- never stored -- so
-editing a score or cancelling a game is reflected correctly the moment
-the standings are viewed again, with no separate recalculation step.
+everything else. Ranking is Elo (see issue #26 for the research behind
+picking it over Glicko-2/TrueSkill/Massey-Colley): everyone starts at
+1500, and beating a much higher-rated opponent gains a lot while beating
+a much lower-rated one barely moves the needle (and the mirror image for
+losses) -- that asymmetry falls out of the standard Elo formula, it
+isn't a hand-written rule. Computed live by replaying a ladder's whole
+game history in chronological order every time standings are viewed --
+never stored -- so editing a score or cancelling a game is reflected
+correctly the moment the standings are viewed again, with no separate
+recalculation step, despite Elo being inherently sequential.
 Bookkeeping both sides of a ladder game yourself? The unclaimed seat's
 setup form gets a "Player" picker (who on the ladder this seat is for),
 so that person's result still counts toward standings even though
@@ -209,6 +214,19 @@ readable by any signed-in user, not just its two players
 standings would silently only reflect games they personally played in,
 missing every result between other ladder members. Untagged games stay
 participant-only, unchanged.
+
+Ranking is Elo (`src/lib/elo.ts`, K-factor 32, everyone starts at 1500):
+`fetchLadderStandings` builds one `{playedAt, playerAId, playerBId,
+scoreForA}` entry per game with two identity-resolved seats (a game with
+an unattributed opponent still counts toward that player's W/D/L/VP
+columns, but can't feed the Elo replay -- there's no rating to exchange
+points with), sorts them chronologically, and replays the whole thing
+through `computeEloRatings` every time standings are fetched -- no
+rating is ever written to the database. See issue #26 for why Elo over
+Glicko-2 (simpler, still delivers the core "gain less / lose more
+against a weaker opponent" ask; Glicko-2's added confidence-tracking is
+a possible later upgrade) and over Massey-Colley (no natural per-game
+"you gained/lost N points" story, which is most of the point).
 
 Deployment map images and terrain layout selection are implemented:
 "Start a game"'s deployment picker (`ImageOptionGrid`) shows each

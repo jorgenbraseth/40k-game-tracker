@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { computeEloRatings, ELO_STARTING_RATING, type EloGame } from '@/lib/elo'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
 
@@ -23,7 +24,7 @@ export interface LadderStandingRow {
   wins: number
   draws: number
   losses: number
-  points: number
+  rating: number
   vpFor: number
   vpAgainst: number
 }
@@ -150,11 +151,20 @@ export function useLadderMembers(ladderId: string | undefined) {
  * stored, so editing a score or cancelling a game (which deletes its row outright) is correct
  * again the instant this is re-queried, with no separate recalculation step. An unclaimed seat
  * only counts toward standings if the bookkeeper attributed it to a ladder member
- * (game_players.represents_user_id) -- otherwise there's no stable identity to aggregate by. */
+ * (game_players.represents_user_id) -- otherwise there's no stable identity to aggregate by.
+ *
+ * Ranking is Elo (see src/lib/elo.ts): each ladder is its own independent rating pool, replayed
+ * from scratch in chronological order every time this is called. Elo is sequential/path-dependent
+ * -- unlike a flat points sum, a rating depends on the order every prior game happened in -- but
+ * replaying a ladder's full history is cheap at this app's scale, so an edited score or a
+ * cancelled game (deleted outright) is still reflected correctly the instant standings are
+ * re-queried, no separate recalculation step needed. A game only feeds the Elo replay when *both*
+ * seats resolve to a stable identity -- there's no rating to exchange points with an unattributed
+ * opponent -- but it still counts toward the descriptive W/D/L/VP columns for whichever side does. */
 export async function fetchLadderStandings(ladderId: string): Promise<LadderStandingRow[]> {
   const { data: games, error: gamesError } = await supabase
     .from('games')
-    .select('id, outcome')
+    .select('id, outcome, ended_at, created_at')
     .eq('ladder_id', ladderId)
     .eq('status', 'complete')
   if (gamesError) throw gamesError
@@ -162,6 +172,7 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
 
   const gameIds = games.map((g) => g.id)
   const outcomeByGameId = new Map(games.map((g) => [g.id, g.outcome]))
+  const playedAtByGameId = new Map(games.map((g) => [g.id, g.ended_at ?? g.created_at]))
 
   const [playersRes, totalsRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', gameIds),
@@ -190,6 +201,7 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
   const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
 
   const rowByUserId = new Map<string, LadderStandingRow>()
+  const eloGames: EloGame[] = []
 
   for (const gameId of gameIds) {
     const outcome = outcomeByGameId.get(gameId)
@@ -207,29 +219,34 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
         wins: 0,
         draws: 0,
         losses: 0,
-        points: 0,
+        rating: ELO_STARTING_RATING,
         vpFor: 0,
         vpAgainst: 0,
       }
       row.gamesPlayed += 1
       row.vpFor += totalByPlayerId.get(p.id) ?? 0
       row.vpAgainst += opponent ? (totalByPlayerId.get(opponent.id) ?? 0) : 0
-      if (result === 'win') {
-        row.wins += 1
-        row.points += 3
-      } else if (result === 'draw') {
-        row.draws += 1
-        row.points += 1
-      } else {
-        row.losses += 1
-      }
+      if (result === 'win') row.wins += 1
+      else if (result === 'draw') row.draws += 1
+      else row.losses += 1
       rowByUserId.set(standingUserId, row)
+    }
+
+    const [p1, p2] = players
+    const id1 = p1 ? (p1.user_id ?? p1.represents_user_id) : null
+    const id2 = p2 ? (p2.user_id ?? p2.represents_user_id) : null
+    if (players.length === 2 && id1 && id2) {
+      const scoreForA = outcome === 'draw' ? 0.5 : outcome === `seat_${p1.seat}` ? 1 : 0
+      eloGames.push({ playedAt: playedAtByGameId.get(gameId) ?? '', playerAId: id1, playerBId: id2, scoreForA })
     }
   }
 
-  return [...rowByUserId.values()].sort(
-    (a, b) => b.points - a.points || b.vpFor - b.vpAgainst - (a.vpFor - a.vpAgainst),
-  )
+  const ratingByUserId = computeEloRatings(eloGames)
+  for (const row of rowByUserId.values()) {
+    row.rating = Math.round(ratingByUserId.get(row.userId) ?? ELO_STARTING_RATING)
+  }
+
+  return [...rowByUserId.values()].sort((a, b) => b.rating - a.rating)
 }
 
 export function useLadderStandings(ladderId: string | undefined) {

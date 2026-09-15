@@ -35,7 +35,7 @@ function StandingsTable({ ladderId }: { ladderId: string }) {
             <th className="py-1 pr-2 text-right">D</th>
             <th className="py-1 pr-2 text-right">L</th>
             <th className="py-1 pr-2 text-right">VP diff</th>
-            <th className="py-1 text-right">Pts</th>
+            <th className="py-1 text-right">Rating</th>
           </tr>
         </thead>
         <tbody>
@@ -51,14 +51,18 @@ function StandingsTable({ ladderId }: { ladderId: string }) {
                 {row.vpFor - row.vpAgainst >= 0 ? '+' : ''}
                 {row.vpFor - row.vpAgainst}
               </td>
-              <td className="py-1.5 text-right font-semibold text-gold">{row.points}</td>
+              <td className="py-1.5 text-right font-semibold text-gold">{row.rating}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="mt-2 text-xs text-paper/40">
-        Points: 3 for a win, 1 for a draw. Ranking recomputes live from completed games tagged with this ladder, so
-        editing or cancelling a game is always reflected here -- nothing needs to be manually recalculated.
+        Ranking is Elo: everyone starts at 1500, and each result moves both players' ratings based
+        on how big the gap between them was going in -- beat someone much higher-rated and you gain
+        a lot, beat someone much lower-rated and you barely move; lose to someone much lower-rated
+        and you drop a lot. It's recomputed live by replaying this ladder's whole game history in
+        order every time, so editing a score or cancelling a game is always reflected correctly
+        here -- nothing needs to be manually recalculated.
       </p>
     </div>
   )
