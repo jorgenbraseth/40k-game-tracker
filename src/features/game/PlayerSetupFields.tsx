@@ -1,3 +1,4 @@
+import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
 import type { Database } from '@/lib/database.types'
@@ -92,18 +93,27 @@ export function PlayerSetupFields({
       </Select>
 
       <div>
-        <Select
-          label="Secondaries"
-          value={me.player.secondary_mode ?? ''}
-          onChange={(e) => onUpdateSetup({ secondaryMode: (e.target.value || null) as SecondaryMode })}
-        >
-          <option value="">Not sure yet</option>
-          <option value="tactical">Tactical</option>
-          <option value="fixed">Fixed</option>
-        </Select>
+        <span className="mb-1.5 block text-sm font-medium text-paper/80">Secondaries</span>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={me.player.secondary_mode === 'fixed' ? 'primary' : 'secondary'}
+            onClick={() => onUpdateSetup({ secondaryMode: 'fixed' as SecondaryMode })}
+          >
+            Fixed
+          </Button>
+          <Button
+            type="button"
+            variant={me.player.secondary_mode === 'tactical' ? 'primary' : 'secondary'}
+            onClick={() => onUpdateSetup({ secondaryMode: 'tactical' as SecondaryMode })}
+          >
+            Tactical
+          </Button>
+        </div>
         <p className="mt-1.5 text-xs text-paper/50">
-          A few secondary cards score differently as a Fixed pick than as a Tactical draw --
-          setting this shows only the scoring that actually applies to this seat.
+          A few secondary cards score differently as a Fixed pick than as a Tactical draw -- this
+          seat has to pick one or the other before the game can start, same as faction and Force
+          Disposition, so the round screen always knows which scoring actually applies.
         </p>
       </div>
 
