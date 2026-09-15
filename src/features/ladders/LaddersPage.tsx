@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
+import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { TextField } from '@/components/TextField'
@@ -8,6 +9,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import {
   useArchiveLadder,
   useCreateLadder,
+  useDeleteLadder,
   useJoinLadder,
   useLadderGames,
   useLadders,
@@ -146,9 +148,11 @@ function GamesList({ ladderId }: { ladderId: string }) {
 
 function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }) {
   const [expanded, setExpanded] = useState(false)
+  const [deleteSheetOpen, setDeleteSheetOpen] = useState(false)
   const join = useJoinLadder()
   const leave = useLeaveLadder()
   const archive = useArchiveLadder()
+  const deleteLadder = useDeleteLadder()
   const isCreator = ladder.createdBy === userId
   const isArchived = Boolean(ladder.archivedAt)
 
@@ -195,10 +199,34 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
                   ? 'Brings it back into the browse list and the "tag this game" picker.'
                   : "Hides it from the browse list and the \"tag this game\" picker -- standings and game history stay exactly as they are, and you can restore it any time."}
               </p>
+              <button
+                type="button"
+                onClick={() => setDeleteSheetOpen(true)}
+                className="mt-3 text-xs text-paper/40 underline hover:text-red-400"
+              >
+                Delete ladder permanently
+              </button>
             </div>
           )}
         </div>
       )}
+
+      <ConfirmSheet
+        open={deleteSheetOpen}
+        onClose={() => setDeleteSheetOpen(false)}
+        onConfirm={async () => {
+          try {
+            await deleteLadder.mutateAsync(ladder.id)
+            setDeleteSheetOpen(false)
+          } catch {
+            // error already surfaced via toast in useDeleteLadder; keep the sheet open to retry
+          }
+        }}
+        title="Delete this ladder?"
+        message="This removes it completely -- standings, its game log link, everything. Games tagged to it aren't deleted, they just stop being tagged to a ladder. This can't be undone; archiving instead keeps all of this reachable and is reversible."
+        confirmLabel="Delete ladder"
+        pending={deleteLadder.isPending}
+      />
     </li>
   )
 }
