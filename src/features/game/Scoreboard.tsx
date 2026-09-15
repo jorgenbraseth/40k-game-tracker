@@ -9,6 +9,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
+  setMirroredField,
   useAbandonGame,
   useDeleteGame,
   useFinishGame,
@@ -328,8 +329,26 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 factions={factions.data ?? []}
                 forceDispositions={forceDispositions.data ?? []}
                 onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: editing.player.id, ...patch })}
-                onSetRole={(role) => setRole.mutate({ gamePlayerId: editing.player.id, role })}
-                onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: editing.player.id, turnOrder })}
+                onSetRole={(role) =>
+                  setMirroredField(
+                    (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
+                    user.id,
+                    editing,
+                    other,
+                    role,
+                    (r) => (r === 'attacker' ? 'defender' : 'attacker'),
+                  )
+                }
+                onSetTurnOrder={(turnOrder) =>
+                  setMirroredField(
+                    (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
+                    user.id,
+                    editing,
+                    other,
+                    turnOrder,
+                    (t) => (t === 'first' ? 'second' : 'first'),
+                  )
+                }
                 ladderId={detail.game.ladder_id}
                 layoutMission={p1Mission.data ?? p2Mission.data}
                 layoutVariant={detail.game.layout_variant}

@@ -356,6 +356,37 @@ export function useUpdatePlayerSetup(gameId: string) {
   })
 }
 
+/**
+ * Role and turn order are each mutually exclusive between the two seats in a game (only one
+ * Attacker, only one who went first) -- picking one for yourself should set the other seat to
+ * the complement, not leave the bookkeeper to also go flip it themselves. Only mirrors onto a
+ * seat the caller is actually allowed to write to under RLS: unclaimed, or the caller's own
+ * other seat (impossible in practice, kept for completeness) -- never a real second player's
+ * claimed seat, since silently overriding their pick isn't this bookkeeper's call to make.
+ *
+ * Clears the other seat first, unconditionally, before setting either final value: both target
+ * values are always distinct from whatever's currently on the *other* seat once that clear lands,
+ * so this can never transiently collide with the field's per-game uniqueness constraint no matter
+ * how the two seats' values were arranged beforehand (a straight swap included).
+ */
+export async function setMirroredField<T extends string>(
+  setField: (gamePlayerId: string, value: T | null) => Promise<void>,
+  currentUserId: string,
+  me: GameDetail['players'][number],
+  opponent: GameDetail['players'][number] | undefined,
+  value: T | null,
+  complementOf: (value: T) => T,
+) {
+  const canMirror = value && opponent && (!opponent.player.user_id || opponent.player.user_id === currentUserId)
+  if (canMirror && opponent) {
+    await setField(opponent.player.id, null)
+    await setField(me.player.id, value)
+    await setField(opponent.player.id, complementOf(value))
+  } else {
+    await setField(me.player.id, value)
+  }
+}
+
 export function useSetRole(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
