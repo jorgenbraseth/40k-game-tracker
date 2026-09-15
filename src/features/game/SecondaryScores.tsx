@@ -140,7 +140,19 @@ export function SecondaryScores({
       0,
     )
     const clamped = Math.max(0, Math.min(capForScoring, newTotal))
-    upsert.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId: scoringObjectiveId, vpScored: clamped, userId })
+    if (clamped > 0) {
+      upsert.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId: scoringObjectiveId, vpScored: clamped, userId })
+    } else if (scoringScore) {
+      // Un-ticking back down to 0 isn't "scored for 0VP" -- it's not scored at all, so it
+      // belongs back in "drawn, not yet scored" rather than sitting in the Scored list showing
+      // 0VP. Removes whichever round it was actually scored in, not necessarily the one being
+      // viewed now (re-opening an older score from a later round is how you'd get here).
+      remove.mutate({
+        gamePlayerId,
+        battleRound: scoringScore.battle_round,
+        secondaryObjectiveId: scoringObjectiveId,
+      })
+    }
   }
 
   const closeScoringSheet = () => {
@@ -323,7 +335,16 @@ export function SecondaryScores({
                     onBlur={() => {
                       if (!scoringObjectiveId) return
                       const vp = Math.max(0, Math.min(capForScoring, Number(manualDraft) || 0))
-                      upsert.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId: scoringObjectiveId, vpScored: vp, userId })
+                      if (vp > 0) {
+                        upsert.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveId: scoringObjectiveId, vpScored: vp, userId })
+                      } else if (scoringScore) {
+                        // Same "0 means unscored, not scored-for-0" fix as the checklist path.
+                        remove.mutate({
+                          gamePlayerId,
+                          battleRound: scoringScore.battle_round,
+                          secondaryObjectiveId: scoringObjectiveId,
+                        })
+                      }
                       setManualDraft(null)
                     }}
                     className="w-20 rounded border border-white/15 bg-white/5 px-2 py-1 text-center text-paper focus:border-gold focus:outline-none"
