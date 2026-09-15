@@ -130,9 +130,10 @@ players' own phones if they'd both rather enter their own numbers.
   history of games played under the old one.
 - At the end, either player can close out the game (a winner is
   suggested from the totals, or record a draw), and both players get a
-  permanent record of it: a round-by-round breakdown, and it folds into
-  their history. A game can also be ended early -- conceded, or the
-  opponent had to leave -- from any round, not just the last one.
+  permanent record of it: a round-by-round breakdown, which deployment
+  and terrain layout were played, and it folds into their history. A
+  game can also be ended early -- conceded, or the opponent had to
+  leave -- from any round, not just the last one.
 - Any participant can also cancel a game outright, at any stage --
   distinct from ending it early, this removes it completely (for both
   players, from every list) rather than keeping a record, for a game
@@ -486,6 +487,17 @@ except army name (`WaitingRoom`'s `canStart`, and the `start_game` RPC
 server-side), but like every other setup field they stay freely editable
 for the life of the game once chosen -- required-before-start and
 always-editable-after are not in tension.
+
+The post-game `SummaryPage` shows which deployment and terrain layout
+were actually used, images included, the same read-only card style
+`ImageOptionGrid` renders while picking -- so the permanent record a
+game leaves behind covers the battlefield setup, not just the score.
+The layout image comes from either seat's own resolved mission (both
+carry the same 3 image paths for a shared Force Disposition pairing,
+same reasoning `GameConfigPicker`'s own `layoutMission` prop already
+relies on), and the deployment's from `useDeployments` for the game's
+mission pack -- no new query needed for either, both were already
+fetched reference data.
 
 `GameConfigPicker`'s explainer text is deliberately terse: Attacker gets
 one line -- "The Defender deploys first, then the Attacker" -- the only
