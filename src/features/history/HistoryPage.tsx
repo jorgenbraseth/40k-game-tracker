@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
+import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useCompletedGames } from '@/lib/queries/history'
 import { useDeleteGame } from '@/lib/queries/games'
@@ -12,6 +13,15 @@ export function HistoryPage() {
   const { data, isLoading, isError, refetch } = useCompletedGames(user?.id)
   const deleteGame = useDeleteGame()
   const [cancelingGameId, setCancelingGameId] = useState<string | null>(null)
+  const [ladderFilter, setLadderFilter] = useState('')
+
+  const ladderOptions = useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const game of data ?? []) {
+      if (game.ladderId) byId.set(game.ladderId, game.ladderName ?? 'Unknown ladder')
+    }
+    return [...byId.entries()]
+  }, [data])
 
   if (isLoading) return <Spinner label="Loading history…" />
   if (isError) return <ErrorBanner message="Couldn't load your game history." onRetry={() => refetch()} />
@@ -19,11 +29,29 @@ export function HistoryPage() {
     return <EmptyState title="No finished games yet" description="Your completed games will show up here." />
   }
 
+  const visible = ladderFilter ? data.filter((g) => g.ladderId === ladderFilter) : data
+
   return (
     <div className="flex flex-col gap-3">
       <h1 className="text-xl font-semibold text-paper">History</h1>
+
+      {ladderOptions.length > 0 && (
+        <Select label="Ladder" value={ladderFilter} onChange={(e) => setLadderFilter(e.target.value)}>
+          <option value="">All games</option>
+          {ladderOptions.map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </Select>
+      )}
+
+      {visible.length === 0 && (
+        <EmptyState title="No games for this ladder" description="Try a different ladder, or clear the filter." />
+      )}
+
       <ul className="flex flex-col gap-2">
-        {data.map((game) => (
+        {visible.map((game) => (
           <li
             key={game.gameId}
             className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 pr-2 hover:bg-white/10"
@@ -36,6 +64,7 @@ export function HistoryPage() {
                 <p className="truncate text-xs text-paper/50">
                   {game.myFactionName ?? 'No faction'} · {game.pointsLimit} pts ·{' '}
                   {new Date(game.endedAt).toLocaleDateString()}
+                  {game.ladderName ? ` · ${game.ladderName}` : ''}
                 </p>
               </div>
               <div className="flex flex-shrink-0 items-center gap-2 text-right">

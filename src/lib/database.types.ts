@@ -9,6 +9,7 @@ export type GameStatus = 'lobby' | 'active' | 'complete' | 'abandoned'
 export type GameOutcome = 'seat_1' | 'seat_2' | 'draw'
 export type SecondaryRole = 'attacker' | 'defender'
 export type PlayerRole = 'attacker' | 'defender'
+export type LayoutVariant = 'A' | 'B' | 'C'
 
 export interface Database {
   public: {
@@ -51,6 +52,9 @@ export interface Database {
           max_primary_vp: number
           force_disposition_id: string | null
           opponent_force_disposition_id: string | null
+          layout_a_image_path: string | null
+          layout_b_image_path: string | null
+          layout_c_image_path: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['missions']['Row']> & {
@@ -79,6 +83,7 @@ export interface Database {
           id: string
           mission_pack_id: string
           name: string
+          image_path: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['deployments']['Row']> & {
@@ -150,6 +155,8 @@ export interface Database {
           started_at: string | null
           ended_at: string | null
           outcome: GameOutcome | null
+          layout_variant: LayoutVariant | null
+          ladder_id: string | null
         }
         Insert: Partial<Database['public']['Tables']['games']['Row']> & {
           join_code: string
@@ -179,6 +186,31 @@ export interface Database {
           seat: 1 | 2
         }
         Update: Partial<Database['public']['Tables']['game_players']['Row']>
+        Relationships: []
+      }
+      ladders: {
+        Row: {
+          id: string
+          name: string
+          created_by: string | null
+          created_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['ladders']['Row']> & { name: string }
+        Update: Partial<Database['public']['Tables']['ladders']['Row']>
+        Relationships: []
+      }
+      ladder_members: {
+        Row: {
+          id: string
+          ladder_id: string
+          user_id: string
+          joined_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['ladder_members']['Row']> & {
+          ladder_id: string
+          user_id: string
+        }
+        Update: Partial<Database['public']['Tables']['ladder_members']['Row']>
         Relationships: []
       }
       round_scores: {
@@ -350,7 +382,12 @@ export interface Database {
           p_force_disposition_id?: string | null
           p_faction_id?: string | null
           p_army_name?: string | null
+          p_ladder_id?: string | null
         }
+        Returns: string
+      }
+      create_ladder: {
+        Args: { p_name: string }
         Returns: string
       }
       join_game_by_code: {

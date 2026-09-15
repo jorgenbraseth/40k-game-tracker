@@ -7,6 +7,7 @@ import { OfflineBanner } from './OfflineBanner'
 const navItems = [
   { to: '/home', label: 'Home' },
   { to: '/history', label: 'History' },
+  { to: '/ladders', label: 'Ladders' },
   { to: '/stats', label: 'Stats' },
   { to: '/profile', label: 'Profile' },
 ]

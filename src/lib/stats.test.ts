@@ -18,6 +18,8 @@ function row(overrides: Partial<CompletedGameRow>): CompletedGameRow {
     opponentFactionName: 'Orks',
     opponentTotalVp: 60,
     result: 'win',
+    ladderId: null,
+    ladderName: null,
     ...overrides,
   }
 }

@@ -222,6 +222,7 @@ export function useCreateGame() {
       forceDispositionId?: string
       factionId?: string
       armyName?: string
+      ladderId?: string
     }) => {
       const { data, error } = await supabase.rpc('create_game', {
         p_deployment_id: input.deploymentId,
@@ -229,6 +230,7 @@ export function useCreateGame() {
         p_force_disposition_id: input.forceDispositionId ?? null,
         p_faction_id: input.factionId ?? null,
         p_army_name: input.armyName ?? null,
+        p_ladder_id: input.ladderId ?? null,
       })
       if (error) throw error
       return data
@@ -335,6 +337,18 @@ export function useSetCurrentRound(gameId: string) {
       if (error) throw error
     },
     onError: () => showToast("Couldn't advance the round. Try again."),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+export function useSetLayoutVariant(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (layoutVariant: Database['public']['Tables']['games']['Row']['layout_variant']) => {
+      const { error } = await supabase.from('games').update({ layout_variant: layoutVariant }).eq('id', gameId)
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't set the layout. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }
