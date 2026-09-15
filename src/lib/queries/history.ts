@@ -69,7 +69,11 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
     : { data: [], error: null }
   if (missionsRes.error) throw missionsRes.error
 
-  const profileIds = [...new Set(playersRes.data.map((p) => p.user_id).filter((id): id is string => Boolean(id)))]
+  const profileIds = [
+    ...new Set(
+      playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id)),
+    ),
+  ]
   const factionIds = [...new Set(playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id)))]
 
   const [profilesRes, factionsRes] = await Promise.all([
@@ -127,7 +131,9 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
         ? 'No opponent'
         : opponent.user_id
           ? (profileById.get(opponent.user_id) ?? 'Unknown opponent')
-          : opponent.army_name || 'Solo-tracked opponent',
+          : opponent.represents_user_id
+            ? (profileById.get(opponent.represents_user_id) ?? 'Unknown opponent')
+            : opponent.army_name || 'Unnamed opponent',
       opponentFactionName: opponent?.faction_id ? (factionById.get(opponent.faction_id) ?? null) : null,
       opponentTotalVp: opponent ? (totalByPlayerId.get(opponent.id) ?? 0) : 0,
       result,

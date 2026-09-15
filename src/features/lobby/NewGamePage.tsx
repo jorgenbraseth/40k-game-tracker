@@ -86,8 +86,9 @@ export function NewGamePage() {
           ))}
         </Select>
         <p className="-mt-2 text-xs text-paper/40">
-          The Primary Mission is determined by both players' Force Dispositions together. Playing solo? You can fill
-          in Player 2's Force Disposition yourself from the waiting room -- no second account needed.
+          The Primary Mission is determined by both players' Force Dispositions together. Bookkeeping for both
+          sides? You can fill in Player 2's Force Disposition yourself from the waiting room -- no account needed
+          for them.
         </p>
 
         <Select label="Your faction (optional)" value={factionId} onChange={(e) => setFactionId(e.target.value)}>

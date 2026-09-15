@@ -3,6 +3,7 @@ import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
 import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
+import { useLadderMembers } from '@/lib/queries/ladders'
 import { LayoutVariantPicker } from './LayoutVariantPicker'
 
 type PlayerEntry = GameDetail['players'][number]
@@ -17,6 +18,12 @@ type LayoutMission = Parameters<typeof LayoutVariantPicker>[0]['mission']
  * the layout* props are passed) since it's chosen alongside Attacker/
  * Defender, once the mission -- and so the Force Disposition pairing
  * that determines the 3 layout options -- is known.
+ *
+ * When `me` is an unclaimed seat (no account has joined it -- the
+ * bookkeeper is filling it in on that player's behalf, same as any other
+ * game) *and* the game is tagged to a ladder, a "Player" picker appears
+ * first: which of that ladder's members this seat actually is, so their
+ * result counts toward standings even though they never signed in.
  */
 export function PlayerSetupFields({
   me,
@@ -28,6 +35,7 @@ export function PlayerSetupFields({
   layoutMission,
   layoutVariant,
   onSetLayoutVariant,
+  ladderId,
 }: {
   me: PlayerEntry
   opponent: PlayerEntry | undefined
@@ -37,14 +45,40 @@ export function PlayerSetupFields({
     factionId?: string | null
     armyName?: string | null
     forceDispositionId?: string | null
+    representsUserId?: string | null
   }) => void
   onSetRole: (role: 'attacker' | 'defender' | null) => void
   layoutMission?: LayoutMission
   layoutVariant?: LayoutVariant
   onSetLayoutVariant?: (variant: LayoutVariant) => void
+  ladderId?: string | null
 }) {
+  const isUnclaimedSeat = !me.player.user_id
+  const ladderMembers = useLadderMembers(isUnclaimedSeat && ladderId ? ladderId : undefined)
+
   return (
     <div className="flex flex-col gap-3">
+      {isUnclaimedSeat && ladderId && (ladderMembers.data?.length ?? 0) > 0 && (
+        <div>
+          <Select
+            label="Player"
+            value={me.player.represents_user_id ?? ''}
+            onChange={(e) => onUpdateSetup({ representsUserId: e.target.value || null })}
+          >
+            <option value="">Not sure yet</option>
+            {ladderMembers.data?.map((member) => (
+              <option key={member.userId} value={member.userId}>
+                {member.displayName}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1.5 text-xs text-paper/50">
+            Who on the ladder this seat is for -- so their result counts in standings even though
+            you're entering it for them.
+          </p>
+        </div>
+      )}
+
       <Select
         label="Force Disposition"
         value={me.player.force_disposition_id ?? ''}

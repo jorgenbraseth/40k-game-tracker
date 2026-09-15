@@ -179,6 +179,7 @@ export interface Database {
           mission_id: string | null
           role: PlayerRole | null
           is_ready: boolean
+          represents_user_id: string | null
           created_at: string
         }
         Insert: Partial<Database['public']['Tables']['game_players']['Row']> & {

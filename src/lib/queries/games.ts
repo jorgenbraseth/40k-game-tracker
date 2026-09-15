@@ -15,6 +15,10 @@ export interface GameDetail {
   players: Array<{
     player: GamePlayerRow
     profile: { display_name: string; avatar_url: string | null } | null
+    /** Set only when the seat is unclaimed and the bookkeeper attributed it to a real ladder
+     * member (game_players.represents_user_id) -- purely descriptive, grants that account no
+     * access to this game. */
+    representsDisplayName: string | null
     factionName: string | null
     forceDispositionName: string | null
     primaryTotal: number
@@ -47,10 +51,18 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (primaryTicksRes.error) throw primaryTicksRes.error
   if (secondaryTicksRes.error) throw secondaryTicksRes.error
 
-  // A seat nobody has joined yet has user_id = null (a solo-tracked
-  // "opponent" the creator fills in themselves) -- filter it out rather
-  // than looking up a profile for it.
-  const userIds = playersRes.data.map((p) => p.user_id).filter((id): id is string => Boolean(id))
+  // A seat nobody has joined yet has user_id = null (the bookkeeper can
+  // fill it in themselves, on behalf of a player who never needs to sign
+  // in at all) -- look up profiles for whichever accounts are actually
+  // linked, whether claimed (user_id) or just attributed for ladder
+  // standings (represents_user_id).
+  const userIds = [
+    ...new Set(
+      playersRes.data
+        .flatMap((p) => [p.user_id, p.represents_user_id])
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ]
   const factionIds = playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id))
   const forceDispositionIds = playersRes.data
     .map((p) => p.force_disposition_id)
@@ -81,9 +93,11 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     players: playersRes.data.map((player) => {
       const totals = totalsByPlayerId.get(player.id)
       const profile = player.user_id ? profileById.get(player.user_id) : undefined
+      const representsProfile = player.represents_user_id ? profileById.get(player.represents_user_id) : undefined
       return {
         player,
         profile: profile ? { display_name: profile.display_name, avatar_url: profile.avatar_url } : null,
+        representsDisplayName: representsProfile?.display_name ?? null,
         factionName: player.faction_id ? (factionById.get(player.faction_id) ?? null) : null,
         forceDispositionName: player.force_disposition_id
           ? (forceDispositionById.get(player.force_disposition_id) ?? null)
@@ -211,9 +225,10 @@ function patchSecondaryRemove(
   }
 }
 
-/** A joined player's account name, else the army name a solo tracker gave this seat, else the seat number. */
+/** A joined player's own account name, else the ladder member the bookkeeper attributed this
+ * unclaimed seat to, else whatever army name was entered for it, else the seat number. */
 export function playerLabel(entry: GameDetail['players'][number] | undefined, fallback: string): string {
-  return entry?.profile?.display_name ?? entry?.player.army_name ?? fallback
+  return entry?.profile?.display_name ?? entry?.representsDisplayName ?? entry?.player.army_name ?? fallback
 }
 
 export function useGame(gameId: string | undefined) {
@@ -303,11 +318,13 @@ export function useUpdatePlayerSetup(gameId: string) {
       factionId?: string | null
       armyName?: string | null
       forceDispositionId?: string | null
+      representsUserId?: string | null
     }) => {
       const patch: Database['public']['Tables']['game_players']['Update'] = {}
       if ('factionId' in input) patch.faction_id = input.factionId
       if ('armyName' in input) patch.army_name = input.armyName
       if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
+      if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
 
       const { error } = await supabase.from('game_players').update(patch).eq('id', input.gamePlayerId)
       if (error) throw error
@@ -327,6 +344,7 @@ export function useUpdatePlayerSetup(gameId: string) {
       if ('factionId' in input) patch.faction_id = input.factionId
       if ('armyName' in input) patch.army_name = input.armyName
       if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
+      if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
       if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, patch))
       return { previous }
     },

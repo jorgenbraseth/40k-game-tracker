@@ -12,8 +12,11 @@ design brief and rationale this build follows.
 ## What this is (the goal)
 
 40K Tracker is a public web app to track a game of Warhammer 40,000 in
-real time, from the table -- solo (one player runs the whole scoreboard,
-both sides) or shared live between two players' own phones.
+real time, from the table. There is no separate "solo mode" -- every
+game works the same way: one account can bookkeep the whole scoreboard,
+both sides, so a real two-player game never requires the other player to
+sign up at all, or the scoreboard can be shared live between two
+players' own phones if they'd both rather enter their own numbers.
 
 **The intended experience, end to end:**
 
@@ -24,14 +27,16 @@ both sides) or shared live between two players' own phones.
   address is never shown to, or sent to, anyone else.
 - One player starts a game (mission pack, deployment, points limit,
   their own faction and army name) and gets a short 6-character code.
-- **A single player can completely track a game alone.** The creator
-  fills in Player 2's setup themselves in the waiting room -- same
-  Force Disposition/faction/army/role fields as their own -- and can
-  start and run the whole game solo, entering both sides' scores round
-  by round. Sharing the join code is optional: if a second player does
-  enter it, they're simply added as another person who can also adjust
-  either side's numbers, the same as if they'd been there from the
-  start -- not a required step to use the app.
+- **One account can be the bookkeeper for a whole game.** The point
+  isn't a "solo mode" -- it's that getting a real opponent to create an
+  account and log in is friction nobody wants mid-game, so it's never
+  required. The creator fills in Player 2's setup themselves in the
+  waiting room -- same Force Disposition/faction/army/role fields as
+  their own -- and can run the whole game as bookkeeper, entering both
+  sides' scores round by round. Sharing the join code is optional: if a
+  second player does enter it, they're simply added as another person
+  who can also adjust either side's numbers, the same as if they'd been
+  there from the start -- not a required step to use the app.
 - Whoever fills in each side's setup claims their own Force Disposition
   (their army's strategic role) and either Attacker or Defender -- the
   app explains in-UI what Attacker/Defender actually determines
@@ -44,7 +49,8 @@ both sides) or shared live between two players' own phones.
   phone, scores update live for both as they're entered -- no refreshing,
   no "did you get that?" across the table -- and either one can enter
   either side's score, since players agree scores verbally at the table
-  anyway. Tracking solo works the same way, just from one phone.
+  anyway. Bookkeeping both sides yourself works the same way, just from
+  one phone.
 - Scoring is pick-what-you-achieved, not type-a-number: tapping a
   player's primary VP, or a picked secondary, opens the actual scoring
   conditions printed on that card -- tap to mark a flat condition
@@ -104,6 +110,10 @@ differential as tiebreak) are computed live from whichever completed
 games are currently tagged with that ladder -- never stored -- so
 editing a score or cancelling a game is reflected correctly the moment
 the standings are viewed again, with no separate recalculation step.
+Bookkeeping both sides of a ladder game yourself? The unclaimed seat's
+setup form gets a "Player" picker (who on the ladder this seat is for),
+so that person's result still counts toward standings even though
+they never signed in themselves.
 History can be filtered down to a single ladder's games. See
 `40k-tracker-plan.md`'s superseded out-of-scope note above, and issue
 #18 for the fuller design writeup (including why a stored, sequential
@@ -133,11 +143,16 @@ Approved 2026-27 deck, sourced from the public card text -- see "Ruleset
 repo's usual names-and-VP-only rule (the actual scoring condition text,
 for the pick-what-you-achieved checklist) -- not placeholder content.
 
-Solo tracking is implemented: `create_game` seats the creator and also
-creates an unclaimed second seat (`game_players.user_id` is nullable) the
-creator can fill in and run themselves from the waiting room; joining by
-code later claims that same seat rather than adding a third one, and
-just grants the joiner the same edit rights the creator already had.
+One-account bookkeeping is implemented: `create_game` seats the creator
+and also creates an unclaimed second seat (`game_players.user_id` is
+nullable) the creator can fill in and run themselves from the waiting
+room; joining by code later claims that same seat rather than adding a
+third one, and just grants the joiner the same edit rights the creator
+already had. When that unclaimed seat's game is tagged to a ladder, the
+bookkeeper can also attribute it to a specific ladder member
+(`game_players.represents_user_id`, a picker in `PlayerSetupFields`) so
+that player's win/loss counts in standings even though they never
+signed in -- see "Ladders" above.
 
 The pick-what-you-achieved scoring checklist is implemented for both
 primary and secondary VP: `mission_objective_lines` and

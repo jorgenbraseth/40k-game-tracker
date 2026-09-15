@@ -313,6 +313,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 forceDispositions={forceDispositions.data ?? []}
                 onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: editing.player.id, ...patch })}
                 onSetRole={(role) => setRole.mutate({ gamePlayerId: editing.player.id, role })}
+                ladderId={detail.game.ladder_id}
                 layoutMission={p1Mission.data ?? p2Mission.data}
                 layoutVariant={detail.game.layout_variant}
                 onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}

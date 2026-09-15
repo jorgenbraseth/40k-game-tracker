@@ -130,8 +130,8 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         {opponent && !opponent.player.user_id ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-paper/50">
-              Nobody's joined yet. Track this game solo by filling in their setup yourself, or share the code above
-              and let them join and take it over.
+              Nobody's joined yet -- you can bookkeep for them by filling in their setup yourself (handy when they'd
+              rather not deal with an account), or share the code above and let them join and take it over.
             </p>
             <PlayerSetupFields
               me={opponent}
@@ -140,6 +140,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               forceDispositions={forceDispositions.data ?? []}
               onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: opponent.player.id, ...patch })}
               onSetRole={(role) => setRole.mutate({ gamePlayerId: opponent.player.id, role })}
+              ladderId={detail.game.ladder_id}
             />
             <Button
               variant={opponent.player.is_ready ? 'secondary' : 'primary'}
@@ -179,7 +180,8 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         </Button>
         {!opponent?.player.user_id && (
           <p className="text-center text-xs text-paper/40">
-            Playing solo is fine -- you can enter both sides' scores once the game starts.
+            Nobody's claimed Player 2 -- that's fine, you can enter both sides' scores as bookkeeper once the game
+            starts.
           </p>
         )}
         <button
