@@ -93,6 +93,12 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
     setViewRound(next)
   }
 
+  const goBackRound = () => {
+    const prev = Math.max(1, detail.game.current_round - 1)
+    setCurrentRound.mutate(prev)
+    setViewRound(prev)
+  }
+
   const suggestedOutcome: 'seat_1' | 'seat_2' | 'draw' = (() => {
     if (!p1 || !p2) return 'draw'
     if (p1.totalVp > p2.totalVp) return 'seat_1'
@@ -202,10 +208,19 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
       </div>
 
       <div className="flex flex-col gap-2">
-        {isActive && isViewingCurrent && !isLastRound && (
-          <Button variant="secondary" onClick={advanceRound}>
-            Advance to round {detail.game.current_round + 1}
-          </Button>
+        {isActive && isViewingCurrent && (detail.game.current_round > 1 || !isLastRound) && (
+          <div className="flex gap-2">
+            {detail.game.current_round > 1 && (
+              <Button variant="secondary" className="flex-1" onClick={goBackRound}>
+                Back to round {detail.game.current_round - 1}
+              </Button>
+            )}
+            {!isLastRound && (
+              <Button variant="secondary" className="flex-1" onClick={advanceRound}>
+                Advance to round {detail.game.current_round + 1}
+              </Button>
+            )}
+          </div>
         )}
         <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
           {isActive ? 'End game' : 'Change result'}
