@@ -1,4 +1,5 @@
 import { Button } from '@/components/Button'
+import { Select } from '@/components/Select'
 import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import { playerLabel } from '@/lib/queries/games'
@@ -28,6 +29,9 @@ export function GameConfigPicker({
   layoutMission,
   layoutVariant,
   onSetLayoutVariant,
+  ladderId,
+  ladderOptions,
+  onSetLadder,
 }: {
   me: PlayerEntry
   opponent: PlayerEntry
@@ -36,12 +40,34 @@ export function GameConfigPicker({
   layoutMission?: LayoutMission
   layoutVariant?: LayoutVariant
   onSetLayoutVariant?: (variant: LayoutVariant) => void
+  /** Which ladder (if any) this game's currently tagged to. */
+  ladderId?: string | null
+  /** Ladders this viewer can pick from -- the ones they're a member of, non-archived, plus the
+   * currently-tagged one even if it's since been left or archived, so a stale selection never
+   * just vanishes from the dropdown. */
+  ladderOptions?: { id: string; name: string }[]
+  onSetLadder?: (ladderId: string | null) => void
 }) {
   const myLabel = playerLabel(me, 'You')
   const opponentLabel = playerLabel(opponent, 'Player 2')
 
   return (
     <div className="flex flex-col gap-4">
+      {onSetLadder && (
+        <Select
+          label="Ladder game? (optional)"
+          value={ladderId ?? ''}
+          onChange={(e) => onSetLadder(e.target.value || null)}
+        >
+          <option value="">Not a ladder game</option>
+          {(ladderOptions ?? []).map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </Select>
+      )}
+
       {onSetLayoutVariant && (
         <div>
           <LayoutVariantPicker mission={layoutMission} value={layoutVariant ?? null} onChange={onSetLayoutVariant} />
