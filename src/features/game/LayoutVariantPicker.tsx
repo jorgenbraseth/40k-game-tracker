@@ -12,8 +12,9 @@ interface MissionLayoutImages {
 const LETTERS = ['A', 'B', 'C'] as const
 
 /** The 3 recommended terrain layouts for the resolved mission's Force Disposition pairing
- * (wahapedia keys these off the pairing, not the deployment -- see issue #20). Purely optional
- * bookkeeping, same as everything else: stays editable, never blocks starting or playing a game. */
+ * (wahapedia keys these off the pairing, not the deployment -- see issue #20). Required before a
+ * game can start (see WaitingRoom's canStart), but -- same as everything else -- stays editable
+ * any time after that too, never re-locked once picked. */
 export function LayoutVariantPicker({
   mission,
   value,
@@ -34,7 +35,7 @@ export function LayoutVariantPicker({
 
   return (
     <ImageOptionGrid
-      label="Terrain layout (optional)"
+      label="Terrain layout"
       value={value ?? ''}
       onChange={(id) => onChange(id as LayoutVariant)}
       options={options.map((o) => ({ id: o.letter, label: `Layout ${o.letter}`, imagePath: o.imagePath }))}

@@ -10,11 +10,11 @@ import {
   useSetLayoutVariant,
   useSetReady,
   useSetRole,
+  useSetTurnOrder,
   useStartGame,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
 import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
-import { LayoutVariantPicker } from './LayoutVariantPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
 export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
@@ -24,6 +24,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const forceDispositions = useForceDispositions()
   const setReady = useSetReady(detail.game.id)
   const setRole = useSetRole(detail.game.id)
+  const setTurnOrder = useSetTurnOrder(detail.game.id)
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
   const startGame = useStartGame(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
@@ -36,18 +37,21 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const bothReady = detail.players.length === 2 && detail.players.every((p) => p.player.is_ready)
   const bothRolesAssigned = detail.players.length === 2 && detail.players.every((p) => p.player.role)
   const missionResolved = detail.players.length === 2 && detail.players.every((p) => p.player.mission_id)
-  const canStart = bothReady && bothRolesAssigned && missionResolved
+  const layoutChosen = Boolean(detail.game.layout_variant)
+  const canStart = bothReady && bothRolesAssigned && missionResolved && layoutChosen
 
   const myMission = useMission(me?.player.mission_id ?? undefined)
   const opponentMission = useMission(opponent?.player.mission_id ?? undefined)
 
   const startBlockedReason = !missionResolved
     ? 'Waiting on both Force Dispositions to reveal the mission'
-    : !bothRolesAssigned
-      ? 'Both players need to claim Attacker or Defender'
-      : !bothReady
-        ? 'Waiting for both players to be ready'
-        : null
+    : !layoutChosen
+      ? 'Pick a terrain layout below'
+      : !bothRolesAssigned
+        ? 'Both players need to claim Attacker or Defender'
+        : !bothReady
+          ? 'Waiting for both players to be ready'
+          : null
 
   const copyCode = async () => {
     try {
@@ -87,13 +91,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               <span className="text-xs text-paper/50">Opponent: </span>
               <span className="text-lg font-semibold text-gold">{opponentMission.data?.name ?? '…'}</span>
             </p>
-            <div className="mt-2">
-              <LayoutVariantPicker
-                mission={myMission.data ?? opponentMission.data}
-                value={detail.game.layout_variant}
-                onChange={(variant) => setLayoutVariant.mutate(variant)}
-              />
-            </div>
           </div>
         ) : (
           <p className="text-sm text-paper/50">
@@ -113,6 +110,10 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             forceDispositions={forceDispositions.data ?? []}
             onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
             onSetRole={(role) => setRole.mutate({ gamePlayerId: me.player.id, role })}
+            onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: me.player.id, turnOrder })}
+            layoutMission={myMission.data ?? opponentMission.data}
+            layoutVariant={detail.game.layout_variant}
+            onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
           />
 
           <Button
@@ -132,8 +133,8 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         {opponent && !opponent.player.user_id ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-paper/50">
-              Nobody's joined yet. Track this game solo by filling in their setup yourself, or share the code above
-              and let them join and take it over.
+              Nobody's joined yet -- you can bookkeep for them by filling in their setup yourself (handy when they'd
+              rather not deal with an account), or share the code above and let them join and take it over.
             </p>
             <PlayerSetupFields
               me={opponent}
@@ -142,6 +143,8 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               forceDispositions={forceDispositions.data ?? []}
               onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: opponent.player.id, ...patch })}
               onSetRole={(role) => setRole.mutate({ gamePlayerId: opponent.player.id, role })}
+              onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: opponent.player.id, turnOrder })}
+              ladderId={detail.game.ladder_id}
             />
             <Button
               variant={opponent.player.is_ready ? 'secondary' : 'primary'}
@@ -158,6 +161,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
                 {opponent.factionName ?? 'No faction yet'}
                 {opponent.forceDispositionName ? ` · ${opponent.forceDispositionName}` : ''}
                 {opponent.player.role ? ` · ${opponent.player.role}` : ''}
+                {opponent.player.turn_order ? ` · went ${opponent.player.turn_order}` : ''}
               </p>
             </div>
             <span
@@ -181,7 +185,8 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
         </Button>
         {!opponent?.player.user_id && (
           <p className="text-center text-xs text-paper/40">
-            Playing solo is fine -- you can enter both sides' scores once the game starts.
+            Nobody's claimed Player 2 -- that's fine, you can enter both sides' scores as bookkeeper once the game
+            starts.
           </p>
         )}
         <button

@@ -11,6 +11,11 @@ export interface LadderSummary {
   isMember: boolean
 }
 
+export interface LadderMember {
+  userId: string
+  displayName: string
+}
+
 export interface LadderStandingRow {
   userId: string
   displayName: string
@@ -26,6 +31,7 @@ export interface LadderStandingRow {
 export const ladderKeys = {
   list: (userId: string) => ['ladders', userId] as const,
   standings: (ladderId: string) => ['ladder-standings', ladderId] as const,
+  members: (ladderId: string) => ['ladder-members', ladderId] as const,
 }
 
 /** Every ladder, with membership counts and whether the current user is in it -- powers the
@@ -107,11 +113,44 @@ export function useLeaveLadder() {
   })
 }
 
+/** The people in a ladder, by display name -- powers the "which of you is this?" picker a
+ * bookkeeper sees on an unclaimed seat when the game is tagged to this ladder. */
+export async function fetchLadderMembers(ladderId: string): Promise<LadderMember[]> {
+  const { data: members, error: membersError } = await supabase
+    .from('ladder_members')
+    .select('user_id')
+    .eq('ladder_id', ladderId)
+  if (membersError) throw membersError
+  if (members.length === 0) return []
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .in(
+      'id',
+      members.map((m) => m.user_id),
+    )
+  if (profilesError) throw profilesError
+
+  const nameById = new Map(profiles.map((p) => [p.id, p.display_name]))
+  return members
+    .map((m) => ({ userId: m.user_id, displayName: nameById.get(m.user_id) ?? 'Unknown player' }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+}
+
+export function useLadderMembers(ladderId: string | undefined) {
+  return useQuery({
+    queryKey: ladderKeys.members(ladderId ?? ''),
+    queryFn: () => fetchLadderMembers(ladderId as string),
+    enabled: Boolean(ladderId),
+  })
+}
+
 /** Standings, computed fresh from every *completed* game tagged with this ladder -- never
  * stored, so editing a score or cancelling a game (which deletes its row outright) is correct
- * again the instant this is re-queried, with no separate recalculation step. Solo-tracked
- * "opponent" seats (no user_id) can't be aggregated across games, since each one is a fresh,
- * unclaimed seat with no stable identity -- they're excluded from the table. */
+ * again the instant this is re-queried, with no separate recalculation step. An unclaimed seat
+ * only counts toward standings if the bookkeeper attributed it to a ladder member
+ * (game_players.represents_user_id) -- otherwise there's no stable identity to aggregate by. */
 export async function fetchLadderStandings(ladderId: string): Promise<LadderStandingRow[]> {
   const { data: games, error: gamesError } = await supabase
     .from('games')
@@ -139,7 +178,11 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
     playersByGameId.set(p.game_id, list)
   }
 
-  const profileIds = [...new Set(playersRes.data.map((p) => p.user_id).filter((id): id is string => Boolean(id)))]
+  const profileIds = [
+    ...new Set(
+      playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id)),
+    ),
+  ]
   const profilesRes = profileIds.length
     ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
     : { data: [], error: null }
@@ -153,12 +196,13 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
     if (!outcome) continue
     const players = playersByGameId.get(gameId) ?? []
     for (const p of players) {
-      if (!p.user_id) continue
+      const standingUserId = p.user_id ?? p.represents_user_id
+      if (!standingUserId) continue
       const opponent = players.find((o) => o.id !== p.id)
       const result = outcome === 'draw' ? 'draw' : outcome === `seat_${p.seat}` ? 'win' : 'loss'
-      const row = rowByUserId.get(p.user_id) ?? {
-        userId: p.user_id,
-        displayName: nameByUserId.get(p.user_id) ?? 'Unknown player',
+      const row = rowByUserId.get(standingUserId) ?? {
+        userId: standingUserId,
+        displayName: nameByUserId.get(standingUserId) ?? 'Unknown player',
         gamesPlayed: 0,
         wins: 0,
         draws: 0,
@@ -179,7 +223,7 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
       } else {
         row.losses += 1
       }
-      rowByUserId.set(p.user_id, row)
+      rowByUserId.set(standingUserId, row)
     }
   }
 

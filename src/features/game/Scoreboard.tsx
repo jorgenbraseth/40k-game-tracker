@@ -15,6 +15,7 @@ import {
   useSetCurrentRound,
   useSetLayoutVariant,
   useSetRole,
+  useSetTurnOrder,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
 import {
@@ -26,7 +27,6 @@ import {
   useSecondaryObjectives,
 } from '@/lib/queries/referenceData'
 import { useWakeLock } from '@/lib/useWakeLock'
-import { LayoutVariantPicker } from './LayoutVariantPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 import { PrimaryScorePanel } from './PrimaryScorePanel'
 import { SecondaryScores } from './SecondaryScores'
@@ -50,12 +50,12 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const deleteGame = useDeleteGame()
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
   const setRole = useSetRole(detail.game.id)
+  const setTurnOrder = useSetTurnOrder(detail.game.id)
 
   const [viewRound, setViewRound] = useState(detail.game.current_round)
   const [endSheetOpen, setEndSheetOpen] = useState(false)
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
-  const [layoutSheetOpen, setLayoutSheetOpen] = useState(false)
 
   useWakeLock(detail.game.status === 'active')
 
@@ -83,6 +83,16 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const isActive = detail.game.status === 'active'
   const isLastRound = viewRound === detail.game.total_rounds
   const isViewingCurrent = viewRound === detail.game.current_round
+
+  // Once both players have settled the "who takes the first turn" roll-off,
+  // show the one who went first -- "top of round" -- first on screen.
+  // Left unreordered (original seat order) until both are actually set, so
+  // a half-picked state doesn't jump around.
+  const bothTurnOrderSet = detail.players.length === 2 && detail.players.every((p) => p.player.turn_order)
+  const turnOrderRank = (p: GameDetail['players'][number]) => (p.player.turn_order === 'first' ? 0 : 1)
+  const orderedPlayers = bothTurnOrderSet
+    ? [...detail.players].sort((a, b) => turnOrderRank(a) - turnOrderRank(b))
+    : detail.players
 
   const getRoundScore = (gamePlayerId: string) =>
     detail.roundScores.find((r) => r.game_player_id === gamePlayerId && r.battle_round === viewRound)?.primary_vp ?? 0
@@ -130,15 +140,13 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 : `Round ${detail.game.current_round} of ${detail.game.total_rounds}`}
           </p>
           {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
+          {detail.game.layout_variant && (
+            <p className="text-xs text-paper/40">
+              Layout {detail.game.layout_variant} · change it from "Edit your setup" below
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setLayoutSheetOpen(true)}
-            className="text-xs whitespace-nowrap text-paper/50 underline"
-          >
-            Layout{detail.game.layout_variant ? ` ${detail.game.layout_variant}` : ''}
-          </button>
           <Link to={`/game/${detail.game.id}/summary`} className="text-xs whitespace-nowrap text-paper/50 underline">
             Summary
           </Link>
@@ -152,7 +160,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
       <Stepper total={detail.game.total_rounds} current={viewRound} onChange={setViewRound} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {detail.players.map((entry) => (
+        {orderedPlayers.map((entry) => (
           <div key={entry.player.id} className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-center">
               <p className="font-semibold text-paper">
@@ -164,8 +172,12 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 {entry.factionName ?? 'No faction'}
                 {entry.player.army_name ? ` · ${entry.player.army_name}` : ''}
               </p>
-              {entry.player.role && (
-                <p className="text-[11px] tracking-wide text-paper/40 capitalize">{entry.player.role}</p>
+              {(entry.player.role || entry.player.turn_order) && (
+                <p className="text-[11px] tracking-wide text-paper/40 capitalize">
+                  {entry.player.role}
+                  {entry.player.role && entry.player.turn_order ? ' · ' : ''}
+                  {entry.player.turn_order && `went ${entry.player.turn_order}`}
+                </p>
               )}
               {missionByPlayerId.get(entry.player.id)?.name && (
                 <p className="mt-1 text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
@@ -230,7 +242,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
       {/* Running totals -- always visible without scrolling, per the design brief. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          {detail.players.map((entry) => (
+          {orderedPlayers.map((entry) => (
             <div key={entry.player.id} className="flex-1 text-center">
               <p className="truncate text-xs text-paper/50">{playerLabel(entry, `Seat ${entry.player.seat}`)}</p>
               <p className="text-2xl font-bold text-gold">{entry.totalVp}</p>
@@ -299,14 +311,6 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         pending={deleteGame.isPending}
       />
 
-      <Sheet open={layoutSheetOpen} onClose={() => setLayoutSheetOpen(false)} title="Terrain layout">
-        <LayoutVariantPicker
-          mission={p1Mission.data ?? p2Mission.data}
-          value={detail.game.layout_variant}
-          onChange={(variant) => setLayoutVariant.mutate(variant)}
-        />
-      </Sheet>
-
       {editingPlayerId &&
         (() => {
           const editing = detail.players.find((p) => p.player.id === editingPlayerId)
@@ -325,6 +329,11 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 forceDispositions={forceDispositions.data ?? []}
                 onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: editing.player.id, ...patch })}
                 onSetRole={(role) => setRole.mutate({ gamePlayerId: editing.player.id, role })}
+                onSetTurnOrder={(turnOrder) => setTurnOrder.mutate({ gamePlayerId: editing.player.id, turnOrder })}
+                ladderId={detail.game.ladder_id}
+                layoutMission={p1Mission.data ?? p2Mission.data}
+                layoutVariant={detail.game.layout_variant}
+                onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
               />
             </Sheet>
           )

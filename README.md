@@ -12,8 +12,11 @@ design brief and rationale this build follows.
 ## What this is (the goal)
 
 40K Tracker is a public web app to track a game of Warhammer 40,000 in
-real time, from the table -- solo (one player runs the whole scoreboard,
-both sides) or shared live between two players' own phones.
+real time, from the table. There is no separate "solo mode" -- every
+game works the same way: one account can bookkeep the whole scoreboard,
+both sides, so a real two-player game never requires the other player to
+sign up at all, or the scoreboard can be shared live between two
+players' own phones if they'd both rather enter their own numbers.
 
 **The intended experience, end to end:**
 
@@ -24,27 +27,34 @@ both sides) or shared live between two players' own phones.
   address is never shown to, or sent to, anyone else.
 - One player starts a game (mission pack, deployment, points limit,
   their own faction and army name) and gets a short 6-character code.
-- **A single player can completely track a game alone.** The creator
-  fills in Player 2's setup themselves in the waiting room -- same
-  Force Disposition/faction/army/role fields as their own -- and can
-  start and run the whole game solo, entering both sides' scores round
-  by round. Sharing the join code is optional: if a second player does
-  enter it, they're simply added as another person who can also adjust
-  either side's numbers, the same as if they'd been there from the
-  start -- not a required step to use the app.
+- **One account can be the bookkeeper for a whole game.** The point
+  isn't a "solo mode" -- it's that getting a real opponent to create an
+  account and log in is friction nobody wants mid-game, so it's never
+  required. The creator fills in Player 2's setup themselves in the
+  waiting room -- same Force Disposition/faction/army/role fields as
+  their own -- and can run the whole game as bookkeeper, entering both
+  sides' scores round by round. Sharing the join code is optional: if a
+  second player does enter it, they're simply added as another person
+  who can also adjust either side's numbers, the same as if they'd been
+  there from the start -- not a required step to use the app.
 - Whoever fills in each side's setup claims their own Force Disposition
   (their army's strategic role) and either Attacker or Defender -- the
   app explains in-UI what Attacker/Defender actually determines
   (battlefield edge, which Secondary Mission deck you draw from), since
   it's easy to forget between games -- and each side's Primary Mission,
   determined by the *pairing* of both Force Dispositions per the actual
-  2026-27 ruleset, is revealed once both are chosen.
+  2026-27 ruleset, is revealed once both are chosen. A second, separate
+  roll-off decides who takes the first turn -- "went first"/"went
+  second" is also part of setup, and whoever went first (the "top of
+  round" player, as opposed to "bottom of round") shows first on the
+  live Scoreboard once both have picked.
 - Once the game starts, primary VP and secondary objectives are scored
   round by round (5 battle rounds). With two players each on their own
   phone, scores update live for both as they're entered -- no refreshing,
   no "did you get that?" across the table -- and either one can enter
   either side's score, since players agree scores verbally at the table
-  anyway. Tracking solo works the same way, just from one phone.
+  anyway. Bookkeeping both sides yourself works the same way, just from
+  one phone.
 - Scoring is pick-what-you-achieved, not type-a-number: tapping a
   player's primary VP, or a picked secondary, opens the actual scoring
   conditions printed on that card -- tap to mark a flat condition
@@ -104,6 +114,10 @@ differential as tiebreak) are computed live from whichever completed
 games are currently tagged with that ladder -- never stored -- so
 editing a score or cancelling a game is reflected correctly the moment
 the standings are viewed again, with no separate recalculation step.
+Bookkeeping both sides of a ladder game yourself? The unclaimed seat's
+setup form gets a "Player" picker (who on the ladder this seat is for),
+so that person's result still counts toward standings even though
+they never signed in themselves.
 History can be filtered down to a single ladder's games. See
 `40k-tracker-plan.md`'s superseded out-of-scope note above, and issue
 #18 for the fuller design writeup (including why a stored, sequential
@@ -114,8 +128,9 @@ map image (one of the 6 Chapter Approved deployment cards), not just a
 name in a dropdown. Once a mission is resolved (both players' Force
 Dispositions known), the 3 recommended terrain layouts (A/B/C) for that
 specific Force Disposition pairing are also pickable, each with its own
-image -- optional, freely editable, never required to start or play a
-game.
+image, at the bottom of the same setup form as Attacker/Defender.
+Picking one is required to start a game -- but, like every other setup
+field, stays freely editable afterwards.
 
 ## What's actually in place right now
 
@@ -132,11 +147,25 @@ Approved 2026-27 deck, sourced from the public card text -- see "Ruleset
 repo's usual names-and-VP-only rule (the actual scoring condition text,
 for the pick-what-you-achieved checklist) -- not placeholder content.
 
-Solo tracking is implemented: `create_game` seats the creator and also
-creates an unclaimed second seat (`game_players.user_id` is nullable) the
-creator can fill in and run themselves from the waiting room; joining by
-code later claims that same seat rather than adding a third one, and
-just grants the joiner the same edit rights the creator already had.
+One-account bookkeeping is implemented: `create_game` seats the creator
+and also creates an unclaimed second seat (`game_players.user_id` is
+nullable) the creator can fill in and run themselves from the waiting
+room; joining by code later claims that same seat rather than adding a
+third one, and just grants the joiner the same edit rights the creator
+already had. When that unclaimed seat's game is tagged to a ladder, the
+bookkeeper can also attribute it to a specific ladder member
+(`game_players.represents_user_id`, a picker in `PlayerSetupFields`) so
+that player's win/loss counts in standings even though they never
+signed in -- see "Ladders" above.
+
+Turn order is implemented: `game_players.turn_order` ('first'/'second')
+is a per-seat pick in `PlayerSetupFields`, modeled exactly like `role`
+(a partial unique constraint so only one seat can claim each value,
+optional, always editable). Once both seats have picked, the live
+Scoreboard's player grid and the fixed bottom totals bar reorder so
+whoever went first renders first; before that (or for older games that
+never set it) the display falls back to seat order, unchanged from
+before this existed.
 
 The pick-what-you-achieved scoring checklist is implemented for both
 primary and secondary VP: `mission_objective_lines` and
@@ -158,10 +187,16 @@ your games carry one. Standings are computed live in
 Deployment map images and terrain layout selection are implemented:
 "Start a game"'s deployment picker (`ImageOptionGrid`) shows each
 deployment's actual card image instead of a bare name; once a game's
-mission is resolved, a layout picker (same component, `LayoutVariantPicker`)
-appears in the waiting room and, via a "Layout" link in its header, the
-live Scoreboard -- both write to `games.layout_variant`, both stay
-editable for the life of the game.
+mission is resolved (so the Force Disposition pairing is known), the
+layout picker lives at the bottom of `PlayerSetupFields` -- the same
+form as Force Disposition/faction/army/Attacker-Defender -- both in the
+waiting room and in the live Scoreboard's "Edit your setup" sheet.
+Picking a layout is **required to start a game** (`WaitingRoom`'s
+`canStart`, alongside both players being ready and having claimed a
+role), but like every other setup field it stays freely editable for
+the life of the game once chosen -- required-before-start and
+always-editable-after are not in tension, `role`/`is_ready` already work
+the same way.
 
 Display names never derive from email: `handle_new_user()`'s fallback
 (when a signup provides no name at all) generates a generic placeholder,
@@ -338,8 +373,10 @@ hotlinked. Layout images are keyed by the **Force Disposition pairing**,
 not the deployment (wahapedia's own page script resolves them that way,
 see the migration's comment) -- a deployment picks the battlefield shape,
 a layout picks the terrain piece placement on it, and the two are chosen
-independently (`games.layout_variant`, freely editable, never required
-to start or play a game).
+independently. Picking a layout (`games.layout_variant`) is required
+before a game can start, same as claiming Attacker/Defender or marking
+ready -- but, like those, stays freely editable for the life of the
+game once set.
 
 When the next Chapter Approved deck ships: add a new `mission_packs` row
 and a new migration with its missions/secondary_objectives (and, if you
