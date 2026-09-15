@@ -87,10 +87,35 @@ both sides) or shared live between two players' own phones.
   with a flaky venue wifi connection dropping and reconnecting.
 
 **What this deliberately is not (out of scope):** spectator mode,
-tournaments/events, an army list builder, ELO/ranking, in-app chat, push
+tournaments/events, an army list builder, in-app chat, push
 notifications, rematch chains, CP/painting scoring, offline-first play,
 or native mobile apps. See section 11 of `40k-tracker-plan.md` for the
-full list and reasoning.
+original v1 scoping -- superseded on one point since: ladders/ranking
+(below) turned out to be wanted after all, so that line from the
+original out-of-scope list no longer holds.
+
+**Ladders:** a ladder is just a named group of players
+(`ladders`/`ladder_members`) -- create one, and anyone can browse and
+join it, your own or someone else's, from the dedicated Ladders page.
+Tagging a game onto a ladder is entirely optional, chosen at creation
+time on the "Start a game" screen, and stays editable afterwards like
+everything else. Standings (points: 3 for a win, 1 for a draw, VP
+differential as tiebreak) are computed live from whichever completed
+games are currently tagged with that ladder -- never stored -- so
+editing a score or cancelling a game is reflected correctly the moment
+the standings are viewed again, with no separate recalculation step.
+History can be filtered down to a single ladder's games. See
+`40k-tracker-plan.md`'s superseded out-of-scope note above, and issue
+#18 for the fuller design writeup (including why a stored, sequential
+rating like ELO/Glicko was deliberately not used).
+
+**Deployment and terrain layout:** picking a deployment shows its actual
+map image (one of the 6 Chapter Approved deployment cards), not just a
+name in a dropdown. Once a mission is resolved (both players' Force
+Dispositions known), the 3 recommended terrain layouts (A/B/C) for that
+specific Force Disposition pairing are also pickable, each with its own
+image -- optional, freely editable, never required to start or play a
+game.
 
 ## What's actually in place right now
 
@@ -121,6 +146,22 @@ primary and secondary VP: `mission_objective_lines` and
 `primary_objective_ticks`/`secondary_objective_ticks` record what was
 ticked while `round_scores`/`secondary_scores` stay the computed,
 directly-editable source of truth.
+
+Ladders are implemented: the Ladders page lists every ladder (yours and
+others'), `create_ladder` makes a new one and seats its creator, joining
+or leaving any ladder is a self-service `ladder_members` row (no invite
+code), "Start a game" gets an optional ladder picker (only shown once
+you're in at least one), and History gets a ladder filter once any of
+your games carry one. Standings are computed live in
+`src/lib/queries/ladders.ts`, not stored.
+
+Deployment map images and terrain layout selection are implemented:
+"Start a game"'s deployment picker (`ImageOptionGrid`) shows each
+deployment's actual card image instead of a bare name; once a game's
+mission is resolved, a layout picker (same component, `LayoutVariantPicker`)
+appears in the waiting room and, via a "Layout" link in its header, the
+live Scoreboard -- both write to `games.layout_variant`, both stay
+editable for the life of the game.
 
 Display names never derive from email: `handle_new_user()`'s fallback
 (when a signup provides no name at all) generates a generic placeholder,
@@ -283,6 +324,22 @@ public transcription), stored so a player can tick which conditions they
 achieved instead of typing a raw VP number. Don't treat this as license
 to relax the no-rules-text policy anywhere else in the app without the
 same explicit conversation -- it's still the default everywhere but here.
+
+The same kind of exception, made the same way (explicit, informed,
+project-owner sign-off), covers **images**: `public/images/deployments/`
+(6 files) and `public/images/layouts/` (45 files -- 15 Force Disposition
+pairings x 3 layout variants) are downloaded, committed copies of GW's
+own deployment-map and terrain-layout diagrams from wahapedia.ru, not
+names/values-only reference data. `deployments.image_path` and
+`missions.layout_a_image_path`/`layout_b_image_path`/`layout_c_image_path`
+(`supabase/migrations/20260305000000_deployment_and_layout_images.sql`)
+point at these local paths -- served from the app's own domain, not
+hotlinked. Layout images are keyed by the **Force Disposition pairing**,
+not the deployment (wahapedia's own page script resolves them that way,
+see the migration's comment) -- a deployment picks the battlefield shape,
+a layout picks the terrain piece placement on it, and the two are chosen
+independently (`games.layout_variant`, freely editable, never required
+to start or play a game).
 
 When the next Chapter Approved deck ships: add a new `mission_packs` row
 and a new migration with its missions/secondary_objectives (and, if you

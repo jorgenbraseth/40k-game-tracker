@@ -7,12 +7,14 @@ import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
   useDeleteGame,
+  useSetLayoutVariant,
   useSetReady,
   useSetRole,
   useStartGame,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
 import { useFactions, useForceDispositions, useMission } from '@/lib/queries/referenceData'
+import { LayoutVariantPicker } from './LayoutVariantPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
 export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; opponentOnline: boolean }) {
@@ -24,6 +26,7 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
   const setRole = useSetRole(detail.game.id)
   const updateSetup = useUpdatePlayerSetup(detail.game.id)
   const startGame = useStartGame(detail.game.id)
+  const setLayoutVariant = useSetLayoutVariant(detail.game.id)
   const deleteGame = useDeleteGame()
   const [copied, setCopied] = useState(false)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
@@ -84,6 +87,13 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
               <span className="text-xs text-paper/50">Opponent: </span>
               <span className="text-lg font-semibold text-gold">{opponentMission.data?.name ?? '…'}</span>
             </p>
+            <div className="mt-2">
+              <LayoutVariantPicker
+                mission={myMission.data ?? opponentMission.data}
+                value={detail.game.layout_variant}
+                onChange={(variant) => setLayoutVariant.mutate(variant)}
+              />
+            </div>
           </div>
         ) : (
           <p className="text-sm text-paper/50">

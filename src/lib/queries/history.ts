@@ -17,6 +17,8 @@ export interface CompletedGameRow {
   opponentFactionName: string | null
   opponentTotalVp: number
   result: 'win' | 'loss' | 'draw' | 'abandoned'
+  ladderId: string | null
+  ladderName: string | null
 }
 
 export const historyKeys = {
@@ -44,15 +46,20 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
 
   const completeGameIds = games.map((g) => g.id)
   const deploymentIds = [...new Set(games.map((g) => g.deployment_id))]
+  const ladderIds = [...new Set(games.map((g) => g.ladder_id).filter((id): id is string => Boolean(id)))]
 
-  const [playersRes, totalsRes, deploymentsRes] = await Promise.all([
+  const [playersRes, totalsRes, deploymentsRes, laddersRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', completeGameIds),
     supabase.from('game_totals').select('*').in('game_id', completeGameIds),
     supabase.from('deployments').select('id, name').in('id', deploymentIds),
+    ladderIds.length
+      ? supabase.from('ladders').select('id, name').in('id', ladderIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
   if (deploymentsRes.error) throw deploymentsRes.error
+  if (laddersRes.error) throw laddersRes.error
 
   const missionIds = [
     ...new Set(playersRes.data.map((p) => p.mission_id).filter((id): id is string => Boolean(id))),
@@ -78,6 +85,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
 
   const missionById = new Map(missionsRes.data.map((m) => [m.id, m.name]))
   const deploymentById = new Map(deploymentsRes.data.map((d) => [d.id, d.name]))
+  const ladderById = new Map(laddersRes.data?.map((l) => [l.id, l.name]))
   const profileById = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
   const factionById = new Map(factionsRes.data?.map((f) => [f.id, f.name]))
   const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
@@ -123,6 +131,8 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
       opponentFactionName: opponent?.faction_id ? (factionById.get(opponent.faction_id) ?? null) : null,
       opponentTotalVp: opponent ? (totalByPlayerId.get(opponent.id) ?? 0) : 0,
       result,
+      ladderId: game.ladder_id,
+      ladderName: game.ladder_id ? (ladderById.get(game.ladder_id) ?? 'Unknown ladder') : null,
     })
   }
 

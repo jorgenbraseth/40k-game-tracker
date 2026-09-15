@@ -2,19 +2,24 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
+import { ImageOptionGrid } from '@/components/ImageOptionGrid'
 import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
+import { useAuth } from '@/features/auth/AuthProvider'
 import { useCreateGame } from '@/lib/queries/games'
+import { useLadders } from '@/lib/queries/ladders'
 import { useCurrentMissionPack, useDeployments, useFactions, useForceDispositions } from '@/lib/queries/referenceData'
 
 const POINTS_OPTIONS = [500, 1000, 1500, 2000, 2500, 3000]
 
 export function NewGamePage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const missionPack = useCurrentMissionPack()
   const deployments = useDeployments(missionPack.data?.id)
   const forceDispositions = useForceDispositions()
   const factions = useFactions()
+  const ladders = useLadders(user?.id)
   const createGame = useCreateGame()
 
   const [deploymentId, setDeploymentId] = useState('')
@@ -22,6 +27,7 @@ export function NewGamePage() {
   const [forceDispositionId, setForceDispositionId] = useState('')
   const [factionId, setFactionId] = useState('')
   const [armyName, setArmyName] = useState('')
+  const [ladderId, setLadderId] = useState('')
 
   if (missionPack.isLoading) return <Spinner label="Loading mission pack…" />
   if (missionPack.isError || !missionPack.data) {
@@ -39,6 +45,7 @@ export function NewGamePage() {
       forceDispositionId: forceDispositionId || undefined,
       factionId: factionId || undefined,
       armyName: armyName.trim() || undefined,
+      ladderId: ladderId || undefined,
     })
     navigate(`/game/${gameId}`)
   }
@@ -51,18 +58,12 @@ export function NewGamePage() {
       </div>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <Select
+        <ImageOptionGrid
           label="Deployment"
           value={effectiveDeploymentId}
-          onChange={(e) => setDeploymentId(e.target.value)}
-          required
-        >
-          {deployments.data?.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </Select>
+          onChange={setDeploymentId}
+          options={(deployments.data ?? []).map((d) => ({ id: d.id, label: d.name, imagePath: d.image_path }))}
+        />
 
         <Select label="Points limit" value={pointsLimit} onChange={(e) => setPointsLimit(Number(e.target.value))}>
           {POINTS_OPTIONS.map((p) => (
@@ -104,6 +105,19 @@ export function NewGamePage() {
           onChange={(e) => setArmyName(e.target.value)}
           placeholder="e.g. The Iron Talons"
         />
+
+        {(ladders.data ?? []).some((l) => l.isMember) && (
+          <Select label="Ladder game? (optional)" value={ladderId} onChange={(e) => setLadderId(e.target.value)}>
+            <option value="">Not a ladder game</option>
+            {(ladders.data ?? [])
+              .filter((l) => l.isMember)
+              .map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+          </Select>
+        )}
 
         {createGame.isError && (
           <p className="text-sm text-red-400">

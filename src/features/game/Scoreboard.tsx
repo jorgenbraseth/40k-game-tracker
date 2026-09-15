@@ -13,6 +13,7 @@ import {
   useDeleteGame,
   useFinishGame,
   useSetCurrentRound,
+  useSetLayoutVariant,
   useSetRole,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
@@ -25,6 +26,7 @@ import {
   useSecondaryObjectives,
 } from '@/lib/queries/referenceData'
 import { useWakeLock } from '@/lib/useWakeLock'
+import { LayoutVariantPicker } from './LayoutVariantPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 import { PrimaryScorePanel } from './PrimaryScorePanel'
 import { SecondaryScores } from './SecondaryScores'
@@ -42,6 +44,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const factions = useFactions()
   const forceDispositions = useForceDispositions()
   const setCurrentRound = useSetCurrentRound(detail.game.id)
+  const setLayoutVariant = useSetLayoutVariant(detail.game.id)
   const finishGame = useFinishGame(detail.game.id)
   const abandonGame = useAbandonGame(detail.game.id)
   const deleteGame = useDeleteGame()
@@ -52,6 +55,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
   const [endSheetOpen, setEndSheetOpen] = useState(false)
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
+  const [layoutSheetOpen, setLayoutSheetOpen] = useState(false)
 
   useWakeLock(detail.game.status === 'active')
 
@@ -122,6 +126,13 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setLayoutSheetOpen(true)}
+            className="text-xs whitespace-nowrap text-paper/50 underline"
+          >
+            Layout{detail.game.layout_variant ? ` ${detail.game.layout_variant}` : ''}
+          </button>
           <Link to={`/game/${detail.game.id}/summary`} className="text-xs whitespace-nowrap text-paper/50 underline">
             Summary
           </Link>
@@ -272,6 +283,14 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
         confirmLabel="Cancel game"
         pending={deleteGame.isPending}
       />
+
+      <Sheet open={layoutSheetOpen} onClose={() => setLayoutSheetOpen(false)} title="Terrain layout">
+        <LayoutVariantPicker
+          mission={p1Mission.data ?? p2Mission.data}
+          value={detail.game.layout_variant}
+          onChange={(variant) => setLayoutVariant.mutate(variant)}
+        />
+      </Sheet>
 
       {editingPlayerId &&
         (() => {
