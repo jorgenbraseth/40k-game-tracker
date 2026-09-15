@@ -125,6 +125,13 @@ export function SecondaryScores({
     )
   })()
 
+  // For the header -- this round's secondary total so far, and what it's actually still capped
+  // at (same 15VP-per-round/45VP-per-game rule as capForScoring, just not tied to whichever
+  // secondary is being scored right now).
+  const gameTotal = myScores.reduce((sum, s) => sum + s.vp_scored, 0)
+  const roundTotal = myScores.filter((s) => s.battle_round === round).reduce((sum, s) => sum + s.vp_scored, 0)
+  const roundCap = Math.max(0, Math.min(MAX_SECONDARY_VP_PER_ROUND, MAX_SECONDARY_VP_PER_GAME - (gameTotal - roundTotal)))
+
   const handleChangeCount = (lineId: string, newCount: number) => {
     if (!scoringObjectiveId) return
     tick.mutate({ gamePlayerId, battleRound: round, secondaryObjectiveLineId: lineId, count: newCount, userId })
@@ -154,6 +161,14 @@ export function SecondaryScores({
 
   return (
     <div className="flex w-full flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium tracking-wide text-paper/60 uppercase">Secondary VP</span>
+        <span className="text-sm font-bold text-gold">
+          {roundTotal}
+          <span className="ml-1 text-xs font-normal text-paper/40">of {roundCap}</span>
+        </span>
+      </div>
+
       {availableToScore.length > 0 && (
         <p className="text-[11px] font-semibold tracking-wide text-paper/40 uppercase">
           Drawn, not yet scored
