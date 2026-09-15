@@ -213,7 +213,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
       </div>
 
       {/* Running totals -- always visible without scrolling, per the design brief. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 py-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           {detail.players.map((entry) => (
             <div key={entry.player.id} className="flex-1 text-center">
