@@ -150,7 +150,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
           {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
           {detail.game.layout_variant && (
             <p className="text-xs text-paper/40">
-              Layout {detail.game.layout_variant} · change it from "Edit your setup" below
+              Layout {detail.game.layout_variant} · change it from "Game configuration" above
             </p>
           )}
         </div>
@@ -161,7 +161,7 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
               onClick={() => setConfigSheetOpen(true)}
               className="text-xs whitespace-nowrap text-paper/50 underline"
             >
-              Attacker &amp; turn order
+              Game configuration
             </button>
           )}
           <Link to={`/game/${detail.game.id}/summary`} className="text-xs whitespace-nowrap text-paper/50 underline">
@@ -345,19 +345,19 @@ export function Scoreboard({ detail, opponentOnline }: { detail: GameDetail; opp
                 forceDispositions={forceDispositions.data ?? []}
                 onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: editing.player.id, ...patch })}
                 ladderId={detail.game.ladder_id}
-                layoutMission={p1Mission.data ?? p2Mission.data}
-                layoutVariant={detail.game.layout_variant}
-                onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
               />
             </Sheet>
           )
         })()}
 
       {me && opponent && (
-        <Sheet open={configSheetOpen} onClose={() => setConfigSheetOpen(false)} title="Attacker & turn order">
+        <Sheet open={configSheetOpen} onClose={() => setConfigSheetOpen(false)} title="Game configuration">
           <GameConfigPicker
             me={me}
             opponent={opponent}
+            layoutMission={p1Mission.data ?? p2Mission.data}
+            layoutVariant={detail.game.layout_variant}
+            onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
             onSetRole={(role) =>
               setMirroredField(
                 (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),

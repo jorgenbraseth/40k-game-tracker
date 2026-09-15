@@ -41,24 +41,29 @@ players' own phones if they'd both rather enter their own numbers.
   if they'd been there from the start -- not a required step to use the
   app.
 - The waiting room has each seat's own setup (faction, Force Disposition,
-  army name, terrain layout) side by side, plus one shared **game
-  configuration** section below both -- because who's Attacker and who
-  went first aren't really two people's separate opinions, they're one
-  fact decided once (by a roll-off at the table) and just entered once,
-  asked by name ("[Player 1] or [Player 2]?") rather than shown twice as
-  a toggle on each player's own form. Each side's own Force Disposition
-  (their army's strategic role) determines their Primary Mission -- the
+  army name) side by side, plus one shared **game configuration** section
+  below both, covering everything that's a property of the game rather
+  than of one seat: terrain layout, and who's Attacker and who went
+  first -- none of those are really two people's separate opinions,
+  they're one fact decided once (by a roll-off at the table, or picked
+  off the mission's recommended layouts) and just entered once, asked by
+  name ("[Player 1] or [Player 2]?") rather than shown twice as a toggle
+  on each player's own form. Each side's own Force Disposition (their
+  army's strategic role) determines their Primary Mission -- the
   *pairing* of both Force Dispositions per the actual 2026-27 ruleset --
   revealed once both are chosen. Attacker/Defender is decided by its own
   roll-off after the Deployment card is drawn -- the app explains in-UI
-  what it actually determines (battlefield edge, which Secondary Mission
-  deck each side draws from), since it's easy to forget between games. A
-  second, separate roll-off decides who takes the first turn -- whoever
-  went first (the "top of round" player, as opposed to "bottom of
-  round") shows first on the live Scoreboard once both are picked.
+  what it actually determines: which battlefield edge each side deploys
+  from, which Secondary Mission deck each side draws from, and the one
+  part with a real rules effect on how the game plays out -- the Defender
+  deploys first, then the Attacker deploys second, reacting to it -- since
+  it's easy to forget between games. A second, separate roll-off decides
+  who takes the first turn -- whoever went first (the "top of round"
+  player, as opposed to "bottom of round") shows first on the live
+  Scoreboard once both are picked.
 - Starting a game requires every one of those setup fields filled in for
-  *both* seats -- faction, Force Disposition, and layout per seat, plus
-  the shared Attacker/Defender and who-went-first picks -- with one
+  *both* seats -- faction and Force Disposition per seat, plus the shared
+  terrain layout, Attacker/Defender, and who-went-first picks -- with one
   deliberate exception: army name, which is flavour text with no
   gameplay effect, stays optional forever. There is no separate "ready"
   step on top of that; once the fields are filled in, either player can
@@ -154,9 +159,11 @@ map image (one of the 6 Chapter Approved deployment cards), not just a
 name in a dropdown. Once a mission is resolved (both players' Force
 Dispositions known), the 3 recommended terrain layouts (A/B/C) for that
 specific Force Disposition pairing are also pickable, each with its own
-image, at the bottom of the same setup form as Attacker/Defender.
-Picking one is required to start a game -- but, like every other setup
-field, stays freely editable afterwards.
+image, in the shared `GameConfigPicker` -- a property of the game, not
+of either seat's own setup, so it lives there alongside Attacker/Defender
+rather than in `PlayerSetupFields`. Picking one is required to start a
+game -- but, like every other setup field, stays freely editable
+afterwards.
 
 ## What's actually in place right now
 
@@ -244,31 +251,36 @@ against a weaker opponent" ask; Glicko-2's added confidence-tracking is
 a possible later upgrade) and over Massey-Colley (no natural per-game
 "you gained/lost N points" story, which is most of the point).
 
-Deployment map images and terrain layout selection are implemented:
-"Start a game"'s deployment picker (`ImageOptionGrid`) shows each
-deployment's actual card image instead of a bare name; once a game's
-mission is resolved (so the Force Disposition pairing is known), the
-layout picker lives at the bottom of `PlayerSetupFields`, each seat's
-own setup form (Faction, Force Disposition, Army name, Layout) -- both
-in the waiting room and in the live Scoreboard's "Edit your setup"
-sheet. Picking a layout is **required to start a game**, same as every
-setup field except army name (`WaitingRoom`'s `canStart`, and the
-`start_game` RPC server-side), but like every other setup field it stays
-freely editable for the life of the game once chosen -- required-before-
-start and always-editable-after are not in tension, `role`/`turn_order`
-already work the same way.
-
-Attacker/Defender and turn order are implemented as one shared decision
-each, not a per-seat one: `GameConfigPicker` (`src/features/game/`)
-asks "who is Attacker?" and "who went first?" by name, once, rather than
-showing the same toggle on both players' own setup forms. It lives in
-its own "Game configuration" card in the waiting room, and behind an
-"Attacker & turn order" link/sheet in the live Scoreboard (`role`/
-`turn_order` moved out of `PlayerSetupFields` entirely to make room).
-The write-mirroring logic (`setMirroredField`) didn't need to change --
+Deployment map images, terrain layout selection, Attacker/Defender, and
+turn order are all implemented. "Start a game"'s deployment picker
+(`ImageOptionGrid`) shows each deployment's actual card image instead of
+a bare name. The other three are all *game*-level decisions, not a
+per-seat one, so none of them live in `PlayerSetupFields` (each seat's
+own setup form: Faction, Force Disposition, Army name) -- they live
+together in the shared `GameConfigPicker` (`src/features/game/`): once
+a game's mission is resolved (so the Force Disposition pairing is
+known), the 3 recommended terrain layouts for that pairing become
+pickable there; Attacker/Defender and turn order are asked as "who is
+Attacker?" and "who went first?" by name, once, rather than shown as a
+toggle on both players' own setup forms. `GameConfigPicker` lives in its
+own "Game configuration" card in the waiting room, and behind a "Game
+configuration" link/sheet in the live Scoreboard. The write-mirroring
+logic (`setMirroredField`) didn't need to change for any of this --
 picking a name still writes that seat's own field directly and mirrors
 the complement onto the other seat when the viewer is allowed to (their
-own seat, or an unclaimed one), same permission model as before.
+own seat, or an unclaimed one), same permission model as before. All
+three fields are **required to start a game**, same as every setup field
+except army name (`WaitingRoom`'s `canStart`, and the `start_game` RPC
+server-side), but like every other setup field they stay freely editable
+for the life of the game once chosen -- required-before-start and
+always-editable-after are not in tension.
+
+The Attacker/Defender explainer in `GameConfigPicker` also spells out
+the one part of that pick with an actual rules effect: it's not just
+flavour text or which battlefield edge/Secondary deck each side gets --
+the Defender deploys first, then the Attacker deploys second, reacting
+to it, which is the only thing that meaningfully differs between the two
+roles under the current ruleset.
 
 Display names never derive from email: `handle_new_user()`'s fallback
 (when a signup provides no name at all) generates a generic placeholder,

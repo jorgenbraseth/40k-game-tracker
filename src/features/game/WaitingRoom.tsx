@@ -113,9 +113,6 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
             factions={factions.data ?? []}
             forceDispositions={forceDispositions.data ?? []}
             onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: me.player.id, ...patch })}
-            layoutMission={myMission.data ?? opponentMission.data}
-            layoutVariant={detail.game.layout_variant}
-            onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
           />
 
           <p className="text-center text-xs text-paper/40">
@@ -169,6 +166,9 @@ export function WaitingRoom({ detail, opponentOnline }: { detail: GameDetail; op
           <GameConfigPicker
             me={me}
             opponent={opponent}
+            layoutMission={myMission.data ?? opponentMission.data}
+            layoutVariant={detail.game.layout_variant}
+            onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
             onSetRole={(role) =>
               setMirroredField(
                 (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
