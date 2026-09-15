@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
@@ -14,7 +14,22 @@ export function HistoryPage() {
   const { data, isLoading, isError, refetch } = useCompletedGames(user?.id)
   const deleteGame = useDeleteGame()
   const [cancelingGameId, setCancelingGameId] = useState<string | null>(null)
-  const [ladderFilter, setLadderFilter] = useState('')
+  // Which ladder's games are shown lives in the URL (?ladder=<id>), same as Scoreboard's round --
+  // bookmarkable/shareable, replacing rather than pushing a history entry per change since a
+  // filter dropdown isn't something you'd want to have to click "back" through repeatedly.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const ladderFilter = searchParams.get('ladder') ?? ''
+  const setLadderFilter = (ladderId: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (ladderId) next.set('ladder', ladderId)
+        else next.delete('ladder')
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   const ladderOptions = useMemo(() => {
     const byId = new Map<string, string>()
