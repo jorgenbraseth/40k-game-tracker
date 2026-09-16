@@ -1,0 +1,7 @@
+# The generated service worker (vite-plugin-pwa, see vite.config.ts) isn't content-hashed, so a
+# CDN- or browser-cached copy of it would delay how quickly a new deploy's precache manifest is
+# picked up -- registerType: 'prompt' already avoids a surprise mid-game reload (see
+# UpdatePrompt.tsx), but that only works if the browser actually notices there's a new sw.js to
+# compare against.
+/sw.js
+  Cache-Control: no-cache

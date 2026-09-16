@@ -213,15 +213,25 @@ players' own phones if they'd both rather enter their own numbers.
 - It's built to be used one-handed, on a phone, mid-game, with dice in
   the other hand -- not at a desk afterward. Large tap targets, no tiny
   number inputs, the screen stays on during an active game, and it copes
-  with a flaky venue wifi connection dropping and reconnecting.
+  with a flaky venue wifi connection dropping and reconnecting. It's also
+  installable straight from the browser (issue #97) -- "Add to Home
+  Screen" on Android or iOS gets a real home-screen icon and a
+  full-screen launch with no browser chrome eating screen space, and the
+  app shell (not your game data -- see "What's actually in place right
+  now") loads instantly even over that same flaky venue wifi, since it's
+  cached on the device rather than re-fetched every visit.
 
 **What this deliberately is not (out of scope):**
 tournaments/events, an army list builder, in-app chat, push
-notifications, rematch chains, CP/painting scoring, offline-first play,
-or native mobile apps. See section 11 of `40k-tracker-plan.md` for the
-original v1 scoping -- superseded on two points since: ladders/ranking
-(below) and spectating (above) both turned out to be wanted after all,
-so those two lines from the
+notifications, rematch chains, CP/painting scoring, offline-first play
+(a persisted local write queue that lets you keep entering scores with
+no connection at all -- distinct from the installable app shell above,
+which still needs a connection to actually save anything), or an
+app-store-distributed native wrapper (Capacitor/React Native). See
+section 11 of `40k-tracker-plan.md` for the original v1 scoping --
+superseded on three points since: ladders/ranking (below), spectating
+(above), and installability (above) all turned out to be wanted after
+all, so those lines from the
 original out-of-scope list no longer hold.
 
 **Ladders:** a ladder is just a named group of players
@@ -769,11 +779,32 @@ state transitions that used to be enforced only in the UI (starting a
 game before its setup is actually complete, cross-game score writes) are
 now also checked server-side (`start_game` RPC, RLS).
 
+The app is installable as a PWA (issue #97), via `vite-plugin-pwa`
+(`vite.config.ts`): a web manifest (icons generated from the existing
+brand emblem, `display: standalone`, theme colors matching `ink`/`gold`)
+plus a service worker that precaches only the app shell -- JS/CSS/HTML
+and the small brand/icon/result assets, explicitly excluding the ~30MB
+deployment/layout reference image library (still loaded and cached
+normally via the browser's regular HTTP cache on first view, just never
+pre-downloaded upfront) and every Supabase REST/Realtime call, which are
+never intercepted by the service worker and always hit the network
+exactly as without one. This is an installable shell, not offline-first
+data entry -- see the out-of-scope note above for that distinction.
+Updates use `registerType: 'prompt'`: a new deploy's service worker sits
+ready in the background until `UpdatePrompt` (`src/app/UpdatePrompt.tsx`)
+shows a dismissible "Reload" banner, rather than silently reloading
+someone out from under a live game. `InstallHint`
+(`src/components/InstallHint.tsx`), shown once on the Home page until
+dismissed, offers a real "Install" button on Android/Chrome (via the
+captured `beforeinstallprompt` event) and static Share-sheet
+instructions on iOS/Safari, which has no equivalent event.
+
 ## Stack
 
 Vite + React + TypeScript (strict), React Router, TanStack Query, Tailwind
-CSS, Zod, and Supabase (Postgres + Auth + Realtime) as the serverless
-backend. Deployed to Cloudflare Pages via GitHub Actions.
+CSS, Zod, `vite-plugin-pwa` (installability, see "What's actually in
+place right now"), and Supabase (Postgres + Auth + Realtime) as the
+serverless backend. Deployed to Cloudflare Pages via GitHub Actions.
 
 ## Getting started
 

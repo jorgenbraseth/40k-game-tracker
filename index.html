@@ -5,6 +5,15 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Live score tracking for tabletop Warhammer 40,000 games." />
+    <meta name="theme-color" content="#0b0c10" />
+    <!-- iOS doesn't install from the web manifest alone -- these are its own separate install/
+         status-bar hooks (see issue #97). apple-mobile-web-app-title keeps the home-screen label
+         short; black-translucent lets content draw under the status bar, matching the
+         env(safe-area-inset-*) handling already used for the fullscreen image viewer and sheets. -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="40K Tracker" />
     <title>40K Tracker</title>
   </head>
   <body>
