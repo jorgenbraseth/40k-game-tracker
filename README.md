@@ -256,7 +256,12 @@ battlefield shape with the terrain placed on it, so asking which of the
 6 named deployment maps to use, independently and before either
 player's Force Disposition is even known, was never really a free
 choice of its own -- just an earlier, blanker view of the same fact the
-layout pick already covers.
+layout pick already covers. Each layout thumbnail is a physical-setup
+reference as much as a picker, so it can be tapped open fullscreen (a
+corner expand button) to read while setting up terrain across the
+table -- and the screen is kept from sleeping for as long as that
+fullscreen view stays open, since board setup takes a while and phones
+otherwise lock mid-way through.
 
 ## What's actually in place right now
 
