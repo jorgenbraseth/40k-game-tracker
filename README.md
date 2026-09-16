@@ -184,9 +184,13 @@ players' own phones if they'd both rather enter their own numbers.
 - At the end, either player can close out the game (a winner is
   suggested from the totals, or record a draw), and both players get a
   permanent record of it: a round-by-round breakdown, which terrain
-  layout was played, and it folds into their history. A game can also
-  be ended early -- conceded, or the opponent had to leave -- from any
-  round, not just the last one.
+  layout was played, and it folds into their history. The round-by-round
+  table's combined per-round number can be expanded ("Show secondaries")
+  into which specific secondary objective(s) each player scored that
+  round and for how much, not just the lumped total -- collapsed by
+  default, same as every other optional detail panel in this app. A
+  game can also be ended early -- conceded, or the opponent had to
+  leave -- from any round, not just the last one.
 - Any participant can also cancel a game outright, at any stage --
   distinct from ending it early, this removes it completely (for both
   players, from every list) rather than keeping a record, for a game
