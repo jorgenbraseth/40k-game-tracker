@@ -231,7 +231,11 @@ count, standings, game log), but actually joining one -- your own or
 someone else's -- requires that ladder's invite code, so a ladder's
 membership isn't open to whoever happens to find it in the browse
 list. Any current member can see and share the code; only the creator
-can regenerate it, invalidating whatever the old one was. Tagging a
+can regenerate it, invalidating whatever the old one was. The creator
+can't leave their own ladder the way any other member can -- archiving
+or deleting it (below) is the only way to step away from one they
+made, since leaving would otherwise strand it with no one left who can
+reach its settings. Tagging a
 game onto a ladder is entirely optional, chosen at creation
 time on the "Start a game" screen from a checklist alongside
 tournaments (below) -- a game can be tagged to any combination of

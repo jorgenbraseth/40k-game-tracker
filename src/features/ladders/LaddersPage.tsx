@@ -204,19 +204,21 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
             {ladder.isMember ? ' · you’re in' : ''}
           </p>
         </button>
-        <Button
-          variant={ladder.isMember ? 'secondary' : 'primary'}
-          disabled={leave.isPending}
-          onClick={() => (ladder.isMember ? leave.mutate({ ladderId: ladder.id, userId }) : setJoinSheetOpen(true))}
-        >
-          {ladder.isMember ? 'Leave' : 'Join'}
-        </Button>
+        {!isCreator && (
+          <Button
+            variant={ladder.isMember ? 'secondary' : 'primary'}
+            disabled={leave.isPending}
+            onClick={() => (ladder.isMember ? leave.mutate({ ladderId: ladder.id, userId }) : setJoinSheetOpen(true))}
+          >
+            {ladder.isMember ? 'Leave' : 'Join'}
+          </Button>
+        )}
       </div>
       {expanded && (
         <div className="mt-3 border-t border-white/10 pt-3">
           <StandingsTable ladderId={ladder.id} rankingType={ladder.rankingType} />
           <GamesList ladderId={ladder.id} />
-          {ladder.isMember && (
+          {(ladder.isMember || isCreator) && (
             <LadderSettings ladder={ladder} isCreator={isCreator} onRequestDelete={() => setDeleteSheetOpen(true)} />
           )}
         </div>
@@ -403,8 +405,11 @@ export function LaddersPage() {
   if (!user) return null
 
   const active = (ladders.data ?? []).filter((l) => !l.archivedAt)
-  const mine = active.filter((l) => l.isMember)
-  const others = active.filter((l) => !l.isMember)
+  // A creator who somehow isn't a member (see 20260330000000_creator_cannot_leave.sql -- this can
+  // only happen for a ladder they left before that migration shipped) still sees it here rather
+  // than under "Other ladders", since it's theirs to manage regardless of membership.
+  const mine = active.filter((l) => l.isMember || l.createdBy === user.id)
+  const others = active.filter((l) => !l.isMember && l.createdBy !== user.id)
   // Archived ladders the viewer's a member of (or created) -- not everyone else's, since an
   // archived ladder is no longer meant to be browsed/joined by people not already in it, unlike
   // the "Other ladders" section above for active ones.
