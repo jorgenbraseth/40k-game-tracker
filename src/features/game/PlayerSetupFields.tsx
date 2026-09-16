@@ -4,6 +4,7 @@ import { TextField } from '@/components/TextField'
 import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import { useLadderMembers } from '@/lib/queries/ladders'
+import { NewRecruitImport } from './NewRecruitImport'
 
 type PlayerEntry = GameDetail['players'][number]
 type SecondaryMode = Database['public']['Tables']['game_players']['Row']['secondary_mode']
@@ -78,6 +79,11 @@ export function PlayerSetupFields({
           </option>
         ))}
       </Select>
+
+      <NewRecruitImport
+        factions={factions}
+        onMatchedFaction={(factionId) => onUpdateSetup({ factionId })}
+      />
 
       <Select
         label="Force Disposition"

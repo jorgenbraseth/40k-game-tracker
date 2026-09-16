@@ -73,6 +73,17 @@ players' own phones if they'd both rather enter their own numbers.
   explainer there, just asked by name -- whoever went first (the "top of
   round" player, as opposed to "bottom of round") shows first on the live
   Scoreboard once both are picked.
+- Faction can also be filled in by pasting a NewRecruit
+  (newrecruit.eu) list share link instead of picking from the dropdown --
+  fetched server-side (an edge function, since NewRecruit's page has no
+  CORS headers a browser could fetch directly) and matched against this
+  app's own faction list. This only ever resolves Faction, never Force
+  Disposition: NewRecruit has no equivalent field for that, since Force
+  Disposition is a per-game strategic-role pick this app's own ruleset
+  invents, not an army-list attribute any list builder would export --
+  so Force Disposition still always needs picking by hand, import or not.
+  Falls back to the manual dropdown, with a clear reason shown, on any
+  bad link, unreachable NewRecruit, or unrecognized faction name.
 - Starting a game requires every one of those setup fields filled in for
   *both* seats -- faction, Force Disposition, and which of Fixed or
   Tactical they're playing Secondary Missions as, per seat, plus the
@@ -896,8 +907,9 @@ at it.
 ## Deployment
 
 `deploy.yml` runs on every push to `main`: typecheck, test, build,
-`supabase db push` against the linked project, then deploy `dist/` to
-Cloudflare Pages. It expects these repository secrets:
+`supabase db push` against the linked project, `supabase functions deploy`
+(edge functions -- currently just `import-newrecruit-list`), then deploy
+`dist/` to Cloudflare Pages. It expects these repository secrets:
 
 ```
 VITE_SUPABASE_URL
