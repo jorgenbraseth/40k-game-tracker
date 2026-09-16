@@ -546,12 +546,23 @@ Attacker?" and "who went first?" by name, once, rather than shown as a
 toggle on both players' own setup forms. `GameConfigPicker` lives in its
 own "Game configuration" card in the waiting room, and behind a "Game
 configuration" row inside the live Scoreboard's "⋯" menu (see below).
-The write-mirroring
-logic (`setMirroredField`) didn't need to change for any of this --
-picking a name still writes that seat's own field directly and mirrors
-the complement onto the other seat when the viewer is allowed to (their
-own seat, or an unclaimed one), same permission model as before. All
-three fields are **required to start a game**, same as every setup field
+Picking a name for Attacker/turn order sets both seats at once, through
+the `set_role`/`set_turn_order` RPCs
+(`20260324000000_shared_role_and_turn_order.sql`) -- either participant's
+pick is final, like an actual roll-off at the table, not something the
+other player has to separately go confirm on their own device before a
+game can start. These replaced an earlier client-side mirroring helper
+(`setMirroredField`) that could only ever write the *other* seat when it
+was unclaimed or the caller's own -- a real second player's already-
+claimed seat was invisible to a plain client update under
+`game_players`' "own seat only" RLS policy, so picking a role/turn order
+silently left their side unset until they went and picked it themselves
+too. The RPCs are `security definer`, gated only by `is_game_participant`
+(same trust level as round/secondary scores, "either player may enter
+either seat's score"), so they can write both rows regardless of who
+owns which; direct client writes to `role`/`turn_order` are revoked from
+`authenticated` now that the RPCs are the only path. All three fields
+are **required to start a game**, same as every setup field
 except army name (`WaitingRoom`'s `canStart`, and the `start_game` RPC
 server-side), but like every other setup field they stay freely editable
 for the life of the game once chosen -- required-before-start and
