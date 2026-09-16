@@ -1,6 +1,6 @@
 # 40K Tracker
 
-**Live app:** https://40k-game-tracker-bca.pages.dev
+**Live app:** https://www.40ktracker.com
 **Repo:** https://github.com/jorgenbraseth/40k-game-tracker
 
 Unofficial fan project. Not affiliated with, endorsed, sponsored, or
