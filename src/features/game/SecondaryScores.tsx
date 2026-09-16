@@ -304,11 +304,11 @@ export function SecondaryScores({
         <Sheet open onClose={closeScoringSheet} title={scoringObjective?.name ?? 'Score secondary'}>
           <div className="flex flex-col gap-4">
             {scoringLines.length === 0 ? (
-              <p className="text-sm text-paper/50">
+              <p className="text-[11px] text-paper/50">
                 No scoring breakdown available for this secondary -- enter the total directly below.
               </p>
             ) : (
-              <ObjectiveChecklist lines={scoringLines} counts={counts} onChangeCount={handleChangeCount} />
+              <ObjectiveChecklist lines={scoringLines} counts={counts} onChangeCount={handleChangeCount} compact />
             )}
 
             <div className="border-t border-white/10 pt-3">
@@ -316,13 +316,13 @@ export function SecondaryScores({
                 <button
                   type="button"
                   onClick={() => setManualDraft(String(scoringScore?.vp_scored ?? 0))}
-                  className="text-xs text-paper/40 underline hover:text-paper"
+                  className="text-[11px] text-paper/40 underline hover:text-paper"
                 >
                   Set total directly
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-paper/70" htmlFor="manual-secondary-vp">
+                  <label className="text-xs text-paper/70" htmlFor="manual-secondary-vp">
                     Total this round
                   </label>
                   <input
