@@ -36,9 +36,9 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-md overflow-x-hidden rounded-t-2xl bg-[#1a1b21] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl"
+        className="relative z-10 flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-[#1a1b21] shadow-2xl sm:rounded-2xl"
       >
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex flex-shrink-0 items-center justify-between gap-2 px-5 pt-5 pb-4">
           <h2 className="min-w-0 flex-1 text-lg font-semibold text-paper">{title}</h2>
           <button
             type="button"
@@ -49,7 +49,12 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
             ✕
           </button>
         </div>
-        {children}
+        {/* Only the body scrolls -- content taller than the viewport (e.g. Game configuration's
+            groupings/layout/attacker/turn-order stack) used to just overflow off the top with no
+            way to reach it; the header now stays put so the close button is always reachable. */}
+        <div className="overflow-x-hidden overflow-y-auto px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
