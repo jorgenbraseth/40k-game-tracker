@@ -4,6 +4,7 @@ import { TextField } from '@/components/TextField'
 import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import { useLadderMembers } from '@/lib/queries/ladders'
+import { ArmyListTextImport } from './ArmyListTextImport'
 import { NewRecruitImport } from './NewRecruitImport'
 
 type PlayerEntry = GameDetail['players'][number]
@@ -86,6 +87,12 @@ export function PlayerSetupFields({
         onImported={({ url, factionId }) =>
           onUpdateSetup(factionId ? { factionId, armyListUrl: url } : { armyListUrl: url })
         }
+      />
+
+      <ArmyListTextImport
+        factions={factions}
+        forceDispositions={forceDispositions}
+        onDetected={(patch) => onUpdateSetup(patch)}
       />
 
       <Select
