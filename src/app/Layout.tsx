@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { clsx } from '@/lib/clsx'
 import { supabase } from '@/lib/supabase'
 import { OfflineBanner } from './OfflineBanner'
+import { UpdatePrompt } from './UpdatePrompt'
 
 const navItems = [
   { to: '/home', label: 'Home' },
@@ -27,6 +28,7 @@ export function Layout() {
   return (
     <div className="flex min-h-screen flex-col">
       <OfflineBanner />
+      <UpdatePrompt />
       <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <NavLink to="/home" aria-label="40K Tracker" className="flex items-center">

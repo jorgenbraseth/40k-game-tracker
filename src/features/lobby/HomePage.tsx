@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
+import { InstallHint } from '@/components/InstallHint'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useDeleteGame, useMyActiveGames } from '@/lib/queries/games'
 
@@ -14,6 +15,8 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <InstallHint />
+
       <div className="grid grid-cols-2 gap-3">
         <Link to="/game/new">
           <Button fullWidth>Start a game</Button>
