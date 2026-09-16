@@ -101,14 +101,15 @@ export function ObjectiveChecklist({
               ) : (
                 <button
                   type="button"
+                  aria-label={achieved ? 'Mark not achieved' : 'Mark achieved'}
                   disabled={!editable}
                   onClick={() => onChangeCount(line.id, achieved ? 0 : 1)}
                   className={clsx(
-                    'flex h-9 flex-shrink-0 items-center justify-center rounded-lg px-3 text-sm font-medium active:scale-95 disabled:cursor-default disabled:active:scale-100',
-                    achieved ? 'bg-gold text-ink' : 'bg-white/10 text-paper/60',
+                    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-base font-bold active:scale-95 disabled:cursor-default disabled:active:scale-100',
+                    achieved ? 'bg-gold text-ink' : 'bg-white/10 text-paper/30',
                   )}
                 >
-                  {achieved ? 'Achieved ✓' : 'Achieved?'}
+                  ✓
                 </button>
               )}
             </div>
