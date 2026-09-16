@@ -166,9 +166,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
   const [code, setCode] = useState('')
   const join = useJoinLadderByCode()
   const leave = useLeaveLadder()
-  const archive = useArchiveLadder()
   const deleteLadder = useDeleteLadder()
-  const setRankingType = useSetLadderRankingType()
   const isCreator = ladder.createdBy === userId
   const isArchived = Boolean(ladder.archivedAt)
 
@@ -208,45 +206,8 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
         <div className="mt-3 border-t border-white/10 pt-3">
           <StandingsTable ladderId={ladder.id} rankingType={ladder.rankingType} />
           <GamesList ladderId={ladder.id} />
-          {ladder.isMember && <InviteCodeSection ladderId={ladder.id} isCreator={isCreator} />}
-          {isCreator && (
-            <div className="mt-3 border-t border-white/10 pt-3">
-              <Select
-                label="Ranking type"
-                value={ladder.rankingType}
-                disabled={setRankingType.isPending}
-                onChange={(e) =>
-                  setRankingType.mutate({ ladderId: ladder.id, rankingType: e.target.value as LadderRankingType })
-                }
-              >
-                <option value="elo">Elo</option>
-                <option value="glicko2">Glicko-2</option>
-              </Select>
-              <p className="mt-1 text-xs text-paper/40">
-                Takes effect immediately -- standings aren't stored, so this just replays the same
-                games through the new formula next time they're viewed.
-              </p>
-              <Button
-                variant="ghost"
-                className="mt-3"
-                disabled={archive.isPending}
-                onClick={() => archive.mutate({ ladderId: ladder.id, archived: !isArchived })}
-              >
-                {archive.isPending ? 'Saving…' : isArchived ? 'Restore ladder' : 'Archive ladder'}
-              </Button>
-              <p className="mt-1 text-xs text-paper/40">
-                {isArchived
-                  ? 'Brings it back into the browse list and the "tag this game" picker.'
-                  : "Hides it from the browse list and the \"tag this game\" picker -- standings and game history stay exactly as they are, and you can restore it any time."}
-              </p>
-              <button
-                type="button"
-                onClick={() => setDeleteSheetOpen(true)}
-                className="mt-3 text-xs text-paper/40 underline hover:text-red-400"
-              >
-                Delete ladder permanently
-              </button>
-            </div>
+          {ladder.isMember && (
+            <LadderSettings ladder={ladder} isCreator={isCreator} onRequestDelete={() => setDeleteSheetOpen(true)} />
           )}
         </div>
       )}
@@ -317,7 +278,7 @@ function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreato
   }
 
   return (
-    <div className="mt-3 border-t border-white/10 pt-3">
+    <div>
       <p className="text-xs font-semibold tracking-wide text-paper/60 uppercase">Invite code</p>
       <div className="mt-1.5 flex items-center gap-3">
         <span className="rounded-lg bg-white/10 px-3 py-1.5 font-mono text-lg tracking-[0.25em] text-gold">
@@ -344,6 +305,78 @@ function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreato
         >
           {regenerate.isPending ? 'Regenerating…' : 'Regenerate code (invalidates the old one)'}
         </button>
+      )}
+    </div>
+  )
+}
+
+/** Everything about a ladder that isn't the standings themselves -- invite code, and (creator
+ * only) ranking type/archive/delete -- tucked behind its own collapsed disclosure so the main
+ * thing a member sees on opening a ladder is the actual standings, not a wall of settings. Same
+ * "collapsed by default, expand on request" shape as GamesList right above it. Only rendered for
+ * a current member (LadderRow), since a non-member has nothing here to see or change. */
+function LadderSettings({
+  ladder,
+  isCreator,
+  onRequestDelete,
+}: {
+  ladder: LadderSummary
+  isCreator: boolean
+  onRequestDelete: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const archive = useArchiveLadder()
+  const setRankingType = useSetLadderRankingType()
+  const isArchived = Boolean(ladder.archivedAt)
+
+  return (
+    <div className="mt-3 border-t border-white/10 pt-3">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="text-xs font-semibold tracking-wide text-paper/60 uppercase hover:text-paper"
+      >
+        {expanded ? 'Hide settings ▲' : 'Settings ▼'}
+      </button>
+      {expanded && (
+        <div className="mt-3 flex flex-col gap-4">
+          <InviteCodeSection ladderId={ladder.id} isCreator={isCreator} />
+          {isCreator && (
+            <div className="border-t border-white/10 pt-3">
+              <Select
+                label="Ranking type"
+                value={ladder.rankingType}
+                disabled={setRankingType.isPending}
+                onChange={(e) =>
+                  setRankingType.mutate({ ladderId: ladder.id, rankingType: e.target.value as LadderRankingType })
+                }
+              >
+                <option value="elo">Elo</option>
+                <option value="glicko2">Glicko-2</option>
+              </Select>
+              <p className="mt-1 text-xs text-paper/40">
+                Takes effect immediately -- standings aren't stored, so this just replays the same
+                games through the new formula next time they're viewed.
+              </p>
+              <Button
+                variant="ghost"
+                className="mt-3"
+                disabled={archive.isPending}
+                onClick={() => archive.mutate({ ladderId: ladder.id, archived: !isArchived })}
+              >
+                {archive.isPending ? 'Saving…' : isArchived ? 'Restore ladder' : 'Archive ladder'}
+              </Button>
+              <p className="mt-1 text-xs text-paper/40">
+                {isArchived
+                  ? 'Brings it back into the browse list and the "tag this game" picker.'
+                  : "Hides it from the browse list and the \"tag this game\" picker -- standings and game history stay exactly as they are, and you can restore it any time."}
+              </p>
+              <button type="button" onClick={onRequestDelete} className="mt-3 text-xs text-paper/40 underline hover:text-red-400">
+                Delete ladder permanently
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
