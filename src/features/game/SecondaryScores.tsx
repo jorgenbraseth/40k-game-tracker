@@ -183,9 +183,7 @@ export function SecondaryScores({
       </div>
 
       {availableToScore.length > 0 && (
-        <p className="text-[11px] font-semibold tracking-wide text-paper/40 uppercase">
-          Drawn, not yet scored
-        </p>
+        <p className="text-[11px] font-semibold tracking-wide text-paper/40 uppercase">Drawn</p>
       )}
       {availableToScore.map((d) => {
         const objective = available.find((a) => a.id === d.secondary_objective_id)
@@ -320,7 +318,7 @@ export function SecondaryScores({
                   onClick={() => setManualDraft(String(scoringScore?.vp_scored ?? 0))}
                   className="text-xs text-paper/40 underline hover:text-paper"
                 >
-                  Or set the total directly
+                  Set total directly
                 </button>
               ) : (
                 <div className="flex items-center gap-2">

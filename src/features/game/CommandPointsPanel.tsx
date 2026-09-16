@@ -40,62 +40,66 @@ export function CommandPointsPanel({
     'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-lg text-paper active:scale-95 disabled:opacity-30'
 
   return (
-    <div className="flex w-full flex-col gap-2">
+    <div className="flex w-full flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium tracking-wide text-paper/60 uppercase">Command Points</span>
+        <span className="text-xs font-medium tracking-wide text-paper/60 uppercase">CP</span>
         <span className="text-sm font-bold text-gold">
           {remaining}
-          <span className="ml-1 text-xs font-normal text-paper/40">remaining</span>
+          <span className="ml-1 text-xs font-normal text-paper/40">left</span>
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-        <span className="min-w-0 flex-1 text-sm text-paper/80">Gained this round</span>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <button
-            type="button"
-            aria-label="Decrease CP gained"
-            disabled={!editable || cpGained <= 0}
-            onClick={() => change(-1, 0)}
-            className={counterButtonClass}
-          >
-            −
-          </button>
-          <span className="w-4 text-center font-semibold text-paper">{cpGained}</span>
-          <button
-            type="button"
-            aria-label="Increase CP gained"
-            disabled={!editable}
-            onClick={() => change(1, 0)}
-            className={counterButtonClass}
-          >
-            +
-          </button>
+      <div className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-1.5 py-1.5">
+        <div className="flex flex-1 items-center justify-center gap-1">
+          <span className="text-[11px] text-paper/60">Gained</span>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <button
+              type="button"
+              aria-label="Decrease CP gained"
+              disabled={!editable || cpGained <= 0}
+              onClick={() => change(-1, 0)}
+              className={counterButtonClass}
+            >
+              −
+            </button>
+            <span className="w-4 text-center font-semibold text-paper">{cpGained}</span>
+            <button
+              type="button"
+              aria-label="Increase CP gained"
+              disabled={!editable}
+              onClick={() => change(1, 0)}
+              className={counterButtonClass}
+            >
+              +
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-        <span className="min-w-0 flex-1 text-sm text-paper/80">Spent this round</span>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <button
-            type="button"
-            aria-label="Decrease CP spent"
-            disabled={!editable || cpSpent <= 0}
-            onClick={() => change(0, -1)}
-            className={counterButtonClass}
-          >
-            −
-          </button>
-          <span className="w-4 text-center font-semibold text-paper">{cpSpent}</span>
-          <button
-            type="button"
-            aria-label="Increase CP spent"
-            disabled={!editable}
-            onClick={() => change(0, 1)}
-            className={counterButtonClass}
-          >
-            +
-          </button>
+        <div className="h-6 w-px flex-shrink-0 bg-white/10" />
+
+        <div className="flex flex-1 items-center justify-center gap-1">
+          <span className="text-[11px] text-paper/60">Spent</span>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <button
+              type="button"
+              aria-label="Decrease CP spent"
+              disabled={!editable || cpSpent <= 0}
+              onClick={() => change(0, -1)}
+              className={counterButtonClass}
+            >
+              −
+            </button>
+            <span className="w-4 text-center font-semibold text-paper">{cpSpent}</span>
+            <button
+              type="button"
+              aria-label="Increase CP spent"
+              disabled={!editable}
+              onClick={() => change(0, 1)}
+              className={counterButtonClass}
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
     </div>
