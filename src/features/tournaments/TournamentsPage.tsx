@@ -284,21 +284,23 @@ function TournamentRow({ tournament, userId }: { tournament: TournamentSummary; 
             {dateRange ? ` · ${dateRange}` : ''}
           </p>
         </button>
-        <Button
-          variant={tournament.isMember ? 'secondary' : 'primary'}
-          disabled={leave.isPending}
-          onClick={() =>
-            tournament.isMember ? leave.mutate({ tournamentId: tournament.id, userId }) : setJoinSheetOpen(true)
-          }
-        >
-          {tournament.isMember ? 'Leave' : 'Join'}
-        </Button>
+        {!isCreator && (
+          <Button
+            variant={tournament.isMember ? 'secondary' : 'primary'}
+            disabled={leave.isPending}
+            onClick={() =>
+              tournament.isMember ? leave.mutate({ tournamentId: tournament.id, userId }) : setJoinSheetOpen(true)
+            }
+          >
+            {tournament.isMember ? 'Leave' : 'Join'}
+          </Button>
+        )}
       </div>
       {expanded && (
         <div className="mt-3 border-t border-white/10 pt-3">
           <StandingsTable tournamentId={tournament.id} />
           <GamesList tournamentId={tournament.id} />
-          {tournament.isMember && (
+          {(tournament.isMember || isCreator) && (
             <TournamentSettings
               tournament={tournament}
               isCreator={isCreator}
@@ -368,8 +370,11 @@ export function TournamentsPage() {
   if (!user) return null
 
   const active = (tournaments.data ?? []).filter((t) => !t.archivedAt)
-  const mine = active.filter((t) => t.isMember)
-  const others = active.filter((t) => !t.isMember)
+  // A creator who somehow isn't a member (see 20260330000000_creator_cannot_leave.sql -- this can
+  // only happen for a tournament they left before that migration shipped) still sees it here
+  // rather than under "Other tournaments", since it's theirs to manage regardless of membership.
+  const mine = active.filter((t) => t.isMember || t.createdBy === user.id)
+  const others = active.filter((t) => !t.isMember && t.createdBy !== user.id)
   const archived = (tournaments.data ?? []).filter((t) => t.archivedAt && (t.isMember || t.createdBy === user.id))
 
   const onCreate = async (e: React.FormEvent) => {
