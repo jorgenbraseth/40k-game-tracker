@@ -18,7 +18,21 @@
 
 const NEWRECRUIT_LIST_URL = /^https:\/\/(?:www\.)?newrecruit\.eu\/app\/list\/[A-Za-z0-9_-]+\/?(?:\?.*)?$/
 
+// Edge functions live on a different origin than the app (supabase.co vs the app's own domain),
+// so the browser preflights every call with an OPTIONS request -- without an explicit response to
+// that (and these headers on every response), the browser blocks the real request before it ever
+// reaches this function, and supabase-js just reports a generic "couldn't reach it" failure.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: CORS_HEADERS })
+  }
+
   if (req.method !== 'POST') {
     return json({ error: 'Method not allowed' }, 405)
   }
@@ -77,5 +91,8 @@ function decodeHtmlEntities(s: string): string {
 }
 
 function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+  })
 }
