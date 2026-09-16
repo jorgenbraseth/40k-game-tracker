@@ -54,14 +54,21 @@ export const ladderKeys = {
   standings: (ladderId: string) => ['ladder-standings', ladderId] as const,
   games: (ladderId: string) => ['ladder-games', ladderId] as const,
   members: (ladderId: string) => ['ladder-members', ladderId] as const,
+  inviteCode: (ladderId: string) => ['ladder-invite-code', ladderId] as const,
 }
 
 /** Every ladder, with membership counts and whether the current user is in it -- powers the
  * "your ladders" / "browse others'" split on the Ladders page. Reference-scale data (a handful
- * of ladders for a friend group), so one query fetching everything is simplest. */
+ * of ladders for a friend group), so one query fetching everything is simplest. Explicit column
+ * list rather than `select('*')` -- invite_code is deliberately excluded from this table's general
+ * select grant (see 20260325000000_ladder_invite_codes.sql), so `*` wouldn't include it anyway;
+ * spelling the columns out here is just being explicit about that rather than relying on it. */
 export async function fetchLadders(userId: string): Promise<LadderSummary[]> {
   const [laddersRes, membersRes] = await Promise.all([
-    supabase.from('ladders').select('*').order('created_at', { ascending: false }),
+    supabase
+      .from('ladders')
+      .select('id, name, created_by, created_at, archived_at')
+      .order('created_at', { ascending: false }),
     supabase.from('ladder_members').select('ladder_id, user_id'),
   ])
   if (laddersRes.error) throw laddersRes.error
@@ -140,17 +147,52 @@ export function useDeleteLadder() {
   })
 }
 
-export function useJoinLadder() {
+/** Joining now always goes through the invite code (issue #70) -- checked server-side by
+ * join_ladder_by_code, since a direct client insert into ladder_members can no longer succeed
+ * (the old self-service insert policy is gone). Errors (wrong code, ladder not found) surface via
+ * the caller's own onError rather than the generic toast here, since "wrong code" deserves inline
+ * feedback next to the field, not a toast that's already gone by the time you look back at it. */
+export function useJoinLadderByCode() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { ladderId: string; userId: string }) => {
-      const { error } = await supabase
-        .from('ladder_members')
-        .insert({ ladder_id: input.ladderId, user_id: input.userId })
+    mutationFn: async (input: { ladderId: string; code: string }) => {
+      const { error } = await supabase.rpc('join_ladder_by_code', {
+        p_ladder_id: input.ladderId,
+        p_code: input.code,
+      })
       if (error) throw error
     },
-    onError: () => showToast("Couldn't join the ladder. Try again."),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ladders'] }),
+  })
+}
+
+/** A ladder's own invite code -- only resolvable for a current member (get_ladder_invite_code
+ * checks membership server-side), so the caller passes `undefined` for a ladder the viewer hasn't
+ * joined rather than this hook trying and failing. */
+export function useLadderInviteCode(ladderId: string | undefined) {
+  return useQuery({
+    queryKey: ladderKeys.inviteCode(ladderId ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_ladder_invite_code', { p_ladder_id: ladderId as string })
+      if (error) throw error
+      return data
+    },
+    enabled: Boolean(ladderId),
+  })
+}
+
+/** Replaces the ladder's invite code with a fresh one, invalidating whatever the old one was --
+ * creator-only, same as archiving/deleting the ladder itself. */
+export function useRegenerateLadderInviteCode(ladderId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('regenerate_ladder_invite_code', { p_ladder_id: ladderId })
+      if (error) throw error
+      return data
+    },
+    onError: () => showToast("Couldn't regenerate the invite code. Try again."),
+    onSuccess: (code) => queryClient.setQueryData(ladderKeys.inviteCode(ladderId), code),
   })
 }
 

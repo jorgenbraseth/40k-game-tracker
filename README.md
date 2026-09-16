@@ -188,9 +188,14 @@ so those two lines from the
 original out-of-scope list no longer hold.
 
 **Ladders:** a ladder is just a named group of players
-(`ladders`/`ladder_members`) -- create one, and anyone can browse and
-join it, your own or someone else's, from the dedicated Ladders page.
-Tagging a game onto a ladder is entirely optional, chosen at creation
+(`ladders`/`ladder_members`) -- create one from the dedicated Ladders
+page. Every ladder stays browsable by anyone signed in (name, member
+count, standings, game log), but actually joining one -- your own or
+someone else's -- requires that ladder's invite code, so a ladder's
+membership isn't open to whoever happens to find it in the browse
+list. Any current member can see and share the code; only the creator
+can regenerate it, invalidating whatever the old one was. Tagging a
+game onto a ladder is entirely optional, chosen at creation
 time on the "Start a game" screen, and stays editable afterwards like
 everything else. A ladder's creator can archive it once it's run its
 course -- a season that's over, a group that's disbanded -- which drops
@@ -430,11 +435,28 @@ the counters on `Scoreboard` (a running "N remaining" figure, updating
 every round), and as a final total on `SummaryPage`'s per-player card.
 
 Ladders are implemented: the Ladders page lists every ladder (yours and
-others'), `create_ladder` makes a new one and seats its creator, joining
-or leaving any ladder is a self-service `ladder_members` row (no invite
-code), "Start a game" gets an optional ladder picker (only shown once
-you're in at least one), and History gets a ladder filter once any of
-your games carry one. Standings are computed live in
+others'), `create_ladder` makes a new one, seats its creator, and mints
+its invite code, "Start a game" gets an optional ladder picker (only
+shown once you're in at least one), and History gets a ladder filter
+once any of your games carry one. Leaving any ladder is still a
+self-service `ladder_members` delete, but joining now requires that
+ladder's invite code (issue #70,
+`20260325000000_ladder_invite_codes.sql`): `join_ladder_by_code`
+(security definer) checks the code server-side and inserts the
+membership row itself -- the old self-service "insert yourself into any
+ladder" policy is gone, so a direct client insert can no longer bypass
+the check. The code is deliberately not part of `fetchLadders`' own
+result (that query, and the general `ladders` select grant, both
+explicitly leave `invite_code` out) -- otherwise it'd sit right there in
+the same response the browse list already fetches for everyone,
+defeating the point of gating it. Instead it's read through
+`get_ladder_invite_code`, gated to current members (any member can see
+and share it, not just the creator, same as sharing a game's own join
+code), and reset through `regenerate_ladder_invite_code`, creator-only
+like archiving/deleting the ladder itself. Existing ladders and their
+membership were grandfathered in untouched by the migration -- every
+ladder got a code backfilled, but nobody already in one had to
+re-join. Standings are computed live in
 `src/lib/queries/ladders.ts`, not stored. A ladder-tagged game is
 readable by any signed-in user, not just its two players
 (`20260310000000_ladder_game_visibility.sql`) -- otherwise a viewer's
