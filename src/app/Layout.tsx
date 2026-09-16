@@ -10,12 +10,13 @@ const navItems = [
   { to: '/home', label: 'Home' },
   { to: '/history', label: 'History' },
   { to: '/ladders', label: 'Ladders' },
+  { to: '/tournaments', label: 'Tournaments' },
   { to: '/stats', label: 'Stats' },
   { to: '/profile', label: 'Profile' },
 ]
 
 /**
- * The 5 nav links + Sign out don't fit in one row at phone width without forcing a horizontal
+ * The 6 nav links + Sign out don't fit in one row at phone width without forcing a horizontal
  * zoom-out -- shown inline from `sm:` up, collapsed behind a hamburger button (opening the same
  * `Sheet` used for every other picker in this app) below it.
  */

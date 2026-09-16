@@ -16,6 +16,11 @@ export const gameKeys = {
 
 export interface GameDetail {
   game: GameRow
+  /** Every ladder/tournament this game is tagged to (issue #75) -- a game can belong to any
+   * combination of groupings at once now, not just one, so these live as their own arrays rather
+   * than a single nullable column on `game` the way games.ladder_id used to work. */
+  ladderIds: string[]
+  tournamentIds: string[]
   players: Array<{
     player: GamePlayerRow
     profile: { display_name: string; avatar_url: string | null } | null
@@ -76,6 +81,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     secondaryTicksRes,
     verificationsRes,
     commandPointsRes,
+    gameLaddersRes,
+    gameTournamentsRes,
   ] = await Promise.all([
     supabase.from('games').select('*').eq('id', gameId).single(),
     supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
@@ -87,6 +94,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     supabase.from('secondary_objective_ticks').select('*').eq('game_id', gameId),
     supabase.from('game_player_verifications').select('*').eq('game_id', gameId),
     supabase.from('command_points').select('*').eq('game_id', gameId),
+    supabase.from('game_ladders').select('ladder_id').eq('game_id', gameId),
+    supabase.from('game_tournaments').select('tournament_id').eq('game_id', gameId),
   ])
 
   if (gameRes.error) throw gameRes.error
@@ -99,6 +108,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (secondaryTicksRes.error) throw secondaryTicksRes.error
   if (verificationsRes.error) throw verificationsRes.error
   if (commandPointsRes.error) throw commandPointsRes.error
+  if (gameLaddersRes.error) throw gameLaddersRes.error
+  if (gameTournamentsRes.error) throw gameTournamentsRes.error
 
   // A seat nobody has joined yet has user_id = null (the bookkeeper can
   // fill it in themselves, on behalf of a player who never needs to sign
@@ -139,6 +150,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
 
   return {
     game: gameRes.data,
+    ladderIds: gameLaddersRes.data.map((r) => r.ladder_id),
+    tournamentIds: gameTournamentsRes.data.map((r) => r.tournament_id),
     players: playersRes.data.map((player) => {
       const totals = totalsByPlayerId.get(player.id)
       const profile = player.user_id ? profileById.get(player.user_id) : undefined
@@ -388,14 +401,16 @@ export function useCreateGame() {
       forceDispositionId?: string
       factionId?: string
       armyName?: string
-      ladderId?: string
+      ladderIds?: string[]
+      tournamentIds?: string[]
     }) => {
       const { data, error } = await supabase.rpc('create_game', {
         p_points_limit: input.pointsLimit,
         p_force_disposition_id: input.forceDispositionId ?? null,
         p_faction_id: input.factionId ?? null,
         p_army_name: input.armyName ?? null,
-        p_ladder_id: input.ladderId ?? null,
+        p_ladder_ids: input.ladderIds ?? [],
+        p_tournament_ids: input.tournamentIds ?? [],
       })
       if (error) throw error
       return data
@@ -635,28 +650,39 @@ export function useSetLayoutVariant(gameId: string) {
   })
 }
 
-/** Which ladder (if any) this game's tagged to -- a shared, game-level decision same as layout,
- * so it lives in GameConfigPicker alongside it, and stays editable for the life of the game like
- * everything else here. Goes through set_game_ladder (20260328000000_game_ladders.sql) rather than
- * a direct column update now -- games.ladder_id is no longer client-writable -- so a correction
- * made here gets the same server-side ladder-membership check create_game already does at
- * creation time, and keeps the new game_ladders join table (issue #75) in sync alongside it. */
-export function useSetLadder(gameId: string) {
+/** Which ladders and/or tournaments this game's tagged to (issue #75) -- a shared, game-level
+ * decision same as layout, so it lives in GameConfigPicker alongside it, and stays editable for
+ * the life of the game like everything else here. A game can be tagged to any combination of
+ * groupings at once now, not just one -- set_game_ladders/set_game_tournaments each replace their
+ * own full tag set atomically (20260329000000_tournaments.sql), gated by the same server-side
+ * membership check create_game already does at creation time. Both are called together here since
+ * the UI edits both grouping kinds from one shared multi-select (GroupingsPicker). */
+export function useSetGameGroupings(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (ladderId: string | null) => {
-      const { error } = await supabase.rpc('set_game_ladder', { p_game_id: gameId, p_ladder_id: ladderId })
-      if (error) throw error
+    mutationFn: async (input: { ladderIds: string[]; tournamentIds: string[] }) => {
+      const [laddersRes, tournamentsRes] = await Promise.all([
+        supabase.rpc('set_game_ladders', { p_game_id: gameId, p_ladder_ids: input.ladderIds }),
+        supabase.rpc('set_game_tournaments', { p_game_id: gameId, p_tournament_ids: input.tournamentIds }),
+      ])
+      if (laddersRes.error) throw laddersRes.error
+      if (tournamentsRes.error) throw tournamentsRes.error
     },
-    onMutate: async (ladderId) => {
+    onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
-      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchGame(previous, { ladder_id: ladderId }))
+      if (previous) {
+        queryClient.setQueryData(gameKeys.detail(gameId), {
+          ...previous,
+          ladderIds: input.ladderIds,
+          tournamentIds: input.tournamentIds,
+        })
+      }
       return { previous }
     },
-    onError: (_error, _ladderId, context) => {
+    onError: (_error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
-      showToast("Couldn't change the ladder. Try again.")
+      showToast("Couldn't change the ladders/tournaments. Try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })

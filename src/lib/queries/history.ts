@@ -61,20 +61,27 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   if (games.length === 0) return []
 
   const completeGameIds = games.map((g) => g.id)
-  const ladderIds = [...new Set(games.map((g) => g.ladder_id).filter((id): id is string => Boolean(id)))]
 
-  const [playersRes, totalsRes, laddersRes, verificationsRes] = await Promise.all([
+  const [playersRes, totalsRes, gameLaddersRes, verificationsRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', completeGameIds),
     supabase.from('game_totals').select('*').in('game_id', completeGameIds),
-    ladderIds.length
-      ? supabase.from('ladders').select('id, name').in('id', ladderIds)
-      : Promise.resolve({ data: [], error: null }),
+    supabase.from('game_ladders').select('game_id, ladder_id').in('game_id', completeGameIds),
     supabase.from('game_player_verifications').select('*').in('game_id', completeGameIds),
   ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
-  if (laddersRes.error) throw laddersRes.error
+  if (gameLaddersRes.error) throw gameLaddersRes.error
   if (verificationsRes.error) throw verificationsRes.error
+
+  // A game can be tagged to more than one ladder now (issue #75), but this row still only ever
+  // shows one -- the filter/display here hasn't grown a multi-value UI yet, so this just takes the
+  // first tag per game, same single-ladder-per-row shape as before.
+  const ladderIdByGameId = new Map(gameLaddersRes.data.map((r) => [r.game_id, r.ladder_id]))
+  const ladderIds = [...new Set(gameLaddersRes.data.map((r) => r.ladder_id))]
+  const laddersRes = ladderIds.length
+    ? await supabase.from('ladders').select('id, name').in('id', ladderIds)
+    : { data: [], error: null }
+  if (laddersRes.error) throw laddersRes.error
 
   const missionIds = [
     ...new Set(playersRes.data.map((p) => p.mission_id).filter((id): id is string => Boolean(id))),
@@ -152,8 +159,11 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
       opponentFactionName: opponent?.faction_id ? (factionById.get(opponent.faction_id) ?? null) : null,
       opponentTotalVp: opponent ? (totalByPlayerId.get(opponent.id) ?? 0) : 0,
       result,
-      ladderId: game.ladder_id,
-      ladderName: game.ladder_id ? (ladderById.get(game.ladder_id) ?? 'Unknown ladder') : null,
+      ladderId: ladderIdByGameId.get(game.id) ?? null,
+      ladderName: (() => {
+        const ladderId = ladderIdByGameId.get(game.id)
+        return ladderId ? (ladderById.get(ladderId) ?? 'Unknown ladder') : null
+      })(),
       needsMyVerification: needsVerification({ player: me }, game.status, verificationsRes.data),
       opponentUnverified: opponent
         ? needsVerification({ player: opponent }, game.status, verificationsRes.data)

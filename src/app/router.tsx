@@ -10,6 +10,7 @@ import { JoinGamePage } from '@/features/lobby/JoinGamePage'
 import { NewGamePage } from '@/features/lobby/NewGamePage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { StatsPage } from '@/features/stats/StatsPage'
+import { TournamentsPage } from '@/features/tournaments/TournamentsPage'
 import { Layout } from './Layout'
 import { ProtectedRoute } from './ProtectedRoute'
 
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
           { path: '/game/:id/summary', element: <SummaryPage /> },
           { path: '/history', element: <HistoryPage /> },
           { path: '/ladders', element: <LaddersPage /> },
+          { path: '/tournaments', element: <TournamentsPage /> },
           { path: '/stats', element: <StatsPage /> },
           { path: '/players/:userId', element: <StatsPage /> },
           { path: '/profile', element: <ProfilePage /> },
