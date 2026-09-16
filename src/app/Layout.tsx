@@ -28,8 +28,8 @@ export function Layout() {
       <OfflineBanner />
       <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <NavLink to="/home" className="text-lg font-bold tracking-wide text-gold">
-            40K Tracker
+          <NavLink to="/home" aria-label="40K Tracker" className="flex items-center">
+            <img src="/images/brand/logo.webp" alt="40K Tracker" width={283} height={220} className="h-10 w-auto sm:h-12" />
           </NavLink>
           {user && (
             <>
