@@ -39,7 +39,7 @@ export function ObjectiveChecklist({
   }))
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {withHeaders.map(({ line, showWindowHeader }) => {
         const count = counts.get(line.id) ?? 0
         const achieved = count > 0
@@ -47,13 +47,13 @@ export function ObjectiveChecklist({
         return (
           <Fragment key={line.id}>
             {showWindowHeader && (
-              <p className="mt-1 text-xs font-semibold tracking-wide text-paper/50 uppercase first:mt-0">
+              <p className="mt-0.5 text-xs font-semibold tracking-wide text-paper/50 uppercase first:mt-0">
                 {line.window_label}
               </p>
             )}
             <div
               className={clsx(
-                'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                'flex items-center gap-2.5 rounded-lg border px-2.5 py-2',
                 achieved ? 'border-gold/40 bg-gold/10' : 'border-white/10 bg-white/5',
                 line.is_cumulative_bonus && 'ml-3',
               )}
@@ -63,7 +63,7 @@ export function ObjectiveChecklist({
                   {line.is_cumulative_bonus && <span className="text-paper/40">+ </span>}
                   {line.condition_text}
                 </p>
-                <p className="mt-0.5 text-xs text-paper/40">
+                <p className="text-xs text-paper/40">
                   {line.when_label}
                   {line.mode && <span className="ml-1 capitalize">({line.mode})</span>}
                   <span className="ml-1">

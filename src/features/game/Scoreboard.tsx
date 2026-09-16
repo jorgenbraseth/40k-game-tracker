@@ -195,7 +195,7 @@ export function Scoreboard({
   }
 
   return (
-    <div className="flex flex-col gap-5 pb-28">
+    <div className="flex flex-col gap-4 pb-28">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-paper/50">
@@ -241,9 +241,9 @@ export function Scoreboard({
         labels={{ [endOfGameRound]: 'End' }}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {orderedPlayers.map((entry) => (
-          <div key={entry.player.id} className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div key={entry.player.id} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
             <div className="text-center">
               <p className="font-semibold text-paper">
                 <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
@@ -253,24 +253,25 @@ export function Scoreboard({
               <p className="text-xs text-paper/50">
                 {entry.factionName ?? 'No faction'}
                 {entry.player.army_name ? ` · ${entry.player.army_name}` : ''}
+                {(entry.player.role || entry.player.turn_order) && (
+                  <span className="capitalize">
+                    {' · '}
+                    {entry.player.role}
+                    {entry.player.role && entry.player.turn_order ? ' · ' : ''}
+                    {entry.player.turn_order && `went ${entry.player.turn_order}`}
+                  </span>
+                )}
               </p>
-              {(entry.player.role || entry.player.turn_order) && (
-                <p className="text-[11px] tracking-wide text-paper/40 capitalize">
-                  {entry.player.role}
-                  {entry.player.role && entry.player.turn_order ? ' · ' : ''}
-                  {entry.player.turn_order && `went ${entry.player.turn_order}`}
-                </p>
-              )}
               {missionByPlayerId.get(entry.player.id)?.name && (
-                <p className="mt-1 text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
+                <p className="text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
               )}
               {isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) && (
                 <button
                   type="button"
                   onClick={() => setEditingPlayerId(entry.player.id)}
-                  className="mt-1 text-[11px] text-paper/40 underline hover:text-paper"
+                  className="text-[11px] text-paper/40 underline hover:text-paper"
                 >
-                  {entry.player.user_id === user.id ? 'Edit your setup' : "Edit this seat's setup"}
+                  Edit setup
                 </button>
               )}
             </div>
@@ -290,11 +291,11 @@ export function Scoreboard({
             />
 
             {viewRound === endOfGameRound ? (
-              <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-paper/60">
-                <span className="text-xs font-medium tracking-wide uppercase">Command Points</span>
+              <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-paper/60">
+                <span className="text-xs font-medium tracking-wide uppercase">CP</span>
                 <span className="font-semibold text-gold">
                   {remainingCp(detail.commandPoints, entry.player.id)}
-                  <span className="ml-1 text-xs font-normal text-paper/40">remaining</span>
+                  <span className="ml-1 text-xs font-normal text-paper/40">left</span>
                 </span>
               </p>
             ) : (
@@ -312,9 +313,9 @@ export function Scoreboard({
 
             {viewRound === endOfGameRound ? (
               isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) ? (
-                <label className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm">
+                <label className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm">
                   <span className="text-paper/80">
-                    Army painted <span className="text-paper/40">(+10VP)</span>
+                    Painted <span className="text-paper/40">(+10VP)</span>
                   </span>
                   <input
                     type="checkbox"
@@ -329,9 +330,9 @@ export function Scoreboard({
                 // painted_bonus is a game_players column, so only the seat's own account (or an
                 // unclaimed seat, above) can write it -- unlike round/secondary scores, which any
                 // participant can enter for either side (see round_scores' RLS comment).
-                <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-paper/60">
+                <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-paper/60">
                   <span>
-                    Army painted <span className="text-paper/40">(+10VP)</span>
+                    Painted <span className="text-paper/40">(+10VP)</span>
                   </span>
                   <span className="font-medium text-paper">{entry.player.painted_bonus ? 'Yes' : 'No'}</span>
                 </p>

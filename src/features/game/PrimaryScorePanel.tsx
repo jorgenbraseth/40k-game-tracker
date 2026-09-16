@@ -110,7 +110,7 @@ export function PrimaryScorePanel({
               onClick={() => setManualDraft(String(currentRoundVp))}
               className="text-xs text-paper/40 underline hover:text-paper"
             >
-              Or set the total directly
+              Set total directly
             </button>
           ) : (
             <div className="flex items-center gap-2">
