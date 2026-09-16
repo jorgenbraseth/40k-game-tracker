@@ -507,52 +507,50 @@ export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow
 }
 
 /**
- * Role and turn order are each mutually exclusive between the two seats in a game (only one
- * Attacker, only one who went first) -- picking one for yourself should set the other seat to
- * the complement, not leave the bookkeeper to also go flip it themselves. Only mirrors onto a
- * seat the caller is actually allowed to write to under RLS: unclaimed, or the caller's own
- * other seat (impossible in practice, kept for completeness) -- never a real second player's
- * claimed seat, since silently overriding their pick isn't this bookkeeper's call to make.
- *
- * Clears the other seat first, unconditionally, before setting either final value: both target
- * values are always distinct from whatever's currently on the *other* seat once that clear lands,
- * so this can never transiently collide with the field's per-game uniqueness constraint no matter
- * how the two seats' values were arranged beforehand (a straight swap included).
+ * Role and turn order are each a single decision between the two seats, not an independent
+ * choice per player (only one Attacker, only one who went first) -- like an actual roll-off at
+ * the table, whoever calls it sets both seats at once. Both mutations take the id of the seat
+ * that "wins" (becomes attacker / goes first) -- or null to clear both seats back to undecided --
+ * and go through the set_role/set_turn_order RPCs (security definer) so either participant can
+ * set the *other* seat too, even a real second player's already-claimed one; see
+ * 20260324000000_shared_role_and_turn_order.sql for why a direct table update can't do that.
  */
-export async function setMirroredField<T extends string>(
-  setField: (gamePlayerId: string, value: T | null) => Promise<void>,
-  currentUserId: string,
-  me: GameDetail['players'][number],
-  opponent: GameDetail['players'][number] | undefined,
-  value: T | null,
-  complementOf: (value: T) => T,
-) {
-  const canMirror = value && opponent && (!opponent.player.user_id || opponent.player.user_id === currentUserId)
-  if (canMirror && opponent) {
-    await setField(opponent.player.id, null)
-    await setField(me.player.id, value)
-    await setField(opponent.player.id, complementOf(value))
-  } else {
-    await setField(me.player.id, value)
+function patchRole(detail: GameDetail, attackerGamePlayerId: string | null): GameDetail {
+  return {
+    ...detail,
+    players: detail.players.map((p) => ({
+      ...p,
+      player: { ...p.player, role: attackerGamePlayerId === null ? null : p.player.id === attackerGamePlayerId ? 'attacker' : 'defender' },
+    })),
+  }
+}
+
+function patchTurnOrder(detail: GameDetail, firstGamePlayerId: string | null): GameDetail {
+  return {
+    ...detail,
+    players: detail.players.map((p) => ({
+      ...p,
+      player: { ...p.player, turn_order: firstGamePlayerId === null ? null : p.player.id === firstGamePlayerId ? 'first' : 'second' },
+    })),
   }
 }
 
 export function useSetRole(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; role: 'attacker' | 'defender' | null }) => {
-      const { error } = await supabase.from('game_players').update({ role: input.role }).eq('id', input.gamePlayerId)
+    mutationFn: async (attackerGamePlayerId: string | null) => {
+      const { error } = await supabase.rpc('set_role', { p_game_id: gameId, p_attacker_game_player_id: attackerGamePlayerId })
       if (error) throw error
     },
-    onMutate: async (input) => {
+    onMutate: async (attackerGamePlayerId) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
-      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, { role: input.role }))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchRole(previous, attackerGamePlayerId))
       return { previous }
     },
     onError: (_error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
-      showToast("Couldn't update your role. Try again.")
+      showToast("Couldn't update the role. Try again.")
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
@@ -561,18 +559,14 @@ export function useSetRole(gameId: string) {
 export function useSetTurnOrder(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; turnOrder: 'first' | 'second' | null }) => {
-      const { error } = await supabase
-        .from('game_players')
-        .update({ turn_order: input.turnOrder })
-        .eq('id', input.gamePlayerId)
+    mutationFn: async (firstGamePlayerId: string | null) => {
+      const { error } = await supabase.rpc('set_turn_order', { p_game_id: gameId, p_first_game_player_id: firstGamePlayerId })
       if (error) throw error
     },
-    onMutate: async (input) => {
+    onMutate: async (firstGamePlayerId) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
-      if (previous)
-        queryClient.setQueryData(gameKeys.detail(gameId), patchPlayerField(previous, input.gamePlayerId, { turn_order: input.turnOrder }))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchTurnOrder(previous, firstGamePlayerId))
       return { previous }
     },
     onError: (_error, _input, context) => {

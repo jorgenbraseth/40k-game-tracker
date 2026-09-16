@@ -12,7 +12,6 @@ import {
   playerLabel,
   playerUserId,
   remainingCp,
-  setMirroredField,
   useAbandonGame,
   useDeleteGame,
   useFinishGame,
@@ -524,24 +523,10 @@ export function Scoreboard({
             ladderOptions={ladderOptions}
             onSetLadder={(ladderId) => setLadder.mutate(ladderId)}
             onSetRole={(role) =>
-              setMirroredField(
-                (id, v) => setRole.mutateAsync({ gamePlayerId: id, role: v }),
-                user.id,
-                me,
-                opponent,
-                role,
-                (r) => (r === 'attacker' ? 'defender' : 'attacker'),
-              )
+              setRole.mutate(role === 'attacker' ? me.player.id : role === 'defender' ? opponent.player.id : null)
             }
             onSetTurnOrder={(turnOrder) =>
-              setMirroredField(
-                (id, v) => setTurnOrder.mutateAsync({ gamePlayerId: id, turnOrder: v }),
-                user.id,
-                me,
-                opponent,
-                turnOrder,
-                (t) => (t === 'first' ? 'second' : 'first'),
-              )
+              setTurnOrder.mutate(turnOrder === 'first' ? me.player.id : turnOrder === 'second' ? opponent.player.id : null)
             }
           />
         </Sheet>

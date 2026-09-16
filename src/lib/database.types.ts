@@ -465,6 +465,14 @@ export interface Database {
         Args: { p_game_id: string }
         Returns: undefined
       }
+      set_role: {
+        Args: { p_game_id: string; p_attacker_game_player_id: string | null }
+        Returns: undefined
+      }
+      set_turn_order: {
+        Args: { p_game_id: string; p_first_game_player_id: string | null }
+        Returns: undefined
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
