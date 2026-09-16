@@ -93,6 +93,19 @@ players' own phones if they'd both rather enter their own numbers.
   player using a different list builder (WarOrgan, anything else) can
   paste their own list link with no parsing involved -- it's the same
   `army_list_url` field either way.
+- Faction *and* Force Disposition can both be filled in at once by
+  pasting a plain-text army list export instead -- purely client-side,
+  no backend fetch needed. Scans the pasted text for a line that's
+  *exactly* one of this app's own Faction or Force Disposition names,
+  not a fixed-position or per-tool structural parse -- true of every
+  export format seen so far (NewRecruit, WTC, BattleScribe, the GW
+  app), so this needs no per-tool branching. Force Disposition really
+  is present in a NewRecruit plain-text export (confirmed against a
+  real one), unlike NewRecruit's own *link* import above, which only
+  ever resolves Faction. Whichever of the two it can't find just stays
+  for the manual pickers, same partial-success fallback as everywhere
+  else in this flow -- and the pasted text itself is never stored,
+  only used to extract these two ids.
 - Starting a game requires every one of those setup fields filled in for
   *both* seats -- faction, Force Disposition, and which of Fixed or
   Tactical they're playing Secondary Missions as, per seat, plus the
