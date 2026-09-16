@@ -25,6 +25,7 @@ export function ObjectiveChecklist({
   counts,
   onChangeCount,
   editable = true,
+  compact = false,
 }: {
   lines: ChecklistLine[]
   counts: Map<string, number>
@@ -32,6 +33,9 @@ export function ObjectiveChecklist({
   /** False for a spectator viewing someone else's game -- the checklist still shows exactly what's
    * ticked, just with no tap targets that would try (and fail server-side) to change it. */
   editable?: boolean
+  /** Slightly smaller condition/detail text -- used for Primary VP, which otherwise runs the
+   * player card long; tap targets stay the same size either way. */
+  compact?: boolean
 }) {
   const withHeaders = lines.map((line, i) => ({
     line,
@@ -59,11 +63,11 @@ export function ObjectiveChecklist({
               )}
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-paper/90">
+                <p className={clsx('text-paper/90', compact ? 'text-xs' : 'text-sm')}>
                   {line.is_cumulative_bonus && <span className="text-paper/40">+ </span>}
                   {line.condition_text}
                 </p>
-                <p className="text-xs text-paper/40">
+                <p className={clsx('text-paper/40', compact ? 'text-[11px]' : 'text-xs')}>
                   {line.when_label}
                   {line.mode && <span className="ml-1 capitalize">({line.mode})</span>}
                   <span className="ml-1">

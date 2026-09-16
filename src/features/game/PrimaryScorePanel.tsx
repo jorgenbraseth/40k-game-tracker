@@ -78,17 +78,17 @@ export function PrimaryScorePanel({
   return (
     <div className="flex w-full flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium tracking-wide text-paper/60 uppercase">
+        <span className="text-[11px] font-medium tracking-wide text-paper/60 uppercase">
           {isEndOfGame ? 'End-of-battle primary VP' : 'Primary VP'}
         </span>
-        <span className="text-sm font-bold text-gold">
+        <span className="text-xs font-bold text-gold">
           {currentRoundVp}
-          <span className="ml-1 text-xs font-normal text-paper/40">of {roundCap}</span>
+          <span className="ml-1 text-[10px] font-normal text-paper/40">of {roundCap}</span>
         </span>
       </div>
 
       {applicableLines.length === 0 ? (
-        <p className="text-xs text-paper/50">
+        <p className="text-[11px] text-paper/50">
           {isEndOfGame
             ? "This mission has no scoring that's checked only at the end of the battle."
             : 'No primary scoring available this round.'}
@@ -99,6 +99,7 @@ export function PrimaryScorePanel({
           counts={counts}
           onChangeCount={handleChangeCount}
           editable={editable}
+          compact
         />
       )}
 
@@ -108,13 +109,13 @@ export function PrimaryScorePanel({
             <button
               type="button"
               onClick={() => setManualDraft(String(currentRoundVp))}
-              className="text-xs text-paper/40 underline hover:text-paper"
+              className="text-[11px] text-paper/40 underline hover:text-paper"
             >
               Set total directly
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <label className="text-sm text-paper/70" htmlFor={`manual-primary-vp-${gamePlayerId}-${battleRound}`}>
+              <label className="text-xs text-paper/70" htmlFor={`manual-primary-vp-${gamePlayerId}-${battleRound}`}>
                 Total {isEndOfGame ? 'end-of-battle' : 'this round'}
               </label>
               <input
