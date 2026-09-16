@@ -381,19 +381,24 @@ export function Scoreboard({
       )}
 
       {/* Running totals -- always visible without scrolling, per the design brief. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          {orderedPlayers.map((entry) => (
-            <div key={entry.player.id} className="flex-1 text-center">
-              <p className="truncate text-xs text-paper/50">
-                <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
-              </p>
-              <p className="text-2xl font-bold text-gold">{entry.totalVp}</p>
-              <p className="text-[11px] text-paper/40">
-                {entry.primaryTotal} primary + {entry.secondaryTotal} secondary
-              </p>
-            </div>
-          ))}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur">
+        <div className="mx-auto max-w-3xl">
+          <p className="text-center text-[10px] font-medium tracking-wide text-paper/40 uppercase">
+            {viewRound === endOfGameRound ? 'End of game' : `Round ${viewRound} of ${detail.game.total_rounds}`}
+          </p>
+          <div className="mt-1 flex items-center justify-between gap-4">
+            {orderedPlayers.map((entry) => (
+              <div key={entry.player.id} className="min-w-0 flex-1 text-center">
+                <p className="truncate text-xs text-paper/50">
+                  <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
+                </p>
+                <p className="text-2xl font-bold text-gold">{entry.totalVp}</p>
+                <p className="truncate text-[11px] text-paper/40">
+                  {entry.primaryTotal}+{entry.secondaryTotal} VP · {remainingCp(detail.commandPoints, entry.player.id)} CP
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
