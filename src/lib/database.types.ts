@@ -199,6 +199,7 @@ export interface Database {
           created_by: string | null
           created_at: string
           archived_at: string | null
+          invite_code: string
         }
         Insert: Partial<Database['public']['Tables']['ladders']['Row']> & { name: string }
         Update: Partial<Database['public']['Tables']['ladders']['Row']>
@@ -471,6 +472,18 @@ export interface Database {
       }
       set_turn_order: {
         Args: { p_game_id: string; p_first_game_player_id: string | null }
+        Returns: undefined
+      }
+      get_ladder_invite_code: {
+        Args: { p_ladder_id: string }
+        Returns: string
+      }
+      regenerate_ladder_invite_code: {
+        Args: { p_ladder_id: string }
+        Returns: string
+      }
+      join_ladder_by_code: {
+        Args: { p_ladder_id: string; p_code: string }
         Returns: undefined
       }
     }

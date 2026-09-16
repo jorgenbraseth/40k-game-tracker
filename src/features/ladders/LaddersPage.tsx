@@ -4,17 +4,20 @@ import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
+import { Sheet } from '@/components/Sheet'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import {
   useArchiveLadder,
   useCreateLadder,
   useDeleteLadder,
-  useJoinLadder,
+  useJoinLadderByCode,
   useLadderGames,
+  useLadderInviteCode,
   useLadders,
   useLadderStandings,
   useLeaveLadder,
+  useRegenerateLadderInviteCode,
   type LadderSummary,
 } from '@/lib/queries/ladders'
 
@@ -149,12 +152,25 @@ function GamesList({ ladderId }: { ladderId: string }) {
 function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }) {
   const [expanded, setExpanded] = useState(false)
   const [deleteSheetOpen, setDeleteSheetOpen] = useState(false)
-  const join = useJoinLadder()
+  const [joinSheetOpen, setJoinSheetOpen] = useState(false)
+  const [code, setCode] = useState('')
+  const join = useJoinLadderByCode()
   const leave = useLeaveLadder()
   const archive = useArchiveLadder()
   const deleteLadder = useDeleteLadder()
   const isCreator = ladder.createdBy === userId
   const isArchived = Boolean(ladder.archivedAt)
+
+  const onJoin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await join.mutateAsync({ ladderId: ladder.id, code })
+      setJoinSheetOpen(false)
+      setCode('')
+    } catch {
+      // error surfaced below via join.error
+    }
+  }
 
   return (
     <li className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -171,12 +187,8 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
         </button>
         <Button
           variant={ladder.isMember ? 'secondary' : 'primary'}
-          disabled={join.isPending || leave.isPending}
-          onClick={() =>
-            ladder.isMember
-              ? leave.mutate({ ladderId: ladder.id, userId })
-              : join.mutate({ ladderId: ladder.id, userId })
-          }
+          disabled={leave.isPending}
+          onClick={() => (ladder.isMember ? leave.mutate({ ladderId: ladder.id, userId }) : setJoinSheetOpen(true))}
         >
           {ladder.isMember ? 'Leave' : 'Join'}
         </Button>
@@ -185,6 +197,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
         <div className="mt-3 border-t border-white/10 pt-3">
           <StandingsTable ladderId={ladder.id} />
           <GamesList ladderId={ladder.id} />
+          {ladder.isMember && <InviteCodeSection ladderId={ladder.id} isCreator={isCreator} />}
           {isCreator && (
             <div className="mt-3 border-t border-white/10 pt-3">
               <Button
@@ -227,7 +240,85 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
         confirmLabel="Delete ladder"
         pending={deleteLadder.isPending}
       />
+
+      <Sheet open={joinSheetOpen} onClose={() => setJoinSheetOpen(false)} title={`Join ${ladder.name}`}>
+        <form onSubmit={onJoin} className="flex flex-col gap-4">
+          <p className="text-sm text-paper/50">Ask a member of this ladder for its invite code.</p>
+          <TextField
+            label="Invite code"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            maxLength={6}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            placeholder="ABC123"
+            className="text-center text-2xl tracking-[0.3em]"
+            required
+          />
+          {join.isError && (
+            <p className="text-sm text-red-400">
+              {join.error instanceof Error ? join.error.message : 'Could not join this ladder.'}
+            </p>
+          )}
+          <Button type="submit" disabled={join.isPending || code.length < 6} fullWidth>
+            {join.isPending ? 'Joining…' : 'Join'}
+          </Button>
+        </form>
+      </Sheet>
     </li>
+  )
+}
+
+/** Shown to any current member (not just the creator) inside an expanded ladder row -- anyone
+ * already in can share the code with whoever they want to invite, same "no single gatekeeper"
+ * shape as sharing a game's own join code. Regenerating it, which invalidates whatever the old
+ * one was, stays creator-only, same as archiving/deleting the ladder itself. */
+function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreator: boolean }) {
+  const inviteCode = useLadderInviteCode(ladderId)
+  const regenerate = useRegenerateLadderInviteCode(ladderId)
+  const [copied, setCopied] = useState(false)
+
+  const copyCode = async () => {
+    if (!inviteCode.data) return
+    try {
+      await navigator.clipboard.writeText(inviteCode.data)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard can be denied; the code is still visible on screen regardless
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-white/10 pt-3">
+      <p className="text-xs font-semibold tracking-wide text-paper/60 uppercase">Invite code</p>
+      <div className="mt-1.5 flex items-center gap-3">
+        <span className="rounded-lg bg-white/10 px-3 py-1.5 font-mono text-lg tracking-[0.25em] text-gold">
+          {inviteCode.data ?? '······'}
+        </span>
+        <button
+          type="button"
+          onClick={copyCode}
+          disabled={!inviteCode.data}
+          className="text-xs text-paper/50 underline hover:text-paper disabled:opacity-40"
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <p className="mt-1.5 text-xs text-paper/40">
+        Share this with whoever you want to invite -- anyone already in the ladder can share it.
+      </p>
+      {isCreator && (
+        <button
+          type="button"
+          disabled={regenerate.isPending}
+          onClick={() => regenerate.mutate()}
+          className="mt-2 text-xs text-paper/40 underline hover:text-red-400"
+        >
+          {regenerate.isPending ? 'Regenerating…' : 'Regenerate code (invalidates the old one)'}
+        </button>
+      )}
+    </div>
   )
 }
 
