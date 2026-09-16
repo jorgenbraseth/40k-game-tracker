@@ -1,3 +1,4 @@
+import { Fragment, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
@@ -6,7 +7,7 @@ import { ResultIcon, type GameResultKind } from '@/components/ResultIcon'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { needsVerification, playerLabel, playerUserId, remainingCp, useGame, useVerifySeat } from '@/lib/queries/games'
 import { isSafeExternalUrl } from '@/lib/isSafeExternalUrl'
-import { useMission } from '@/lib/queries/referenceData'
+import { useMission, useSecondaryObjectives } from '@/lib/queries/referenceData'
 
 export function SummaryPage() {
   const { id } = useParams<{ id: string }>()
@@ -16,6 +17,8 @@ export function SummaryPage() {
   const [p1, p2] = data?.players ?? []
   const p1Mission = useMission(p1?.player.mission_id ?? undefined)
   const p2Mission = useMission(p2?.player.mission_id ?? undefined)
+  const secondaries = useSecondaryObjectives(data?.game.mission_pack_id)
+  const [showSecondaries, setShowSecondaries] = useState(false)
 
   if (isLoading) return <Spinner label="Loading summary…" />
   if (isError || !data) return <ErrorBanner message="Couldn't load this game." onRetry={() => refetch()} />
@@ -149,6 +152,17 @@ export function SummaryPage() {
         })}
       </div>
 
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs font-semibold tracking-wide text-paper/40 uppercase">Round by round</span>
+        <button
+          type="button"
+          onClick={() => setShowSecondaries((v) => !v)}
+          className="text-xs text-paper/50 underline hover:text-paper"
+        >
+          {showSecondaries ? 'Hide secondaries ▲' : 'Show secondaries ▼'}
+        </button>
+      </div>
+
       <div className="overflow-x-auto rounded-xl border border-white/10">
         <table className="w-full text-sm">
           <thead>
@@ -174,12 +188,49 @@ export function SummaryPage() {
                   .reduce((sum, s) => sum + s.vp_scored, 0)
                 return primary + secondary
               }
+              // Only ever the secondaries actually scored that round -- secondary_scores has no
+              // row for a drawn-but-unscored (or scored-back-down-to-0) card, see SecondaryScores'
+              // own "0 means unscored, not scored-for-0" handling, so this never needs its own
+              // filter for that.
+              const secondariesFor = (playerId: string | undefined) => {
+                if (!playerId) return []
+                return data.secondaryScores
+                  .filter((s) => s.game_player_id === playerId && s.battle_round === round)
+                  .map((s) => ({
+                    name: secondaries.data?.find((obj) => obj.id === s.secondary_objective_id)?.name ?? 'Unknown',
+                    vp: s.vp_scored,
+                  }))
+              }
+              const p1Secondaries = secondariesFor(p1?.player.id)
+              const p2Secondaries = secondariesFor(p2?.player.id)
               return (
-                <tr key={round} className="border-b border-white/5 last:border-0">
-                  <td className="px-3 py-2 text-paper/70">{round === endOfGameRound ? 'End' : round}</td>
-                  <td className="px-3 py-2 text-right text-paper">{score(p1?.player.id)}</td>
-                  <td className="px-3 py-2 text-right text-paper">{score(p2?.player.id)}</td>
-                </tr>
+                <Fragment key={round}>
+                  <tr className="border-b border-white/5 last:border-0">
+                    <td className="px-3 py-2 text-paper/70">{round === endOfGameRound ? 'End' : round}</td>
+                    <td className="px-3 py-2 text-right text-paper">{score(p1?.player.id)}</td>
+                    <td className="px-3 py-2 text-right text-paper">{score(p2?.player.id)}</td>
+                  </tr>
+                  {showSecondaries && (p1Secondaries.length > 0 || p2Secondaries.length > 0) && (
+                    <tr className="border-b border-white/5 bg-white/[0.02] last:border-0">
+                      <td></td>
+                      {[p1Secondaries, p2Secondaries].map((list, i) => (
+                        <td key={i} className="px-3 pb-2 text-right align-top">
+                          <div className="flex flex-col items-end gap-0.5">
+                            {list.length > 0 ? (
+                              list.map((s, j) => (
+                                <span key={j} className="text-[11px] text-paper/50">
+                                  {s.name} <span className="text-gold">+{s.vp}</span>
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[11px] text-paper/30">—</span>
+                            )}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                </Fragment>
               )
             })}
           </tbody>
