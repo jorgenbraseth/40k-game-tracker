@@ -221,6 +221,16 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['ladder_members']['Row']>
         Relationships: []
       }
+      game_ladders: {
+        Row: {
+          game_id: string
+          ladder_id: string
+          created_at: string
+        }
+        Insert: { game_id: string; ladder_id: string }
+        Update: Partial<Database['public']['Tables']['game_ladders']['Row']>
+        Relationships: []
+      }
       round_scores: {
         Row: {
           id: string
@@ -474,6 +484,10 @@ export interface Database {
       }
       set_turn_order: {
         Args: { p_game_id: string; p_first_game_player_id: string | null }
+        Returns: undefined
+      }
+      set_game_ladder: {
+        Args: { p_game_id: string; p_ladder_id: string | null }
         Returns: undefined
       }
       get_ladder_invite_code: {

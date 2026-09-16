@@ -637,15 +637,15 @@ export function useSetLayoutVariant(gameId: string) {
 
 /** Which ladder (if any) this game's tagged to -- a shared, game-level decision same as layout,
  * so it lives in GameConfigPicker alongside it, and stays editable for the life of the game like
- * everything else here. `games`' own RLS ("participants can update their games") already permits
- * writing any column including ladder_id, so this needs no new policy -- only which options the
- * client offers (the ladders this viewer's actually a member of) is a UI concern, not a security
- * one. */
+ * everything else here. Goes through set_game_ladder (20260328000000_game_ladders.sql) rather than
+ * a direct column update now -- games.ladder_id is no longer client-writable -- so a correction
+ * made here gets the same server-side ladder-membership check create_game already does at
+ * creation time, and keeps the new game_ladders join table (issue #75) in sync alongside it. */
 export function useSetLadder(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (ladderId: string | null) => {
-      const { error } = await supabase.from('games').update({ ladder_id: ladderId }).eq('id', gameId)
+      const { error } = await supabase.rpc('set_game_ladder', { p_game_id: gameId, p_ladder_id: ladderId })
       if (error) throw error
     },
     onMutate: async (ladderId) => {
