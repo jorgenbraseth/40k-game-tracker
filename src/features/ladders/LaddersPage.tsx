@@ -25,8 +25,15 @@ import {
   type LadderSummary,
 } from '@/lib/queries/ladders'
 
+const RANKING_TYPE_EXPLAINERS: Record<LadderRankingType, string> = {
+  elo: "Everyone starts at 1500, and each result moves both players' ratings based on how big the gap between them was going in -- beat someone much higher-rated and you gain a lot, beat someone much lower-rated and you barely move; lose to someone much lower-rated and you drop a lot.",
+  glicko2:
+    "Everyone starts at 1500. Like Elo, each result moves both players' ratings more when the gap between them was bigger going in. Glicko-2 also tracks how established each player's own rating is: a newer or inactive player's rating swings a lot per game, while a well-established player's moves less -- and an established player who suddenly loses to someone lower-rated drops more than they would mid-streak, since their recent form counts too.",
+}
+
 function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingType: LadderRankingType }) {
   const standings = useLadderStandings(ladderId)
+  const [showInfo, setShowInfo] = useState(false)
 
   if (standings.isLoading) return <Spinner label="Loading standings…" />
   if (standings.isError) {
@@ -35,9 +42,20 @@ function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingTy
 
   return (
     <>
-      <p className="mb-2 text-xs text-paper/50">
-        Ranking: <span className="text-paper">{RANKING_TYPE_LABELS[rankingType]}</span>
-      </p>
+      <div className="mb-2 flex items-center gap-1.5 text-xs text-paper/50">
+        <span>
+          Ranking: <span className="text-paper">{RANKING_TYPE_LABELS[rankingType]}</span>
+        </span>
+        <button
+          type="button"
+          aria-label="How ranking works"
+          onClick={() => setShowInfo((v) => !v)}
+          className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-paper/30 text-[10px] leading-none text-paper/50 hover:border-paper hover:text-paper"
+        >
+          i
+        </button>
+      </div>
+      {showInfo && <p className="mb-2 text-xs text-paper/40">{RANKING_TYPE_EXPLAINERS[rankingType]}</p>}
       {!standings.data || standings.data.length === 0 ? (
         <p className="px-1 py-2 text-sm text-paper/50">No completed games tagged with this ladder yet.</p>
       ) : (
@@ -75,14 +93,6 @@ function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingTy
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-xs text-paper/40">
-            Everyone starts at 1500, and each result moves both players' ratings based on how big
-            the gap between them was going in -- beat someone much higher-rated and you gain a lot,
-            beat someone much lower-rated and you barely move; lose to someone much lower-rated and
-            you drop a lot. It's recomputed live by replaying this ladder's whole game history in
-            order every time, so editing a score or cancelling a game is always reflected correctly
-            here -- nothing needs to be manually recalculated.
-          </p>
         </div>
       )}
     </>
