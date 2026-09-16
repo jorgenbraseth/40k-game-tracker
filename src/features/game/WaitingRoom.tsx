@@ -9,7 +9,7 @@ import {
   playerLabel,
   playerUserId,
   useDeleteGame,
-  useSetLadder,
+  useSetGameGroupings,
   useSetLayoutVariant,
   useSetRole,
   useSetTurnOrder,
@@ -18,6 +18,7 @@ import {
 } from '@/lib/queries/games'
 import { useLadders } from '@/lib/queries/ladders'
 import { useFactions, useForceDispositions, useMission, useMissionsForPack } from '@/lib/queries/referenceData'
+import { useTournaments } from '@/lib/queries/tournaments'
 import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
@@ -42,8 +43,9 @@ export function WaitingRoom({
   const updateSetup = useUpdatePlayerSetup(detail.game.id, missionsForPack.data)
   const startGame = useStartGame(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
-  const setLadder = useSetLadder(detail.game.id)
+  const setGroupings = useSetGameGroupings(detail.game.id)
   const ladders = useLadders(user?.id)
+  const tournaments = useTournaments(user?.id)
   const deleteGame = useDeleteGame()
   const [copied, setCopied] = useState(false)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
@@ -51,8 +53,11 @@ export function WaitingRoom({
   const me = detail.players.find((p) => p.player.user_id === user?.id)
   const opponent = detail.players.find((p) => p.player.user_id !== user?.id)
   const ladderOptions = (ladders.data ?? [])
-    .filter((l) => (l.isMember && !l.archivedAt) || l.id === detail.game.ladder_id)
+    .filter((l) => (l.isMember && !l.archivedAt) || detail.ladderIds.includes(l.id))
     .map((l) => ({ id: l.id, name: l.name }))
+  const tournamentOptions = (tournaments.data ?? [])
+    .filter((t) => (t.isMember && !t.archivedAt) || detail.tournamentIds.includes(t.id))
+    .map((t) => ({ id: t.id, name: t.name }))
   const missionResolved = detail.players.length === 2 && detail.players.every((p) => p.player.mission_id)
   const bothFactionsSet = detail.players.length === 2 && detail.players.every((p) => p.player.faction_id)
   const layoutChosen = Boolean(detail.game.layout_variant)
@@ -168,8 +173,12 @@ export function WaitingRoom({
             <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Game configuration</p>
             <dl className="flex flex-col gap-2 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-paper/50">Ladder</dt>
-                <dd className="text-paper">{detail.game.ladder_id ? 'Tagged' : 'Not a ladder game'}</dd>
+                <dt className="text-paper/50">Ladders / tournaments</dt>
+                <dd className="text-paper">
+                  {detail.ladderIds.length + detail.tournamentIds.length > 0
+                    ? `Tagged to ${detail.ladderIds.length + detail.tournamentIds.length}`
+                    : 'Not tagged'}
+                </dd>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-paper/50">Terrain layout</dt>
@@ -276,7 +285,7 @@ export function WaitingRoom({
               factions={factions.data ?? []}
               forceDispositions={forceDispositions.data ?? []}
               onUpdateSetup={(patch) => updateSetup.mutate({ gamePlayerId: opponent.player.id, ...patch })}
-              ladderId={detail.game.ladder_id}
+              ladderId={detail.ladderIds[0] ?? null}
             />
           </div>
         ) : opponent ? (
@@ -313,9 +322,11 @@ export function WaitingRoom({
             layoutMission={myMission.data ?? opponentMission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
-            ladderId={detail.game.ladder_id}
+            ladderIds={detail.ladderIds}
+            tournamentIds={detail.tournamentIds}
             ladderOptions={ladderOptions}
-            onSetLadder={(ladderId) => setLadder.mutate(ladderId)}
+            tournamentOptions={tournamentOptions}
+            onSetGroupings={(next) => setGroupings.mutate(next)}
             onSetRole={(role) =>
               setRole.mutate(role === 'attacker' ? me.player.id : role === 'defender' ? opponent.player.id : null)
             }

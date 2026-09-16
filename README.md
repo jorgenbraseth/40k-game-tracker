@@ -233,8 +233,12 @@ membership isn't open to whoever happens to find it in the browse
 list. Any current member can see and share the code; only the creator
 can regenerate it, invalidating whatever the old one was. Tagging a
 game onto a ladder is entirely optional, chosen at creation
-time on the "Start a game" screen, and stays editable afterwards like
-everything else. A ladder's creator can archive it once it's run its
+time on the "Start a game" screen from a checklist alongside
+tournaments (below) -- a game can be tagged to any combination of
+ladders and/or tournaments at once (issue #75), not just one grouping
+total, so two players who share more than one ladder together don't
+have to pick which one a given game counts toward. Stays editable
+afterwards like everything else. A ladder's creator can archive it once it's run its
 course -- a season that's over, a group that's disbanded -- which drops
 it out of the browse list and the "tag this game" picker without
 touching anything it already recorded: standings, its game log, and
@@ -279,6 +283,22 @@ faction/mission/opponent, across every game they've finished, full stop
 shared ladder or a game the viewer happened to be part of. A game still
 in the lobby or being played is a different matter -- that stays visible
 only to its own participants until it actually finishes, same as always.
+
+**Tournaments:** a bounded pool of games -- a single weekend, an event
+-- with its own standings, separate from a ladder's open-ended ongoing
+history (issue #74). Modeled just like a ladder (own dedicated
+Tournaments page, browsable by anyone signed in, invite-code-gated
+joining, archive/delete, creator-only settings) with two differences:
+an optional start/end date pair, purely descriptive -- shown on the
+card, never enforced against when a game can be tagged to it, same
+"bookkeeping tool, not guided workflow" philosophy as everything else
+here -- and standings are a plain W/D/L + VP-diff tally rather than a
+rating. A one-off bounded event has no ongoing skill to track between
+events the way an open-ended ladder does, so Elo/Glicko-2 doesn't
+apply here. A game can be tagged to a tournament, a ladder, both, or
+neither, all from the same checklist at creation (or edited
+afterwards from Game configuration) -- see Ladders above for the
+shared multi-tagging mechanics.
 
 **Terrain layout:** once a mission is resolved (both players' Force
 Dispositions known), the 3 recommended terrain layouts (A/B/C) for that
@@ -813,7 +833,7 @@ Email/password sign-in works out of the box against the local stack
 ```
 /src
   /app            router, providers, layout, error boundary
-  /features        auth, lobby, game, history, stats, profile
+  /features        auth, lobby, game, history, ladders, tournaments, stats, profile
   /components      shared UI primitives
   /lib             supabase client, generated types, query hooks, realtime hooks
 /supabase

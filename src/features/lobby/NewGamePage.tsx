@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
+import { GroupingsPicker } from '@/components/GroupingsPicker'
 import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useCreateGame } from '@/lib/queries/games'
 import { useLadders } from '@/lib/queries/ladders'
 import { useCurrentMissionPack } from '@/lib/queries/referenceData'
+import { useTournaments } from '@/lib/queries/tournaments'
 
 const POINTS_OPTIONS = [500, 1000, 1500, 2000, 2500, 3000]
 
@@ -15,10 +17,12 @@ export function NewGamePage() {
   const { user } = useAuth()
   const missionPack = useCurrentMissionPack()
   const ladders = useLadders(user?.id)
+  const tournaments = useTournaments(user?.id)
   const createGame = useCreateGame()
 
   const [pointsLimit, setPointsLimit] = useState(2000)
-  const [ladderId, setLadderId] = useState('')
+  const [ladderIds, setLadderIds] = useState<string[]>([])
+  const [tournamentIds, setTournamentIds] = useState<string[]>([])
 
   if (missionPack.isLoading) return <Spinner label="Loading mission pack…" />
   if (missionPack.isError || !missionPack.data) {
@@ -29,7 +33,8 @@ export function NewGamePage() {
     e.preventDefault()
     const gameId = await createGame.mutateAsync({
       pointsLimit,
-      ladderId: ladderId || undefined,
+      ladderIds,
+      tournamentIds,
     })
     navigate(`/game/${gameId}`)
   }
@@ -50,18 +55,20 @@ export function NewGamePage() {
           ))}
         </Select>
 
-        {(ladders.data ?? []).some((l) => l.isMember && !l.archivedAt) && (
-          <Select label="Ladder game? (optional)" value={ladderId} onChange={(e) => setLadderId(e.target.value)}>
-            <option value="">Not a ladder game</option>
-            {(ladders.data ?? [])
-              .filter((l) => l.isMember && !l.archivedAt)
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-          </Select>
-        )}
+        <GroupingsPicker
+          ladderIds={ladderIds}
+          tournamentIds={tournamentIds}
+          ladderOptions={(ladders.data ?? [])
+            .filter((l) => l.isMember && !l.archivedAt)
+            .map((l) => ({ id: l.id, name: l.name }))}
+          tournamentOptions={(tournaments.data ?? [])
+            .filter((t) => t.isMember && !t.archivedAt)
+            .map((t) => ({ id: t.id, name: t.name }))}
+          onChange={(next) => {
+            setLadderIds(next.ladderIds)
+            setTournamentIds(next.tournamentIds)
+          }}
+        />
 
         {createGame.isError && (
           <p className="text-sm text-red-400">

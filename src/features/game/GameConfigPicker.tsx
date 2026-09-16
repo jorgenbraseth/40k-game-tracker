@@ -1,5 +1,5 @@
 import { Button } from '@/components/Button'
-import { Select } from '@/components/Select'
+import { GroupingsPicker, type GroupingOption } from '@/components/GroupingsPicker'
 import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import { playerLabel } from '@/lib/queries/games'
@@ -29,9 +29,11 @@ export function GameConfigPicker({
   layoutMission,
   layoutVariant,
   onSetLayoutVariant,
-  ladderId,
+  ladderIds,
+  tournamentIds,
   ladderOptions,
-  onSetLadder,
+  tournamentOptions,
+  onSetGroupings,
   disabled,
 }: {
   me: PlayerEntry
@@ -41,13 +43,16 @@ export function GameConfigPicker({
   layoutMission?: LayoutMission
   layoutVariant?: LayoutVariant
   onSetLayoutVariant?: (variant: LayoutVariant) => void
-  /** Which ladder (if any) this game's currently tagged to. */
-  ladderId?: string | null
-  /** Ladders this viewer can pick from -- the ones they're a member of, non-archived, plus the
-   * currently-tagged one even if it's since been left or archived, so a stale selection never
-   * just vanishes from the dropdown. */
-  ladderOptions?: { id: string; name: string }[]
-  onSetLadder?: (ladderId: string | null) => void
+  /** Which ladders/tournaments this game's currently tagged to (issue #75 -- any combination, not
+   * just one). */
+  ladderIds?: string[]
+  tournamentIds?: string[]
+  /** Ladders/tournaments this viewer can pick from -- the ones they're a member of, non-archived,
+   * plus whichever the game's currently tagged to even if the viewer's since left or archived it,
+   * so a stale selection never just vanishes from the list. */
+  ladderOptions?: GroupingOption[]
+  tournamentOptions?: GroupingOption[]
+  onSetGroupings?: (next: { ladderIds: string[]; tournamentIds: string[] }) => void
   /** True for a spectator -- shows the exact same picks, just with nothing tappable (a write
    * would fail server-side regardless; this just avoids offering it). */
   disabled?: boolean
@@ -57,20 +62,15 @@ export function GameConfigPicker({
 
   return (
     <div className="flex flex-col gap-4">
-      {onSetLadder && (
-        <Select
-          label="Ladder game? (optional)"
-          value={ladderId ?? ''}
-          onChange={(e) => onSetLadder(e.target.value || null)}
+      {onSetGroupings && (
+        <GroupingsPicker
+          ladderIds={ladderIds ?? []}
+          tournamentIds={tournamentIds ?? []}
+          ladderOptions={ladderOptions ?? []}
+          tournamentOptions={tournamentOptions ?? []}
+          onChange={onSetGroupings}
           disabled={disabled}
-        >
-          <option value="">Not a ladder game</option>
-          {(ladderOptions ?? []).map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </Select>
+        />
       )}
 
       {onSetLayoutVariant && (

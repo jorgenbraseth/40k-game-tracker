@@ -166,9 +166,9 @@ export function useSetLadderRankingType() {
 }
 
 /** Permanently deletes a ladder -- distinct from archiving, this actually removes the row.
- * ladder_members cascades and games.ladder_id is `on delete set null` (see
- * 20260306000000_ladders.sql), so tagged games simply become untagged rather than losing any
- * history. Gated by the creator-only delete policy on ladders. */
+ * ladder_members and game_ladders both cascade (see 20260328000000_game_ladders.sql), so tagged
+ * games simply become untagged rather than losing any history. Gated by the creator-only delete
+ * policy on ladders. */
 export function useDeleteLadder() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -296,12 +296,22 @@ export function useLadderMembers(ladderId: string | undefined) {
  * points with an unattributed opponent -- but it still counts toward the descriptive W/D/L/VP
  * columns for whichever side does. */
 export async function fetchLadderStandings(ladderId: string): Promise<LadderStandingRow[]> {
-  const [ladderRes, gamesRes] = await Promise.all([
+  const [ladderRes, tagsRes] = await Promise.all([
     supabase.from('ladders').select('ranking_type').eq('id', ladderId).single(),
-    supabase.from('games').select('id, outcome, ended_at, created_at').eq('ladder_id', ladderId).eq('status', 'complete'),
+    supabase.from('game_ladders').select('game_id').eq('ladder_id', ladderId),
   ])
   if (ladderRes.error) throw ladderRes.error
-  const { data: games, error: gamesError } = gamesRes
+  if (tagsRes.error) throw tagsRes.error
+  if (tagsRes.data.length === 0) return []
+
+  const { data: games, error: gamesError } = await supabase
+    .from('games')
+    .select('id, outcome, ended_at, created_at')
+    .in(
+      'id',
+      tagsRes.data.map((t) => t.game_id),
+    )
+    .eq('status', 'complete')
   if (gamesError) throw gamesError
   if (games.length === 0) return []
 
@@ -402,10 +412,20 @@ export function useLadderStandings(ladderId: string | undefined) {
  * fetchLadderStandings, since the games list is opt-in (collapsed until asked for) while
  * standings load whenever a ladder row is expanded. */
 export async function fetchLadderGames(ladderId: string): Promise<LadderGameRow[]> {
+  const { data: tags, error: tagsError } = await supabase
+    .from('game_ladders')
+    .select('game_id')
+    .eq('ladder_id', ladderId)
+  if (tagsError) throw tagsError
+  if (tags.length === 0) return []
+
   const { data: games, error: gamesError } = await supabase
     .from('games')
     .select('id, outcome, ended_at, created_at')
-    .eq('ladder_id', ladderId)
+    .in(
+      'id',
+      tags.map((t) => t.game_id),
+    )
     .eq('status', 'complete')
     .order('ended_at', { ascending: false })
   if (gamesError) throw gamesError
