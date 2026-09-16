@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
+import { ResultIcon, type GameResultKind } from '@/components/ResultIcon'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { needsVerification, playerLabel, playerUserId, remainingCp, useGame, useVerifySeat } from '@/lib/queries/games'
 import { useMission } from '@/lib/queries/referenceData'
@@ -59,13 +60,16 @@ export function SummaryPage() {
     <div className="flex flex-col gap-6">
       <div className="text-center">
         {resultLabel && (
-          <p
-            className={`text-sm font-semibold tracking-widest uppercase ${
-              resultLabel === 'Victory' ? 'text-green-400' : resultLabel === 'Defeat' ? 'text-red-400' : 'text-paper/60'
-            }`}
-          >
-            {resultLabel}
-          </p>
+          <>
+            <ResultIcon result={resultLabel.toLowerCase() as GameResultKind} size="lg" className="mx-auto" />
+            <p
+              className={`mt-1 text-sm font-semibold tracking-widest uppercase ${
+                resultLabel === 'Victory' ? 'text-green-400' : resultLabel === 'Defeat' ? 'text-red-400' : 'text-paper/60'
+              }`}
+            >
+              {resultLabel}
+            </p>
+          </>
         )}
         <h1 className="mt-1 text-2xl font-bold text-paper">Game summary</h1>
         <p className="text-sm text-paper/50">{game.points_limit} pts</p>

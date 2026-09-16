@@ -4,6 +4,7 @@ import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
+import { ResultIcon, type GameResultKind } from '@/components/ResultIcon'
 import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { type CompletedGameRow, useCompletedGames } from '@/lib/queries/history'
@@ -99,6 +100,13 @@ export function HistoryPage() {
   )
 }
 
+const RESULT_ICON: Record<CompletedGameRow['result'], GameResultKind> = {
+  win: 'victory',
+  loss: 'defeat',
+  draw: 'draw',
+  abandoned: 'abandoned',
+}
+
 function HistoryGameRow({
   game,
   userId,
@@ -136,12 +144,13 @@ function HistoryGameRow({
         <div className="flex flex-shrink-0 items-center gap-2 text-right">
           <span
             className={clsx(
-              'rounded-full px-2 py-0.5 text-xs font-semibold uppercase',
+              'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold uppercase',
               game.result === 'win' && 'bg-green-900/50 text-green-300',
               game.result === 'loss' && 'bg-red-900/50 text-red-300',
               (game.result === 'draw' || game.result === 'abandoned') && 'bg-white/10 text-paper/60',
             )}
           >
+            <ResultIcon result={RESULT_ICON[game.result]} />
             {game.result}
           </span>
           <span className="text-sm text-paper/50">
