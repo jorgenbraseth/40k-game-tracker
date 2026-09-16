@@ -35,6 +35,7 @@ export function PlayerSetupFields({
   onUpdateSetup: (patch: {
     factionId?: string | null
     armyName?: string | null
+    armyListUrl?: string | null
     forceDispositionId?: string | null
     representsUserId?: string | null
     secondaryMode?: SecondaryMode
@@ -82,7 +83,9 @@ export function PlayerSetupFields({
 
       <NewRecruitImport
         factions={factions}
-        onMatchedFaction={(factionId) => onUpdateSetup({ factionId })}
+        onImported={({ url, factionId }) =>
+          onUpdateSetup(factionId ? { factionId, armyListUrl: url } : { armyListUrl: url })
+        }
       />
 
       <Select

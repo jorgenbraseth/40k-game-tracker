@@ -83,7 +83,12 @@ players' own phones if they'd both rather enter their own numbers.
   invents, not an army-list attribute any list builder would export --
   so Force Disposition still always needs picking by hand, import or not.
   Falls back to the manual dropdown, with a clear reason shown, on any
-  bad link, unreachable NewRecruit, or unrecognized faction name.
+  bad link, unreachable NewRecruit, or unrecognized faction name. The
+  link itself (`game_players.army_list_url`) is kept once NewRecruit
+  answers with *a* faction name, even one that didn't match this app's
+  own list -- it's still a real army list worth linking to -- and shows
+  as "View army list" on that seat's card on the game summary
+  afterwards, for either player or a spectator to open.
 - Starting a game requires every one of those setup fields filled in for
   *both* seats -- faction, Force Disposition, and which of Fixed or
   Tactical they're playing Secondary Missions as, per seat, plus the

@@ -176,6 +176,7 @@ export interface Database {
           seat: 1 | 2
           faction_id: string | null
           army_name: string | null
+          army_list_url: string | null
           force_disposition_id: string | null
           mission_id: string | null
           role: PlayerRole | null

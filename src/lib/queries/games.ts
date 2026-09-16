@@ -439,6 +439,7 @@ export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow
       gamePlayerId: string
       factionId?: string | null
       armyName?: string | null
+      armyListUrl?: string | null
       forceDispositionId?: string | null
       representsUserId?: string | null
       secondaryMode?: Database['public']['Tables']['game_players']['Row']['secondary_mode']
@@ -446,6 +447,7 @@ export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow
       const patch: Database['public']['Tables']['game_players']['Update'] = {}
       if ('factionId' in input) patch.faction_id = input.factionId
       if ('armyName' in input) patch.army_name = input.armyName
+      if ('armyListUrl' in input) patch.army_list_url = input.armyListUrl
       if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
       if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
       if ('secondaryMode' in input) patch.secondary_mode = input.secondaryMode
@@ -469,6 +471,7 @@ export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow
       const patch: Partial<GamePlayerRow> = {}
       if ('factionId' in input) patch.faction_id = input.factionId
       if ('armyName' in input) patch.army_name = input.armyName
+      if ('armyListUrl' in input) patch.army_list_url = input.armyListUrl
       if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
       if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
       if ('secondaryMode' in input) patch.secondary_mode = input.secondaryMode

@@ -5,6 +5,7 @@ import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { ResultIcon, type GameResultKind } from '@/components/ResultIcon'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { needsVerification, playerLabel, playerUserId, remainingCp, useGame, useVerifySeat } from '@/lib/queries/games'
+import { isSafeExternalUrl } from '@/lib/isSafeExternalUrl'
 import { useMission } from '@/lib/queries/referenceData'
 
 export function SummaryPage() {
@@ -104,6 +105,16 @@ export function SummaryPage() {
               </p>
               <p className="text-xs text-paper/50">{entry.factionName ?? 'No faction'}</p>
               <p className="mt-1 text-xs text-paper/40">{missionByPlayerId.get(entry.player.id) ?? 'Unknown mission'}</p>
+              {isSafeExternalUrl(entry.player.army_list_url) && (
+                <a
+                  href={entry.player.army_list_url ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 inline-block text-xs text-paper/40 underline hover:text-paper"
+                >
+                  View army list ↗
+                </a>
+              )}
               <p className="mt-2 text-3xl font-bold text-gold">{entry.totalVp}</p>
               <p className="text-xs text-paper/40">
                 {entry.primaryTotal} primary + {entry.secondaryTotal} secondary

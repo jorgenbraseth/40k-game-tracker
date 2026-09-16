@@ -8,15 +8,21 @@ import { matchFaction } from './matchFaction'
  * Optional, collapsed-by-default alternative to picking Faction from the dropdown by hand -- paste
  * a NewRecruit share link (`newrecruit.eu/app/list/...`) and this resolves it to a Faction via the
  * `import-newrecruit-list` edge function. Deliberately does *not* touch Force Disposition -- there
- * is no NewRecruit field for it (see that edge function's own doc comment) -- so this only ever
- * calls back with a faction id; Force Disposition stays exactly as manual as it already was.
+ * is no NewRecruit field for it (see that edge function's own doc comment) -- so `onImported` only
+ * ever carries a faction id (`null` if the returned faction name didn't match anything in this
+ * app's own list); Force Disposition stays exactly as manual as it already was.
+ *
+ * The link itself is kept (via `armyListUrl`, `game_players.army_list_url`) once NewRecruit
+ * actually answered with *a* faction name, even when that name didn't match this app's own list --
+ * it's still a real, reachable army list worth surfacing on the game summary afterwards, whether or
+ * not the faction auto-fill worked.
  */
 export function NewRecruitImport({
   factions,
-  onMatchedFaction,
+  onImported,
 }: {
   factions: Array<{ id: string; name: string }>
-  onMatchedFaction: (factionId: string) => void
+  onImported: (result: { url: string; factionId: string | null }) => void
 }) {
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState('')
@@ -31,11 +37,11 @@ export function NewRecruitImport({
     try {
       const factionName = await importList.mutateAsync(url)
       const match = matchFaction(factions, factionName)
+      onImported({ url, factionId: match?.id ?? null })
       if (!match) {
         setMatchError(`Found "${factionName}" but couldn't match it to a faction here -- pick it manually below.`)
         return
       }
-      onMatchedFaction(match.id)
       setMatchedName(match.name)
     } catch {
       // error surfaced below via importList.error
