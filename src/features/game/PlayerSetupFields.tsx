@@ -131,6 +131,14 @@ export function PlayerSetupFields({
         defaultValue={me.player.army_name ?? ''}
         onBlur={(e) => onUpdateSetup({ armyName: e.target.value || null })}
       />
+
+      <TextField
+        label="Army list link (optional)"
+        type="url"
+        defaultValue={me.player.army_list_url ?? ''}
+        placeholder="Any link -- WarOrgan, a doc, wherever your list lives"
+        onBlur={(e) => onUpdateSetup({ armyListUrl: e.target.value || null })}
+      />
     </div>
   )
 }

@@ -88,7 +88,11 @@ players' own phones if they'd both rather enter their own numbers.
   answers with *a* faction name, even one that didn't match this app's
   own list -- it's still a real army list worth linking to -- and shows
   as "View army list" on that seat's card on the game summary
-  afterwards, for either player or a spectator to open.
+  afterwards, for either player or a spectator to open. There's also a
+  plain "Army list link" field, independent of NewRecruit import, so a
+  player using a different list builder (WarOrgan, anything else) can
+  paste their own list link with no parsing involved -- it's the same
+  `army_list_url` field either way.
 - Starting a game requires every one of those setup fields filled in for
   *both* seats -- faction, Force Disposition, and which of Fixed or
   Tactical they're playing Secondary Missions as, per seat, plus the
