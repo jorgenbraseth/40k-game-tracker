@@ -3,10 +3,10 @@
 @theme {
   --color-ink: #0b0c10;
   --color-paper: #f7f6f3;
-  --color-blood: #8a1c1c;
-  --color-blood-dark: #5c1212;
-  --color-gold: #b98a2b;
-  --color-steel: #3a3d45;
+  --color-blood: #d0201f;
+  --color-blood-dark: #8a1414;
+  --color-gold: #e3a83a;
+  --color-steel: #4b4f5a;
 }
 
 :root {
