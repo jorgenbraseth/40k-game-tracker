@@ -200,6 +200,7 @@ export interface Database {
           created_at: string
           archived_at: string | null
           invite_code: string
+          ranking_type: 'elo' | 'glicko2'
         }
         Insert: Partial<Database['public']['Tables']['ladders']['Row']> & { name: string }
         Update: Partial<Database['public']['Tables']['ladders']['Row']>

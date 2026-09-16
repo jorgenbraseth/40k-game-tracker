@@ -208,17 +208,21 @@ other case -- a ladder created by mistake, a duplicate, a one-off test
 -- the creator can also delete it outright, permanently: games tagged
 to it aren't deleted, they just become untagged, same as if they'd
 never been tagged to a ladder at all. Unlike archiving, this can't be
-undone, so it's gated behind an explicit confirmation. Ranking is Elo
-(see issue #26 for the research behind
-picking it over Glicko-2/TrueSkill/Massey-Colley): everyone starts at
-1500, and beating a much higher-rated opponent gains a lot while beating
-a much lower-rated one barely moves the needle (and the mirror image for
-losses) -- that asymmetry falls out of the standard Elo formula, it
-isn't a hand-written rule. Computed live by replaying a ladder's whole
-game history in chronological order every time standings are viewed --
-never stored -- so editing a score or cancelling a game is reflected
-correctly the moment the standings are viewed again, with no separate
-recalculation step, despite Elo being inherently sequential.
+undone, so it's gated behind an explicit confirmation. Each ladder picks
+its own ranking type, Elo or Glicko-2 (issue #68; see issue #26 for the
+research behind these two specifically, and why TrueSkill/Massey-Colley
+weren't a fit): everyone starts at 1500, and beating a much
+higher-rated opponent gains a lot while beating a much lower-rated one
+barely moves the needle (and the mirror image for losses) -- that
+asymmetry falls out of the formula, it isn't a hand-written rule.
+Glicko-2 additionally factors in how established each player's rating
+currently is, which suits irregular, bursty tabletop play better than
+Elo's flat per-game movement. Computed live by replaying a ladder's
+whole game history in chronological order every time standings are
+viewed -- never stored -- so editing a score, cancelling a game, or
+switching which ranking type a ladder uses is reflected correctly the
+moment the standings are viewed again, with no separate recalculation
+step, despite both being inherently sequential.
 Bookkeeping both sides of a ladder game yourself? The unclaimed seat's
 setup form gets a "Player" picker (who on the ladder this seat is for),
 so that person's result still counts toward standings even though
@@ -499,18 +503,29 @@ ladders the viewer's currently a non-archived member of, plus whichever
 one's already set (even if archived, or the viewer's since left it) so
 a stale selection never just disappears from the list.
 
-Ranking is Elo (`src/lib/elo.ts`, K-factor 32, everyone starts at 1500):
-`fetchLadderStandings` builds one `{playedAt, playerAId, playerBId,
-scoreForA}` entry per game with two identity-resolved seats (a game with
-an unattributed opponent still counts toward that player's W/D/L/VP
-columns, but can't feed the Elo replay -- there's no rating to exchange
-points with), sorts them chronologically, and replays the whole thing
-through `computeEloRatings` every time standings are fetched -- no
-rating is ever written to the database. See issue #26 for why Elo over
-Glicko-2 (simpler, still delivers the core "gain less / lose more
-against a weaker opponent" ask; Glicko-2's added confidence-tracking is
-a possible later upgrade) and over Massey-Colley (no natural per-game
-"you gained/lost N points" story, which is most of the point).
+Ranking type is a per-ladder choice, implemented (issue #68): every
+ladder has a `ladders.ranking_type` column (`'elo' | 'glicko2'`,
+defaults to `'elo'` so existing ladders are unaffected), settable only
+by that ladder's creator via the same creator-only update policy
+archiving/deleting already use, and picked from a `Select` in the
+ladder's own expanded row (alongside Archive/Delete). `fetchLadderStandings`
+builds one `{playedAt, playerAId, playerBId, scoreForA}` entry per game
+with two identity-resolved seats (a game with an unattributed opponent
+still counts toward that player's W/D/L/VP columns, but can't feed
+either rating replay -- there's no rating to exchange points with),
+sorts them chronologically, and replays the whole thing through
+whichever of `computeEloRatings` (`src/lib/elo.ts`, K-factor 32) or
+`computeGlicko2Ratings` (`src/lib/glicko2.ts`) that ladder's
+`ranking_type` picks -- no rating is ever written to the database, so
+switching types takes effect the next time standings are fetched, same
+as any other edit. Glicko-2's implementation (rating + RD "confidence"
++ volatility per player, each game treated as its own single-game
+rating period rather than batching a season into one update, since this
+app has no natural period boundary -- see the module's own doc comment)
+is verified against the worked numerical example in Glickman's "Example
+of the Glicko-2 system" paper. Massey-Colley remains out of scope (see
+issue #26): no natural per-game "you gained/lost N points" story, which
+is most of the point of showing a rating at all.
 
 Each ladder's own game log is implemented too, alongside its standings:
 a second "Show games" disclosure inside an already-expanded ladder row

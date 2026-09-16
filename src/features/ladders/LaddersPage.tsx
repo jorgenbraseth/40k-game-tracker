@@ -4,10 +4,12 @@ import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
+import { Select } from '@/components/Select'
 import { Sheet } from '@/components/Sheet'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import {
+  RANKING_TYPE_LABELS,
   useArchiveLadder,
   useCreateLadder,
   useDeleteLadder,
@@ -18,64 +20,72 @@ import {
   useLadderStandings,
   useLeaveLadder,
   useRegenerateLadderInviteCode,
+  useSetLadderRankingType,
+  type LadderRankingType,
   type LadderSummary,
 } from '@/lib/queries/ladders'
 
-function StandingsTable({ ladderId }: { ladderId: string }) {
+function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingType: LadderRankingType }) {
   const standings = useLadderStandings(ladderId)
 
   if (standings.isLoading) return <Spinner label="Loading standings…" />
   if (standings.isError) {
     return <ErrorBanner message="Couldn't load standings." onRetry={() => standings.refetch()} />
   }
-  if (!standings.data || standings.data.length === 0) {
-    return <p className="px-1 py-2 text-sm text-paper/50">No completed games tagged with this ladder yet.</p>
-  }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs text-paper/40 uppercase">
-            <th className="py-1 pr-2">#</th>
-            <th className="py-1 pr-2">Player</th>
-            <th className="py-1 pr-2 text-right">P</th>
-            <th className="py-1 pr-2 text-right">W</th>
-            <th className="py-1 pr-2 text-right">D</th>
-            <th className="py-1 pr-2 text-right">L</th>
-            <th className="py-1 pr-2 text-right">VP diff</th>
-            <th className="py-1 text-right">Rating</th>
-          </tr>
-        </thead>
-        <tbody>
-          {standings.data.map((row, i) => (
-            <tr key={row.userId} className="border-t border-white/10">
-              <td className="py-1.5 pr-2 text-paper/50">{i + 1}</td>
-              <td className="py-1.5 pr-2 font-medium text-paper">
-                <PlayerNameLink userId={row.userId} name={row.displayName} />
-              </td>
-              <td className="py-1.5 pr-2 text-right text-paper/70">{row.gamesPlayed}</td>
-              <td className="py-1.5 pr-2 text-right text-paper/70">{row.wins}</td>
-              <td className="py-1.5 pr-2 text-right text-paper/70">{row.draws}</td>
-              <td className="py-1.5 pr-2 text-right text-paper/70">{row.losses}</td>
-              <td className="py-1.5 pr-2 text-right text-paper/70">
-                {row.vpFor - row.vpAgainst >= 0 ? '+' : ''}
-                {row.vpFor - row.vpAgainst}
-              </td>
-              <td className="py-1.5 text-right font-semibold text-gold">{row.rating}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="mt-2 text-xs text-paper/40">
-        Ranking is Elo: everyone starts at 1500, and each result moves both players' ratings based
-        on how big the gap between them was going in -- beat someone much higher-rated and you gain
-        a lot, beat someone much lower-rated and you barely move; lose to someone much lower-rated
-        and you drop a lot. It's recomputed live by replaying this ladder's whole game history in
-        order every time, so editing a score or cancelling a game is always reflected correctly
-        here -- nothing needs to be manually recalculated.
+    <>
+      <p className="mb-2 text-xs text-paper/50">
+        Ranking: <span className="text-paper">{RANKING_TYPE_LABELS[rankingType]}</span>
       </p>
-    </div>
+      {!standings.data || standings.data.length === 0 ? (
+        <p className="px-1 py-2 text-sm text-paper/50">No completed games tagged with this ladder yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-paper/40 uppercase">
+                <th className="py-1 pr-2">#</th>
+                <th className="py-1 pr-2">Player</th>
+                <th className="py-1 pr-2 text-right">P</th>
+                <th className="py-1 pr-2 text-right">W</th>
+                <th className="py-1 pr-2 text-right">D</th>
+                <th className="py-1 pr-2 text-right">L</th>
+                <th className="py-1 pr-2 text-right">VP diff</th>
+                <th className="py-1 text-right">Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              {standings.data.map((row, i) => (
+                <tr key={row.userId} className="border-t border-white/10">
+                  <td className="py-1.5 pr-2 text-paper/50">{i + 1}</td>
+                  <td className="py-1.5 pr-2 font-medium text-paper">
+                    <PlayerNameLink userId={row.userId} name={row.displayName} />
+                  </td>
+                  <td className="py-1.5 pr-2 text-right text-paper/70">{row.gamesPlayed}</td>
+                  <td className="py-1.5 pr-2 text-right text-paper/70">{row.wins}</td>
+                  <td className="py-1.5 pr-2 text-right text-paper/70">{row.draws}</td>
+                  <td className="py-1.5 pr-2 text-right text-paper/70">{row.losses}</td>
+                  <td className="py-1.5 pr-2 text-right text-paper/70">
+                    {row.vpFor - row.vpAgainst >= 0 ? '+' : ''}
+                    {row.vpFor - row.vpAgainst}
+                  </td>
+                  <td className="py-1.5 text-right font-semibold text-gold">{row.rating}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-paper/40">
+            Everyone starts at 1500, and each result moves both players' ratings based on how big
+            the gap between them was going in -- beat someone much higher-rated and you gain a lot,
+            beat someone much lower-rated and you barely move; lose to someone much lower-rated and
+            you drop a lot. It's recomputed live by replaying this ladder's whole game history in
+            order every time, so editing a score or cancelling a game is always reflected correctly
+            here -- nothing needs to be manually recalculated.
+          </p>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -158,6 +168,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
   const leave = useLeaveLadder()
   const archive = useArchiveLadder()
   const deleteLadder = useDeleteLadder()
+  const setRankingType = useSetLadderRankingType()
   const isCreator = ladder.createdBy === userId
   const isArchived = Boolean(ladder.archivedAt)
 
@@ -195,13 +206,29 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
       </div>
       {expanded && (
         <div className="mt-3 border-t border-white/10 pt-3">
-          <StandingsTable ladderId={ladder.id} />
+          <StandingsTable ladderId={ladder.id} rankingType={ladder.rankingType} />
           <GamesList ladderId={ladder.id} />
           {ladder.isMember && <InviteCodeSection ladderId={ladder.id} isCreator={isCreator} />}
           {isCreator && (
             <div className="mt-3 border-t border-white/10 pt-3">
+              <Select
+                label="Ranking type"
+                value={ladder.rankingType}
+                disabled={setRankingType.isPending}
+                onChange={(e) =>
+                  setRankingType.mutate({ ladderId: ladder.id, rankingType: e.target.value as LadderRankingType })
+                }
+              >
+                <option value="elo">Elo</option>
+                <option value="glicko2">Glicko-2</option>
+              </Select>
+              <p className="mt-1 text-xs text-paper/40">
+                Takes effect immediately -- standings aren't stored, so this just replays the same
+                games through the new formula next time they're viewed.
+              </p>
               <Button
                 variant="ghost"
+                className="mt-3"
                 disabled={archive.isPending}
                 onClick={() => archive.mutate({ ladderId: ladder.id, archived: !isArchived })}
               >

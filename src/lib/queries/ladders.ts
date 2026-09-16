@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { computeEloRatings, ELO_STARTING_RATING, type EloGame } from '@/lib/elo'
+import { computeGlicko2Ratings, GLICKO2_STARTING_RATING } from '@/lib/glicko2'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
+
+export type LadderRankingType = 'elo' | 'glicko2'
+
+export const RANKING_TYPE_LABELS: Record<LadderRankingType, string> = {
+  elo: 'Elo',
+  glicko2: 'Glicko-2',
+}
 
 export interface LadderSummary {
   id: string
@@ -14,6 +22,10 @@ export interface LadderSummary {
    * archived ladders drop out of the default browse list and the "tag this game" picker, but
    * their standings/game log and every game's own ladder name keep working exactly as before. */
   archivedAt: string | null
+  /** Which rating system this ladder's standings are computed with (issue #68) -- creator-only to
+   * change, like every other ladder-level setting. Standings are never stored, so switching this
+   * just replays the same game history through a different formula next time they're viewed. */
+  rankingType: LadderRankingType
 }
 
 export interface LadderMember {
@@ -67,7 +79,7 @@ export async function fetchLadders(userId: string): Promise<LadderSummary[]> {
   const [laddersRes, membersRes] = await Promise.all([
     supabase
       .from('ladders')
-      .select('id, name, created_by, created_at, archived_at')
+      .select('id, name, created_by, created_at, archived_at, ranking_type')
       .order('created_at', { ascending: false }),
     supabase.from('ladder_members').select('ladder_id, user_id'),
   ])
@@ -89,6 +101,7 @@ export async function fetchLadders(userId: string): Promise<LadderSummary[]> {
     memberCount: memberCountByLadder.get(l.id) ?? 0,
     isMember: isMemberByLadder.has(l.id),
     archivedAt: l.archived_at,
+    rankingType: l.ranking_type,
   }))
 }
 
@@ -128,6 +141,27 @@ export function useArchiveLadder() {
     onError: (_error, input) =>
       showToast(`Couldn't ${input.archived ? 'archive' : 'restore'} the ladder. Try again.`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ladders'] }),
+  })
+}
+
+/** Switches which rating system a ladder's standings are computed with (issue #68) -- gated by
+ * the same creator-only update policy as archiving. Standings aren't stored, so this takes effect
+ * the moment they're next viewed, no recalculation step of its own needed. */
+export function useSetLadderRankingType() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { ladderId: string; rankingType: LadderRankingType }) => {
+      const { error } = await supabase
+        .from('ladders')
+        .update({ ranking_type: input.rankingType })
+        .eq('id', input.ladderId)
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't change the ranking type. Try again."),
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({ queryKey: ['ladders'] })
+      queryClient.invalidateQueries({ queryKey: ladderKeys.standings(input.ladderId) })
+    },
   })
 }
 
@@ -251,22 +285,28 @@ export function useLadderMembers(ladderId: string | undefined) {
  * only counts toward standings if the bookkeeper attributed it to a ladder member
  * (game_players.represents_user_id) -- otherwise there's no stable identity to aggregate by.
  *
- * Ranking is Elo (see src/lib/elo.ts): each ladder is its own independent rating pool, replayed
- * from scratch in chronological order every time this is called. Elo is sequential/path-dependent
- * -- unlike a flat points sum, a rating depends on the order every prior game happened in -- but
- * replaying a ladder's full history is cheap at this app's scale, so an edited score or a
- * cancelled game (deleted outright) is still reflected correctly the instant standings are
- * re-queried, no separate recalculation step needed. A game only feeds the Elo replay when *both*
- * seats resolve to a stable identity -- there's no rating to exchange points with an unattributed
- * opponent -- but it still counts toward the descriptive W/D/L/VP columns for whichever side does. */
+ * Ranking is Elo or Glicko-2 (issue #68, see src/lib/elo.ts and src/lib/glicko2.ts), whichever
+ * this ladder's own ranking_type is set to: each ladder is its own independent rating pool,
+ * replayed from scratch in chronological order every time this is called. Both are
+ * sequential/path-dependent -- unlike a flat points sum, a rating depends on the order every
+ * prior game happened in -- but replaying a ladder's full history is cheap at this app's scale,
+ * so an edited score or a cancelled game (deleted outright) is still reflected correctly the
+ * instant standings are re-queried, no separate recalculation step needed. A game only feeds the
+ * rating replay when *both* seats resolve to a stable identity -- there's no rating to exchange
+ * points with an unattributed opponent -- but it still counts toward the descriptive W/D/L/VP
+ * columns for whichever side does. */
 export async function fetchLadderStandings(ladderId: string): Promise<LadderStandingRow[]> {
-  const { data: games, error: gamesError } = await supabase
-    .from('games')
-    .select('id, outcome, ended_at, created_at')
-    .eq('ladder_id', ladderId)
-    .eq('status', 'complete')
+  const [ladderRes, gamesRes] = await Promise.all([
+    supabase.from('ladders').select('ranking_type').eq('id', ladderId).single(),
+    supabase.from('games').select('id, outcome, ended_at, created_at').eq('ladder_id', ladderId).eq('status', 'complete'),
+  ])
+  if (ladderRes.error) throw ladderRes.error
+  const { data: games, error: gamesError } = gamesRes
   if (gamesError) throw gamesError
   if (games.length === 0) return []
+
+  const rankingType = ladderRes.data.ranking_type
+  const startingRating = rankingType === 'glicko2' ? GLICKO2_STARTING_RATING : ELO_STARTING_RATING
 
   const gameIds = games.map((g) => g.id)
   const outcomeByGameId = new Map(games.map((g) => [g.id, g.outcome]))
@@ -299,7 +339,7 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
   const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
 
   const rowByUserId = new Map<string, LadderStandingRow>()
-  const eloGames: EloGame[] = []
+  const ratingGames: EloGame[] = []
 
   for (const gameId of gameIds) {
     const outcome = outcomeByGameId.get(gameId)
@@ -317,7 +357,7 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
         wins: 0,
         draws: 0,
         losses: 0,
-        rating: ELO_STARTING_RATING,
+        rating: startingRating,
         vpFor: 0,
         vpAgainst: 0,
       }
@@ -335,13 +375,14 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
     const id2 = p2 ? (p2.user_id ?? p2.represents_user_id) : null
     if (players.length === 2 && id1 && id2) {
       const scoreForA = outcome === 'draw' ? 0.5 : outcome === `seat_${p1.seat}` ? 1 : 0
-      eloGames.push({ playedAt: playedAtByGameId.get(gameId) ?? '', playerAId: id1, playerBId: id2, scoreForA })
+      ratingGames.push({ playedAt: playedAtByGameId.get(gameId) ?? '', playerAId: id1, playerBId: id2, scoreForA })
     }
   }
 
-  const ratingByUserId = computeEloRatings(eloGames)
+  const ratingByUserId =
+    rankingType === 'glicko2' ? computeGlicko2Ratings(ratingGames) : computeEloRatings(ratingGames)
   for (const row of rowByUserId.values()) {
-    row.rating = Math.round(ratingByUserId.get(row.userId) ?? ELO_STARTING_RATING)
+    row.rating = Math.round(ratingByUserId.get(row.userId) ?? startingRating)
   }
 
   return [...rowByUserId.values()].sort((a, b) => b.rating - a.rating)
