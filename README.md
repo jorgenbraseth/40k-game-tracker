@@ -35,6 +35,13 @@ players' own phones if they'd both rather enter their own numbers.
   army -- or the terrain layout -- goes here -- that's all decided in
   the waiting room next, once both seats actually exist and, for the
   layout, once a Force Disposition pairing is known.
+- A game already played somewhere else -- at a store, a tournament,
+  before this app existed for a group -- can be **logged after the
+  fact** instead: one form for both sides' faction, Force Disposition
+  and army name, plus just the final score, no round-by-round play.
+  It's recorded as a finished game immediately and counts toward
+  standings/stats/Elo exactly like a live one -- there's no "round by
+  round" history to show for it, just the final numbers.
 - **One account can be the bookkeeper for a whole game.** The point
   isn't a "solo mode" -- it's that getting a real opponent to create an
   account and log in is friction nobody wants mid-game, so it's never
@@ -449,6 +456,31 @@ fail. Retagging a game's ladders/tournaments and the End of Game
 layout-variant pick are deliberately *not* gated by the lock (a
 documented scope trim): neither changes the recorded result itself, so
 locking them didn't seem worth the added surface for this pass.
+
+Logging a game after the fact (feature request) is a separate creation
+path from `create_game`/`join_game_by_code`, added as its own RPC,
+`log_completed_game()` (`20260403000000_log_completed_game.sql`) --
+one call takes a brand new game straight to `status: 'complete'`,
+skipping `lobby`/`active` and the whole live Scoreboard entirely. The
+one real schema wrinkle: `game_totals.total_vp` has no direct-write
+column of its own, it's always `SUM(round_scores.primary_vp) +
+SUM(secondary_scores.vp_scored)` (plus painted bonus) -- so "just enter
+a final score" has to land as `round_scores` rows underneath like
+everything else that feeds that view, chunked into <=15VP pieces to
+respect the existing per-row cap (`round_scores_primary_vp_max`), up to
+6 rounds/90VP total (the RPC rejects anything higher rather than
+truncating it silently). None of that chunking is a real "round by
+round" record, so `games.is_retroactive` flags it and `SummaryPage`
+skips its round-by-round table for a game with that flag rather than
+render the split misleadingly. The logger is always seat 1 (same as
+every other creation path) and is auto-verified immediately -- they
+typed the result in themselves, there's no separate confirmation moment
+to ask them for -- while the opponent seat reuses the exact same
+solo-entry attribution as a live bookkept game (`represents_user_id` to
+a real ladder member who can later confirm or dispute it, or a free-text
+name with no account at all) and goes through the normal verification
+flow. `src/features/lobby/LogGamePage.tsx` is the one form for all of
+this, reachable from Home alongside "Start a game"/"Join a game".
 
 Turn order is implemented: `game_players.turn_order` ('first'/'second')
 is modeled exactly like `role` at the schema level (a partial unique

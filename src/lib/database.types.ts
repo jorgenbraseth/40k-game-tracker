@@ -158,6 +158,7 @@ export interface Database {
           ended_at: string | null
           outcome: GameOutcome | null
           layout_variant: LayoutVariant | null
+          is_retroactive: boolean
         }
         Insert: Partial<Database['public']['Tables']['games']['Row']> & {
           join_code: string
@@ -574,6 +575,24 @@ export interface Database {
       join_ladder_by_code: {
         Args: { p_ladder_id: string; p_code: string }
         Returns: undefined
+      }
+      log_completed_game: {
+        Args: {
+          p_points_limit: number
+          p_played_at: string
+          p_my_vp: number
+          p_opponent_vp: number
+          p_my_faction_id?: string | null
+          p_my_force_disposition_id?: string | null
+          p_my_army_name?: string | null
+          p_opponent_represents_user_id?: string | null
+          p_opponent_faction_id?: string | null
+          p_opponent_force_disposition_id?: string | null
+          p_opponent_army_name?: string | null
+          p_ladder_ids?: string[]
+          p_tournament_ids?: string[]
+        }
+        Returns: string
       }
       is_game_fully_verified: {
         Args: { p_game_id: string }
