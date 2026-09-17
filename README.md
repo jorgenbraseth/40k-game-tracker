@@ -24,7 +24,12 @@ players' own phones if they'd both rather enter their own numbers.
   needed. Signing up registers a display name (editable any time from
   Profile) that's what other players see in the waiting room, live
   scoreboard, and history/stats -- their email address is never shown
-  to, or sent to, anyone else.
+  to, or sent to, anyone else. A player can also add a profile photo
+  from Profile (issue #73), shown as a small avatar wherever their name
+  shows up (ladder/tournament standings and game lists, History, their
+  own stats page) -- optional, and falls back to a plain initial when
+  not set, same as a Google account's own picture already does for
+  anyone who signed up that way.
 - One player starts a game (points limit, optionally a ladder to tag it
   to) and gets a short 6-character code. Nothing about either player's
   army -- or the terrain layout -- goes here -- that's all decided in
@@ -830,6 +835,35 @@ Disposition are all filters over that one full set (Faction/Force
 Disposition matching either seat, so "show me every game anyone's
 played as Necrons" works), and -- like the pre-existing ladder filter --
 live in the URL rather than component state.
+
+Player avatars are implemented (issue #73). `profiles.avatar_url` already
+existed (Google sign-in was already populating it from the provider's
+own picture) -- what was missing was a manual upload path and anywhere
+that actually rendered it. Uploading goes through
+`src/lib/resizeImage.ts`: center-crops to a square, downsamples to
+256px, and compresses to WebP (falling back to whatever format a
+browser's canvas actually emits, per spec, if it doesn't support WebP
+encoding), stepping quality down until it's under ~200KB or hits a
+floor -- entirely client-side, no edge function involved. The result
+uploads to a new `avatars` Supabase Storage bucket
+(`20260401000000_player_avatars.sql`) at a fixed `<user id>/avatar.<ext>`
+path (a re-upload just overwrites it, `upsert: true`, rather than
+accumulating orphaned files), gated by storage RLS so a user can only
+write inside their own folder; the bucket's own 500KB `file_size_limit`
+is a backstop, not the primary control. `Avatar`
+(`src/components/Avatar.tsx`) renders the image, or a plain initial on
+a neutral background when there isn't one. `PlayerNameLink` takes an
+optional `avatarUrl` and renders a small `Avatar` inline before the
+name when given one -- omitted entirely, it renders exactly as before,
+so this didn't require touching every existing call site at once, only
+the ones actually wired up: ladder/tournament standings and game lists,
+History (both its "mine" and generic row layouts), and a player's own
+stats page header. Scoreboard/WaitingRoom/SummaryPage's own name
+displays weren't wired up in this pass -- deliberately trimmed, since
+those are tighter, more overflow-sensitive layouts where a 1-on-1
+scoreboard gets less benefit from an avatar than a list of many names
+does; `PlayerNameLink`'s optional prop means adding it there later is a
+small, isolated follow-up, not a redesign.
 
 ## Stack
 

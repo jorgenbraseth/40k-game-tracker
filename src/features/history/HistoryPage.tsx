@@ -217,7 +217,12 @@ function HistoryGameRow({
         <div className="flex items-center justify-between gap-2 px-4 pt-3">
           <p className="min-w-0 truncate text-sm text-paper">
             {mySeat.missionName} · vs{' '}
-            <PlayerNameLink userId={opponentSeat.userId} name={opponentSeat.displayName} className="font-medium text-paper" />
+            <PlayerNameLink
+              userId={opponentSeat.userId}
+              name={opponentSeat.displayName}
+              avatarUrl={opponentSeat.avatarUrl}
+              className="font-medium text-paper"
+            />
           </p>
           <button
             type="button"
@@ -281,12 +286,14 @@ function HistoryGameRow({
           <PlayerNameLink
             userId={game.seat1.userId}
             name={game.seat1.displayName}
+            avatarUrl={game.seat1.avatarUrl}
             className={game.outcome === 'seat_1' ? 'font-semibold text-paper' : 'text-paper/70'}
           />
           <span className="text-paper/40"> vs </span>
           <PlayerNameLink
             userId={game.seat2.userId}
             name={game.seat2.displayName}
+            avatarUrl={game.seat2.avatarUrl}
             className={game.outcome === 'seat_2' ? 'font-semibold text-paper' : 'text-paper/70'}
           />
         </p>
