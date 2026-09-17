@@ -78,7 +78,7 @@ function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingTy
                 <tr key={row.userId} className="border-t border-white/10">
                   <td className="py-1.5 pr-2 text-paper/50">{i + 1}</td>
                   <td className="py-1.5 pr-2 font-medium text-paper">
-                    <PlayerNameLink userId={row.userId} name={row.displayName} />
+                    <PlayerNameLink userId={row.userId} name={row.displayName} avatarUrl={row.avatarUrl} />
                   </td>
                   <td className="py-1.5 pr-2 text-right text-paper/70">{row.gamesPlayed}</td>
                   <td className="py-1.5 pr-2 text-right text-paper/70">{row.wins}</td>
@@ -147,12 +147,14 @@ function GamesList({ ladderId }: { ladderId: string }) {
                     <PlayerNameLink
                       userId={g.seat1.userId}
                       name={g.seat1.displayName}
+                      avatarUrl={g.seat1.avatarUrl}
                       className={g.outcome === 'seat_1' ? 'font-semibold text-paper' : 'text-paper/70'}
                     />
                     <span className="text-paper/40"> vs </span>
                     <PlayerNameLink
                       userId={g.seat2.userId}
                       name={g.seat2.displayName}
+                      avatarUrl={g.seat2.avatarUrl}
                       className={g.outcome === 'seat_2' ? 'font-semibold text-paper' : 'text-paper/70'}
                     />
                   </span>

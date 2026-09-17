@@ -29,6 +29,7 @@ export interface TournamentMember {
 export interface TournamentStandingRow {
   userId: string
   displayName: string
+  avatarUrl: string | null
   gamesPlayed: number
   wins: number
   draws: number
@@ -40,6 +41,7 @@ export interface TournamentStandingRow {
 export interface TournamentGameSeat {
   userId: string | null
   displayName: string
+  avatarUrl: string | null
   vp: number
 }
 
@@ -281,10 +283,11 @@ export async function fetchTournamentStandings(tournamentId: string): Promise<To
     ),
   ]
   const profilesRes = profileIds.length
-    ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
+    ? await supabase.from('profiles').select('id, display_name, avatar_url').in('id', profileIds)
     : { data: [], error: null }
   if (profilesRes.error) throw profilesRes.error
   const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+  const avatarByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.avatar_url]))
 
   const rowByUserId = new Map<string, TournamentStandingRow>()
 
@@ -300,6 +303,7 @@ export async function fetchTournamentStandings(tournamentId: string): Promise<To
       const row = rowByUserId.get(standingUserId) ?? {
         userId: standingUserId,
         displayName: nameByUserId.get(standingUserId) ?? 'Unknown player',
+        avatarUrl: avatarByUserId.get(standingUserId) ?? null,
         gamesPlayed: 0,
         wins: 0,
         draws: 0,
@@ -374,17 +378,19 @@ export async function fetchTournamentGames(tournamentId: string): Promise<Tourna
     ),
   ]
   const profilesRes = profileIds.length
-    ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
+    ? await supabase.from('profiles').select('id, display_name, avatar_url').in('id', profileIds)
     : { data: [], error: null }
   if (profilesRes.error) throw profilesRes.error
   const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+  const avatarByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.avatar_url]))
 
   const seatFor = (p: (typeof playersRes.data)[number] | undefined): TournamentGameSeat => {
-    if (!p) return { userId: null, displayName: 'No opponent', vp: 0 }
+    if (!p) return { userId: null, displayName: 'No opponent', avatarUrl: null, vp: 0 }
     const userId = p.user_id ?? p.represents_user_id
     return {
       userId,
       displayName: userId ? (nameByUserId.get(userId) ?? 'Unknown player') : p.army_name || 'Unnamed player',
+      avatarUrl: userId ? (avatarByUserId.get(userId) ?? null) : null,
       vp: totalByPlayerId.get(p.id) ?? 0,
     }
   }

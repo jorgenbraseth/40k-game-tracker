@@ -19,6 +19,7 @@ export interface CompletedGameRow {
   /** The account behind opponentName, if there is one (their own, or whoever an unclaimed seat
    * was attributed to) -- null when there's nobody to link to (unclaimed and unattributed). */
   opponentUserId: string | null
+  opponentAvatarUrl: string | null
   opponentFactionName: string | null
   opponentTotalVp: number
   result: 'win' | 'loss' | 'draw' | 'abandoned'
@@ -38,6 +39,7 @@ export interface HistoryGameSeat {
    * attributed to -- null when there's nobody to link to. */
   userId: string | null
   displayName: string
+  avatarUrl: string | null
   factionId: string | null
   factionName: string | null
   forceDispositionId: string | null
@@ -134,7 +136,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
 
   const [profilesRes, factionsRes, forceDispositionsRes] = await Promise.all([
     profileIds.length
-      ? supabase.from('profiles').select('id, display_name').in('id', profileIds)
+      ? supabase.from('profiles').select('id, display_name, avatar_url').in('id', profileIds)
       : Promise.resolve({ data: [], error: null }),
     factionIds.length
       ? supabase.from('factions').select('id, name').in('id', factionIds)
@@ -150,6 +152,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
   const missionById = new Map(missionsRes.data.map((m) => [m.id, m.name]))
   const ladderById = new Map(laddersRes.data?.map((l) => [l.id, l.name]))
   const profileById = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+  const avatarByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.avatar_url]))
   const factionById = new Map(factionsRes.data?.map((f) => [f.id, f.name]))
   const forceDispositionById = new Map(forceDispositionsRes.data?.map((fd) => [fd.id, fd.name]))
   const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
@@ -196,6 +199,10 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
             ? (profileById.get(opponent.represents_user_id) ?? 'Unknown opponent')
             : opponent.army_name || 'Unnamed opponent',
       opponentUserId: opponent ? (opponent.user_id ?? opponent.represents_user_id ?? null) : null,
+      opponentAvatarUrl: (() => {
+        const opponentUserId = opponent ? (opponent.user_id ?? opponent.represents_user_id ?? null) : null
+        return opponentUserId ? (avatarByUserId.get(opponentUserId) ?? null) : null
+      })(),
       opponentFactionName: opponent?.faction_id ? (factionById.get(opponent.faction_id) ?? null) : null,
       opponentTotalVp: opponent ? (totalByPlayerId.get(opponent.id) ?? 0) : 0,
       result,
@@ -286,7 +293,7 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
       ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
       : Promise.resolve({ data: [], error: null }),
     profileIds.length
-      ? supabase.from('profiles').select('id, display_name').in('id', profileIds)
+      ? supabase.from('profiles').select('id, display_name, avatar_url').in('id', profileIds)
       : Promise.resolve({ data: [], error: null }),
   ])
   if (missionsRes.error) throw missionsRes.error
@@ -299,6 +306,7 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
   const forceDispositionById = new Map(forceDispositionsRes.data?.map((fd) => [fd.id, fd.name]))
   const ladderById = new Map(laddersRes.data?.map((l) => [l.id, l.name]))
   const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+  const avatarByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.avatar_url]))
   const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
   const playersByGameId = new Map<string, typeof playersRes.data>()
   for (const p of playersRes.data) {
@@ -313,6 +321,7 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
       gamePlayerId: p.id,
       userId,
       displayName: userId ? (nameByUserId.get(userId) ?? 'Unknown player') : p.army_name || 'Unnamed player',
+      avatarUrl: userId ? (avatarByUserId.get(userId) ?? null) : null,
       factionId: p.faction_id,
       factionName: p.faction_id ? (factionById.get(p.faction_id) ?? null) : null,
       forceDispositionId: p.force_disposition_id,

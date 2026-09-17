@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom'
+import { Avatar } from '@/components/Avatar'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useCompletedGames } from '@/lib/queries/history'
@@ -22,11 +23,13 @@ export function StatsPage() {
   const targetUserId = routeUserId ?? user?.id
   const isOwn = !routeUserId || routeUserId === user?.id
 
-  const profile = useProfile(isOwn ? undefined : targetUserId)
+  // Fetched unconditionally now (not just for someone else's page) -- issue #73's avatar wants
+  // showing here for the viewer's own record too, not only "Your" as plain text.
+  const profile = useProfile(targetUserId)
   const { data, isLoading, isError, refetch } = useCompletedGames(targetUserId)
 
-  if (isLoading || (!isOwn && profile.isLoading)) return <Spinner label="Crunching numbers…" />
-  if (isError || (!isOwn && profile.isError)) {
+  if (isLoading || profile.isLoading) return <Spinner label="Crunching numbers…" />
+  if (isError || profile.isError) {
     return <ErrorBanner message="Couldn't load this player's stats." onRetry={() => refetch()} />
   }
 
@@ -47,7 +50,8 @@ export function StatsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="text-center">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <Avatar url={profile.data?.avatar_url} name={profile.data?.display_name ?? '?'} size="h-14 w-14" />
         <h1 className="text-xl font-semibold text-paper">{displayName} record</h1>
         <p className="mt-2 text-4xl font-bold text-gold">{Math.round(stats.overall.winRate * 100)}%</p>
         <p className="text-sm text-paper/60">
