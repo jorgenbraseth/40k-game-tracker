@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { needsVerification } from '@/lib/queries/games'
+import { isGameLocked, needsVerification } from '@/lib/queries/games'
 import { supabase } from '@/lib/supabase'
 
 export interface CompletedGameRow {
@@ -61,6 +61,11 @@ export interface AllGamesRow {
   status: 'complete' | 'abandoned'
   ladderId: string | null
   ladderName: string | null
+  /** True once both seats have confirmed this result -- locked (issue #72), so History no longer
+   * offers Cancel for it; editing/deleting it needs the unlock-request flow on Scoreboard/Summary
+   * instead. Mirrors isGameLocked()/is_game_fully_verified() -- see those for what "confirmed"
+   * means for each kind of seat. */
+  isLocked: boolean
 }
 
 export const historyKeys = {
@@ -352,6 +357,7 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
         const ladderId = ladderIdByGameId.get(game.id)
         return ladderId ? (ladderById.get(ladderId) ?? 'Unknown ladder') : null
       })(),
+      isLocked: isGameLocked([{ player: p1 }, { player: p2 }], verificationsRes.data),
     })
   }
 

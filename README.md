@@ -46,18 +46,25 @@ players' own phones if they'd both rather enter their own numbers.
   another person who can also adjust either side's numbers, the same as
   if they'd been there from the start -- not a required step to use the
   app.
-- When a solo-entered, ladder-attributed seat (`represents_user_id` set,
-  never actually joined) belongs to a finished game, that result shows
-  as **unverified** until the real player it was entered for confirms
-  it themselves -- a one-tap "Verify this result", offered wherever that
-  game shows up for them (its own summary, their history list). This is
-  informational, not a gate: an unverified game still counts toward
-  standings and stats immediately, the same as any other result: the
-  point is letting the represented player see and flag a wrong score,
-  not blocking anything on their confirmation. There's no dispute/reject
-  flow -- if a score's wrong, it's fixed the same way every other value
-  in this app is, by editing it directly, same as
-  correcting a fat-fingered tap.
+- When a game finishes, each seat -- its own real occupant, or, for a
+  solo-entered seat nobody's joined yet, the ladder member it was
+  attributed to -- can confirm the result is correct with a one-tap
+  "Verify this result", offered wherever that game shows up for them
+  (its own summary, their history list). A single seat's confirmation
+  is informational, not a gate: standings and stats already count the
+  game either way, and if a score's wrong before both sides have
+  confirmed, it's fixed the same way every other value in this app is,
+  by editing it directly.
+- Once **both** seats have confirmed, though, the game locks: neither
+  player can unilaterally edit or delete it any more (a real trust
+  boundary, enforced server-side, not just hidden buttons). Undoing that
+  needs the other player's sign-off -- one player requests permission to
+  edit, and the other approves or rejects it; approving just clears both
+  confirmations, dropping the game back to its normal, editable state,
+  which it leaves again the next time both sides re-confirm. If the
+  other player won't respond, a creator of any ladder the game's tagged
+  to can step in and approve the request themselves, as a
+  dispute-resolution override.
 - The waiting room has each seat's own setup (faction, Force Disposition,
   which of Fixed or Tactical they're playing Secondary Missions as, army
   name) side by side, plus one shared **game configuration** section
@@ -385,21 +392,63 @@ dedicated `game_player_verifications` table
 per-row, not per-column, so a `verified_at`/`verified_by` column there
 would end up writable by the bookkeeper too (via the existing broader
 "players can update their own seat, or claim/fill an unclaimed one"
-policy), defeating the point. The new table's own INSERT policy is the
-sole gatekeeper instead: only the represented account, for a seat still
-unclaimed (`user_id is null`) and attributed to them, on a game that's
-actually finished. `needsVerification()` (`src/lib/queries/games.ts`) is
-the shared predicate for "does this seat still need it" -- attributed,
-unclaimed, finished, no verification row yet -- used by both
-`SummaryPage` (a "Verify this result" button on the represented
-player's own card, or a read-only "awaiting confirmation" pill for the
-other seat) and `HistoryPage` (the same button/pill inline per row, via
-`useVerifySeat`). Verifying never blocks or changes anything else --
-Elo/standings/stats already count the game either way -- it only
-records that the represented player looked at it and confirmed it's
-right. Games solo-entered before this shipped aren't backfilled: they
-simply show as unverified like any other qualifying game rather than
-fabricating a confirmation that was never actually given.
+policy), defeating the point. The table's own INSERT policies are the
+sole gatekeeper instead: originally just the represented account, for a
+seat still unclaimed (`user_id is null`) and attributed to them, on a
+game that's actually finished -- issue #72
+(`20260402000000_verified_game_lock.sql`) added a second policy letting
+a claimed seat's own occupant confirm their own result the same way, so
+"verified" now has a real meaning for a normal two-real-account game,
+not just a solo-entered one. `needsVerification()` (`src/lib/gameLock.ts`,
+re-exported from `src/lib/queries/games.ts` -- split into its own
+module so it's importable from a unit test without pulling in
+`supabase.ts`, which throws if the Supabase env vars aren't set, as
+they deliberately aren't for the plain `npm run test` CI step) is the
+shared predicate for "does this seat still need it" -- owned (either
+way), finished, no verification row yet -- used by `SummaryPage` (a
+"Verify this result" button on a seat the viewer owns, or a read-only
+"awaiting confirmation" pill for the other seat) and `HistoryPage` (the
+same button/pill inline per row, via `useVerifySeat`). Verifying a
+single seat never blocks or changes anything else -- Elo/standings/
+stats already count the game either way -- it only records that
+whoever's behind that seat looked at it and confirmed it's right. Games
+solo-entered before this shipped aren't backfilled: they simply show as
+unverified like any other qualifying game rather than fabricating a
+confirmation that was never actually given.
+
+Once *every* seat in a game has verified it (`isGameLocked()`, mirroring
+`is_game_fully_verified()` server-side), issue #72 locks it: every write
+policy that lets a participant change a finished game's recorded result
+-- round/secondary scores, primary/secondary objective ticks, secondary
+draws, Command Points, `game_players` (faction/Force Disposition/army/
+painted bonus/etc.), and `games` itself (update and delete) -- gets an
+added `not is_game_fully_verified(game_id)` clause
+(`20260402000000_verified_game_lock.sql`), always true and so a no-op
+until a game actually finishes and both sides confirm it. This is the
+real security boundary; nothing about it lives only in the client.
+Unlocking is propose/approve, not a diff-level edit request: a
+`game_unlock_requests` table (one pending row per game at a time, a
+partial unique index enforces that) holds a participant's request, and
+either the *other* participant or a creator of any ladder the game's
+tagged to (`is_ladder_admin_for_game()`, a dispute-resolution override
+for when the other player simply won't respond) approves or rejects it
+via a security-definer RPC -- `request_game_unlock`/
+`approve_game_unlock_request`/`reject_game_unlock_request`/
+`cancel_game_unlock_request`, all in `src/lib/queries/games.ts`.
+Approval's only effect is deleting both seats' verification rows --
+that's the entire "unlock", since it just makes
+`is_game_fully_verified` false again and every gated policy drops back
+to its ordinary participant check; there's no separate "unlocked until
+when" state tracked anywhere. `GameLockBanner`
+(`src/components/GameLockBanner.tsx`) is the one UI surface for all of
+this -- shown in both `Scoreboard` (where an edit would otherwise just
+silently fail to save) and `SummaryPage` (where the confirm-result
+action itself lives) -- and `HistoryPage` hides its per-row delete
+button once a row is locked rather than offering an action that would
+fail. Retagging a game's ladders/tournaments and the End of Game
+layout-variant pick are deliberately *not* gated by the lock (a
+documented scope trim): neither changes the recorded result itself, so
+locking them didn't seem worth the added surface for this pass.
 
 Turn order is implemented: `game_players.turn_order` ('first'/'second')
 is modeled exactly like `role` at the schema level (a partial unique

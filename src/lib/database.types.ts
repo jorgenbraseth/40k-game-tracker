@@ -360,6 +360,20 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['game_player_verifications']['Row']>
         Relationships: []
       }
+      game_unlock_requests: {
+        Row: {
+          id: string
+          game_id: string
+          requested_by: string
+          status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+          created_at: string
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: Partial<Database['public']['Tables']['game_unlock_requests']['Row']>
+        Update: Partial<Database['public']['Tables']['game_unlock_requests']['Row']>
+        Relationships: []
+      }
       join_attempts: {
         Row: {
           id: string
@@ -559,6 +573,30 @@ export interface Database {
       }
       join_ladder_by_code: {
         Args: { p_ladder_id: string; p_code: string }
+        Returns: undefined
+      }
+      is_game_fully_verified: {
+        Args: { p_game_id: string }
+        Returns: boolean
+      }
+      is_ladder_admin_for_game: {
+        Args: { p_game_id: string }
+        Returns: boolean
+      }
+      request_game_unlock: {
+        Args: { p_game_id: string }
+        Returns: string
+      }
+      approve_game_unlock_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      reject_game_unlock_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      cancel_game_unlock_request: {
+        Args: { p_request_id: string }
         Returns: undefined
       }
     }

@@ -1,9 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Database } from '@/lib/database.types'
+import { isGameLocked, needsVerification } from '@/lib/gameLock'
 import { resolveMissionId } from '@/lib/missionResolution'
 import { referenceKeys } from '@/lib/queries/referenceData'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
+
+// Re-exported so every existing call site can keep importing these from '@/lib/queries/games' --
+// see gameLock.ts's own doc comment for why the actual logic lives there instead (importable from
+// a unit test without pulling in supabase.ts).
+export { isGameLocked, needsVerification }
 
 type MissionPairingRow = Database['public']['Tables']['missions']['Row']
 
@@ -46,27 +52,17 @@ export interface GameDetail {
   secondaryDraws: Database['public']['Tables']['secondary_draws']['Row'][]
   primaryTicks: Database['public']['Tables']['primary_objective_ticks']['Row'][]
   secondaryTicks: Database['public']['Tables']['secondary_objective_ticks']['Row'][]
-  /** One row per seat that's been verified by the ladder member it represents (issue #46) --
-   * see needsVerification() for what "still needs it" means. */
+  /** One row per seat that's confirmed the result (issue #46, widened by #72 to cover a claimed
+   * seat's own occupant too) -- see needsVerification() for what "still needs it" means, and
+   * isGameLocked() for what "every seat has" means. */
   verifications: Database['public']['Tables']['game_player_verifications']['Row'][]
-}
-
-/** A solo-entered seat's result hasn't been confirmed by the real player it was attributed to
- * yet: still unclaimed (user_id null) and attributed (represents_user_id set), the game has
- * actually finished (verifying a still-in-progress score is premature), and nobody's verified it.
- * A seat that was never attributed at all (no ladder member to ask) is never "unverified" -- there's
- * nobody who could confirm it. */
-export function needsVerification(
-  entry: Pick<GameDetail['players'][number], 'player'>,
-  gameStatus: GameRow['status'],
-  verifications: GameDetail['verifications'],
-): boolean {
-  return (
-    Boolean(entry.player.represents_user_id) &&
-    !entry.player.user_id &&
-    (gameStatus === 'complete' || gameStatus === 'abandoned') &&
-    !verifications.some((v) => v.game_player_id === entry.player.id)
-  )
+  /** The one currently-pending request to unlock this game, if any (issue #72) -- at most one at
+   * a time (game_unlock_requests' own partial unique index enforces that server-side). Doesn't
+   * include already-resolved requests; there's no history UI for those yet. */
+  pendingUnlockRequest: Database['public']['Tables']['game_unlock_requests']['Row'] | null
+  /** created_by of every ladder this game is tagged to (parallel to ladderIds) -- who may approve
+   * an unlock request as a dispute-resolution override, per is_ladder_admin_for_game(). */
+  ladderAdminIds: string[]
 }
 
 export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
@@ -83,6 +79,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     commandPointsRes,
     gameLaddersRes,
     gameTournamentsRes,
+    unlockRequestRes,
   ] = await Promise.all([
     supabase.from('games').select('*').eq('id', gameId).single(),
     supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
@@ -96,6 +93,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     supabase.from('command_points').select('*').eq('game_id', gameId),
     supabase.from('game_ladders').select('ladder_id').eq('game_id', gameId),
     supabase.from('game_tournaments').select('tournament_id').eq('game_id', gameId),
+    supabase.from('game_unlock_requests').select('*').eq('game_id', gameId).eq('status', 'pending').maybeSingle(),
   ])
 
   if (gameRes.error) throw gameRes.error
@@ -110,6 +108,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (commandPointsRes.error) throw commandPointsRes.error
   if (gameLaddersRes.error) throw gameLaddersRes.error
   if (gameTournamentsRes.error) throw gameTournamentsRes.error
+  if (unlockRequestRes.error) throw unlockRequestRes.error
 
   // A seat nobody has joined yet has user_id = null (the bookkeeper can
   // fill it in themselves, on behalf of a player who never needs to sign
@@ -128,7 +127,9 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     .map((p) => p.force_disposition_id)
     .filter((id): id is string => Boolean(id))
 
-  const [profilesRes, factionsRes, forceDispositionsRes] = await Promise.all([
+  const ladderIds = gameLaddersRes.data.map((r) => r.ladder_id)
+
+  const [profilesRes, factionsRes, forceDispositionsRes, laddersRes] = await Promise.all([
     userIds.length
       ? supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds)
       : Promise.resolve({ data: [], error: null }),
@@ -138,10 +139,16 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     forceDispositionIds.length
       ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
       : Promise.resolve({ data: [], error: null }),
+    // Only who may approve an unlock request as a dispute-resolution override -- cheap enough to
+    // always fetch alongside everything else rather than only when a request is actually pending.
+    ladderIds.length
+      ? supabase.from('ladders').select('created_by').in('id', ladderIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
   if (profilesRes.error) throw profilesRes.error
   if (factionsRes.error) throw factionsRes.error
   if (forceDispositionsRes.error) throw forceDispositionsRes.error
+  if (laddersRes.error) throw laddersRes.error
 
   const profileById = new Map(profilesRes.data?.map((p) => [p.id, p]))
   const factionById = new Map(factionsRes.data?.map((f) => [f.id, f.name]))
@@ -150,7 +157,7 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
 
   return {
     game: gameRes.data,
-    ladderIds: gameLaddersRes.data.map((r) => r.ladder_id),
+    ladderIds,
     tournamentIds: gameTournamentsRes.data.map((r) => r.tournament_id),
     players: playersRes.data.map((player) => {
       const totals = totalsByPlayerId.get(player.id)
@@ -177,6 +184,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     primaryTicks: primaryTicksRes.data,
     secondaryTicks: secondaryTicksRes.data,
     verifications: verificationsRes.data,
+    pendingUnlockRequest: unlockRequestRes.data,
+    ladderAdminIds: [...new Set(laddersRes.data?.map((l) => l.created_by).filter((id): id is string => Boolean(id)))],
   }
 }
 
@@ -729,10 +738,14 @@ export function useSetPaintedBonus(gameId: string) {
 }
 
 /**
- * The represented player confirming a solo-entered result is theirs (issue #46) -- insert-only,
- * no "unverify": RLS only lets `verified_by` insert this for their own still-unclaimed,
- * represents_user_id-attributed seat on a finished game (see 20260315000000_seat_verification.sql
- * for why this is its own table rather than a column on game_players).
+ * Confirming a seat's result is correct -- either its own occupant confirming their own claimed
+ * seat, or the represented player confirming a solo-entered result is theirs (issue #46). Insert
+ * -only, no "unverify": RLS only lets `verified_by` insert this for a seat they actually own
+ * (user_id or represents_user_id match) on a finished game -- see
+ * 20260315000000_seat_verification.sql for why this is its own table rather than a column on
+ * game_players, and 20260402000000_verified_game_lock.sql for the second policy that added the
+ * claimed-seat case. Once every seat in a game is verified this way it locks (isGameLocked/
+ * is_game_fully_verified) -- the only way back out is the unlock request flow below.
  */
 export function useVerifySeat(gameId: string) {
   const queryClient = useQueryClient()
@@ -768,6 +781,70 @@ export function useVerifySeat(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't verify this result. Try again.")
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+/**
+ * Propose unlocking a fully-verified game (issue #72) -- the RPC itself re-checks participancy,
+ * that the game's actually locked, and that nothing's already pending, so this is a thin wrapper.
+ * No optimistic update: a request needs its `id` back from the server before Approve/Reject/Cancel
+ * have anything to act on, and this is rare enough that the round-trip cost doesn't matter.
+ */
+export function useRequestGameUnlock(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('request_game_unlock', { p_game_id: gameId })
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't request an unlock. Try again."),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+/**
+ * Approving is what actually unlocks the game -- the RPC deletes both seats' verification rows as
+ * part of the same transaction, so is_game_fully_verified drops back to false immediately (see
+ * 20260402000000_verified_game_lock.sql's own comment on why approval alone does this rather than
+ * tracking a separate "unlocked" state). Callable by the other participant or a ladder admin for a
+ * ladder this game is tagged to -- the RPC is what actually enforces that; the UI just doesn't
+ * offer the button to someone who plainly isn't either.
+ */
+export function useApproveGameUnlockRequest(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const { error } = await supabase.rpc('approve_game_unlock_request', { p_request_id: requestId })
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't approve that request. Try again."),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+export function useRejectGameUnlockRequest(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const { error } = await supabase.rpc('reject_game_unlock_request', { p_request_id: requestId })
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't reject that request. Try again."),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+  })
+}
+
+/** Lets the requester stand down their own still-pending request (e.g. they realize they didn't
+ * need it after all) without waiting on the other side to reject it. */
+export function useCancelGameUnlockRequest(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const { error } = await supabase.rpc('cancel_game_unlock_request', { p_request_id: requestId })
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't cancel that request. Try again."),
     onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
   })
 }

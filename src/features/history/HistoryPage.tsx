@@ -232,7 +232,7 @@ function HistoryGameRow({
             {game.seat2.factionName ?? 'No faction'}
           </span>
         </p>
-        {mySeat && (
+        {mySeat && !game.isLocked && (
           <button
             type="button"
             aria-label="Cancel game"
@@ -270,6 +270,7 @@ function HistoryGameRow({
           {game.pointsLimit} pts · {endedAt}
           {game.ladderName ? ` · ${game.ladderName}` : ''}
           {game.status === 'abandoned' ? ' · Abandoned' : ''}
+          {game.isLocked ? ' · Locked' : ''}
         </p>
         <span className="flex-shrink-0 text-sm text-paper/50">
           {game.seat1.totalVp}-{game.seat2.totalVp}

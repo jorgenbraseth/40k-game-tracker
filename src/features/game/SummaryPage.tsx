@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
+import { GameLockBanner } from '@/components/GameLockBanner'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { ResultIcon, type GameResultKind } from '@/components/ResultIcon'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -97,10 +98,13 @@ export function SummaryPage() {
         </div>
       )}
 
+      <GameLockBanner detail={data} userId={user?.id} />
+
       <div className="grid grid-cols-2 gap-4">
         {players.map((entry) => {
           const unverified = needsVerification(entry, game.status, data.verifications)
-          const iAmRepresented = unverified && user?.id === entry.player.represents_user_id
+          const iOwnThisSeat = unverified && user?.id === (entry.player.user_id ?? entry.player.represents_user_id)
+          const isRepresented = Boolean(entry.player.represents_user_id) && !entry.player.user_id
           return (
             <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
               <p className="font-medium text-paper">
@@ -129,7 +133,7 @@ export function SummaryPage() {
                 </p>
               )}
               {unverified &&
-                (iAmRepresented ? (
+                (iOwnThisSeat ? (
                   <div className="mt-3 flex flex-col gap-1.5">
                     <Button
                       variant="secondary"
@@ -139,7 +143,9 @@ export function SummaryPage() {
                       {verifySeat.isPending ? 'Verifying…' : 'Verify this result'}
                     </Button>
                     <p className="text-[11px] text-paper/40">
-                      Entered on your behalf -- doesn't look right? Ask them to fix it directly.
+                      {isRepresented
+                        ? "Entered on your behalf -- doesn't look right? Ask them to fix it directly."
+                        : "Confirms this result is correct. Once both players confirm, it's locked."}
                     </p>
                   </div>
                 ) : (
