@@ -27,7 +27,7 @@ function tally(record: WinLossRecord, result: CompletedGameRow['result']) {
 export interface StatsSummary {
   overall: WinLossRecord
   byFaction: GroupedRecord[]
-  byMission: GroupedRecord[]
+  byDisposition: GroupedRecord[]
   byOpponent: GroupedRecord[]
 }
 
@@ -35,7 +35,7 @@ export interface StatsSummary {
 export function computeStats(rows: CompletedGameRow[]): StatsSummary {
   const overall = emptyRecord()
   const byFactionMap = new Map<string, WinLossRecord>()
-  const byMissionMap = new Map<string, WinLossRecord>()
+  const byDispositionMap = new Map<string, WinLossRecord>()
   const byOpponentMap = new Map<string, WinLossRecord>()
 
   const bump = (map: Map<string, WinLossRecord>, key: string, result: CompletedGameRow['result']) => {
@@ -48,7 +48,7 @@ export function computeStats(rows: CompletedGameRow[]): StatsSummary {
     if (row.result === 'abandoned') continue // no win/loss/draw to record
     tally(overall, row.result)
     bump(byFactionMap, row.myFactionName ?? 'Unknown faction', row.result)
-    bump(byMissionMap, row.missionName, row.result)
+    bump(byDispositionMap, row.myForceDispositionName ?? 'Unknown disposition', row.result)
     bump(byOpponentMap, row.opponentName, row.result)
   }
 
@@ -60,7 +60,7 @@ export function computeStats(rows: CompletedGameRow[]): StatsSummary {
   return {
     overall,
     byFaction: toSorted(byFactionMap),
-    byMission: toSorted(byMissionMap),
+    byDisposition: toSorted(byDispositionMap),
     byOpponent: toSorted(byOpponentMap),
   }
 }

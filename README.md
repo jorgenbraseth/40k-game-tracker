@@ -207,9 +207,12 @@ players' own phones if they'd both rather enter their own numbers.
   Fat-fingered a tap, picked the wrong secondary, realized your army name
   was wrong three rounds in? Fix it in place, no reset required.
 - Over time, each player builds up game history and win/loss stats,
-  broken down by faction played, mission, and opponent -- so "how do I do
-  against Necrons?" or "what's my record with Orks?" has a real answer
-  instead of a memory.
+  broken down by faction played, Force Disposition, and opponent -- so
+  "how do I do against Necrons?" or "what's my record playing Purge the
+  Foe?" has a real answer instead of a memory. (The mission breakdown
+  this had briefly -- each player has their own, so it read more like
+  noise than a useful split -- is on hold for now; Force Disposition
+  fills that slot instead.)
 - The History page itself shows every finished game from everyone, not
   just the viewer's own -- filterable down to "my games only", a single
   ladder, a Faction, or a Force Disposition (any combination at once),

@@ -56,7 +56,7 @@ export function StatsPage() {
       </div>
 
       <RecordGroup title="By faction" records={stats.byFaction} />
-      <RecordGroup title="By mission" records={stats.byMission} />
+      <RecordGroup title="By Force Disposition" records={stats.byDisposition} />
       <RecordGroup title="By opponent" records={stats.byOpponent} />
     </div>
   )
