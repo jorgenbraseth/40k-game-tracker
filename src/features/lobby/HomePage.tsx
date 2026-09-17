@@ -28,6 +28,12 @@ export function HomePage() {
         </Link>
       </div>
 
+      <Link to="/game/log">
+        <Button variant="ghost" fullWidth>
+          Log a past game
+        </Button>
+      </Link>
+
       <section>
         <h2 className="mb-3 text-sm font-semibold tracking-wide text-paper/60 uppercase">
           In progress

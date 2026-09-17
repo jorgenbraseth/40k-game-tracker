@@ -427,6 +427,55 @@ export function useCreateGame() {
   })
 }
 
+/**
+ * Register a game that already happened, entirely after the fact (feature request) -- no live
+ * Scoreboard play, just both players' setup and a final score per side. One RPC call takes the
+ * game straight to `status: 'complete'`; the final score lands as round_scores rows chunked to
+ * respect the existing 15VP/row cap under the hood (see log_completed_game() in
+ * 20260403000000_log_completed_game.sql for why there's no cleaner primitive), and the game is
+ * flagged `is_retroactive` so SummaryPage knows to skip its "round by round" table rather than
+ * render that chunking misleadingly. The caller's own seat is auto-verified (they typed the result
+ * in themselves); an opponent attributed to a real ladder member still goes through the normal
+ * solo-entry confirmation flow.
+ */
+export function useLogCompletedGame() {
+  return useMutation({
+    mutationFn: async (input: {
+      pointsLimit: number
+      playedAt: string
+      myVp: number
+      opponentVp: number
+      myFactionId?: string | null
+      myForceDispositionId?: string | null
+      myArmyName?: string | null
+      opponentRepresentsUserId?: string | null
+      opponentFactionId?: string | null
+      opponentForceDispositionId?: string | null
+      opponentArmyName?: string | null
+      ladderIds?: string[]
+      tournamentIds?: string[]
+    }) => {
+      const { data, error } = await supabase.rpc('log_completed_game', {
+        p_points_limit: input.pointsLimit,
+        p_played_at: input.playedAt,
+        p_my_vp: input.myVp,
+        p_opponent_vp: input.opponentVp,
+        p_my_faction_id: input.myFactionId ?? null,
+        p_my_force_disposition_id: input.myForceDispositionId ?? null,
+        p_my_army_name: input.myArmyName ?? null,
+        p_opponent_represents_user_id: input.opponentRepresentsUserId ?? null,
+        p_opponent_faction_id: input.opponentFactionId ?? null,
+        p_opponent_force_disposition_id: input.opponentForceDispositionId ?? null,
+        p_opponent_army_name: input.opponentArmyName ?? null,
+        p_ladder_ids: input.ladderIds ?? [],
+        p_tournament_ids: input.tournamentIds ?? [],
+      })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
 export function useJoinGame() {
   return useMutation({
     mutationFn: async (input: {
