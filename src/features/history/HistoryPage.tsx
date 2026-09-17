@@ -176,6 +176,12 @@ export function HistoryPage() {
  * "vs opponent"/mine-first framing that only applied to the viewer's own games. Deliberately
  * unpersonalized: a game the viewer played shouldn't look different from one they didn't.
  *
+ * Factions lead, players follow: this is a browse-all-games view, so which armies fought is the
+ * primary thing being scanned for, and who played them is secondary detail underneath. The faction
+ * line therefore carries the winner-bold treatment and the player-name line is a plain, dimmer row
+ * beneath it (and, since `PlayerNameLink` renders its own `<a>`, it stays outside the summary
+ * `Link` below rather than nested inside it).
+ *
  * Cancel and Verify are the one exception -- gated on the viewer actually holding a seat (their
  * own account, or a ladder member they solo-entered on behalf of), since those aren't a framing
  * choice, they're real actions only a participant can take at all (RLS backs this up server-side
@@ -203,19 +209,13 @@ function HistoryGameRow({
     <li className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
       <div className="flex items-center justify-between gap-2 px-4 pt-3">
         <p className="min-w-0 truncate text-sm text-paper">
-          <PlayerNameLink
-            userId={game.seat1.userId}
-            name={game.seat1.displayName}
-            avatarUrl={game.seat1.avatarUrl}
-            className={game.outcome === 'seat_1' ? 'font-semibold text-paper' : 'text-paper/70'}
-          />
+          <span className={game.outcome === 'seat_1' ? 'font-semibold text-paper' : 'text-paper/70'}>
+            {game.seat1.factionName ?? 'No faction'}
+          </span>
           <span className="text-paper/40"> vs </span>
-          <PlayerNameLink
-            userId={game.seat2.userId}
-            name={game.seat2.displayName}
-            avatarUrl={game.seat2.avatarUrl}
-            className={game.outcome === 'seat_2' ? 'font-semibold text-paper' : 'text-paper/70'}
-          />
+          <span className={game.outcome === 'seat_2' ? 'font-semibold text-paper' : 'text-paper/70'}>
+            {game.seat2.factionName ?? 'No faction'}
+          </span>
         </p>
         {mySeat && (
           <button
@@ -228,10 +228,14 @@ function HistoryGameRow({
           </button>
         )}
       </div>
-      <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3">
+      <p className="min-w-0 truncate px-4 pt-0.5 text-xs text-paper/50">
+        <PlayerNameLink userId={game.seat1.userId} name={game.seat1.displayName} avatarUrl={game.seat1.avatarUrl} />
+        <span className="text-paper/30"> vs </span>
+        <PlayerNameLink userId={game.seat2.userId} name={game.seat2.displayName} avatarUrl={game.seat2.avatarUrl} />
+      </p>
+      <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3 pt-1.5">
         <p className="min-w-0 truncate text-xs text-paper/50">
-          {game.seat1.factionName ?? 'No faction'} vs {game.seat2.factionName ?? 'No faction'} · {game.pointsLimit} pts
-          · {endedAt}
+          {game.pointsLimit} pts · {endedAt}
           {game.ladderName ? ` · ${game.ladderName}` : ''}
           {game.status === 'abandoned' ? ' · Abandoned' : ''}
         </p>
