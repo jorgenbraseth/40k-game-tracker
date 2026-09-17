@@ -1,3 +1,16 @@
+# Baseline hardening headers, every response. The site is already HTTPS-only (Cloudflare redirects
+# both the apex and plain http:// -- see 40ktracker.com's DNS/proxy config, not this repo), so HSTS
+# just makes that explicit to returning browsers instead of relying on the redirect every time; it
+# doesn't change any request this app itself makes (Supabase, Google OAuth) since those are a
+# separate origin's own headers, not ours. X-Frame-Options: DENY blocks embedding this app in
+# someone else's iframe -- nothing here is meant to be framed. Deliberately no Content-Security-
+# Policy yet: getting one right without breaking the Google OAuth redirect, Supabase API/Storage
+# calls, and avatar/layout images needs its own careful pass, not a drive-by addition alongside
+# these two.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Frame-Options: DENY
+
 # The generated service worker (vite-plugin-pwa, see vite.config.ts) isn't content-hashed, so a
 # CDN- or browser-cached copy of it would delay how quickly a new deploy's precache manifest is
 # picked up -- registerType: 'prompt' already avoids a surprise mid-game reload (see
