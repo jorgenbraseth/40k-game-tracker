@@ -210,6 +210,11 @@ players' own phones if they'd both rather enter their own numbers.
   broken down by faction played, mission, and opponent -- so "how do I do
   against Necrons?" or "what's my record with Orks?" has a real answer
   instead of a memory.
+- The History page itself shows every finished game from everyone, not
+  just the viewer's own -- filterable down to "my games only", a single
+  ladder, a Faction, or a Force Disposition (any combination at once),
+  so "show me every game anyone's played as Necrons" is a real view, not
+  just a per-player stat.
 - It's built to be used one-handed, on a phone, mid-game, with dice in
   the other hand -- not at a desk afterward. Large tap targets, no tiny
   number inputs, the screen stays on during an active game, and it copes
@@ -798,6 +803,30 @@ someone out from under a live game. `InstallHint`
 dismissed, offers a real "Install" button on Android/Chrome (via the
 captured `beforeinstallprompt` event) and static Share-sheet
 instructions on iOS/Safari, which has no equivalent event.
+
+History shows every finished game from everyone, not just the viewer's
+own, via a new `fetchAllCompletedGames` (`src/lib/queries/history.ts`) --
+no migration needed, since the RLS backing a player's stats page
+already let any signed-in user read any finished game's rows
+(`20260314000000_finished_game_visibility.sql`); History's old
+participant-only scoping turned out to be a query-layer choice, not a
+backend restriction. That function returns games in a generic
+seat1/seat2 shape (`HistoryGameRow`/`AllGamesRow`), same "no single
+viewer to be relative to" reasoning as `fetchLadderGames`, rather than
+the existing `fetchCompletedGames`'s my/opponent framing -- which stays
+exactly as it was, since `StatsPage`/`computeStats` still depend on it
+for a single player's own record. `HistoryPage` renders each row one of
+two ways depending on whether the viewer holds one of its two seats
+(their own account, or someone they solo-entered on behalf of): the
+familiar mine-first "vs opponent" layout with Cancel/Verify actions for
+their own games, or a neutral "seat1 vs seat2, winner bolded" layout
+(mirroring `LaddersPage`/`TournamentsPage`'s own game lists) with no
+actions for everyone else's, since those are participant-gated
+server-side regardless. "My games only", Ladder, Faction, and Force
+Disposition are all filters over that one full set (Faction/Force
+Disposition matching either seat, so "show me every game anyone's
+played as Necrons" works), and -- like the pre-existing ladder filter --
+live in the URL rather than component state.
 
 ## Stack
 
