@@ -827,7 +827,11 @@ for a single player's own record. `HistoryPage` renders every row the
 same way regardless of whether the viewer played in it -- the same
 "seat1 vs seat2, winner bolded" layout `LaddersPage`/`TournamentsPage`'s
 own game lists use, deliberately not personalized into a "vs opponent"/
-mine-first framing for the viewer's own games. Cancel and Verify are the
+mine-first framing for the viewer's own games. Within a row, the
+matchup (which armies fought) leads and is bolded for the winner, with
+the two players' names as a smaller, dimmer line underneath -- History
+is a browse-all-games view, so which factions played is the primary
+thing being scanned for, not who played them. Cancel and Verify are the
 one exception, shown only when the viewer actually holds one of the
 game's two seats (their own account, or someone they solo-entered on
 behalf of) -- not a framing choice, just not offering an action that
