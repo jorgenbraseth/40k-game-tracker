@@ -4,13 +4,11 @@ import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
-import { ResultIcon, type GameResultKind } from '@/components/ResultIcon'
 import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useDeleteGame, useVerifySeat } from '@/lib/queries/games'
-import { type AllGamesRow, type HistoryGameSeat, useAllCompletedGames } from '@/lib/queries/history'
+import { type AllGamesRow, useAllCompletedGames } from '@/lib/queries/history'
 import { useFactions, useForceDispositions } from '@/lib/queries/referenceData'
-import { clsx } from '@/lib/clsx'
 
 /**
  * Every finished game, not just the viewer's own (issue: History used to be silently scoped to
@@ -172,24 +170,16 @@ export function HistoryPage() {
   )
 }
 
-type Result = 'win' | 'loss' | 'draw' | 'abandoned'
-
-const RESULT_ICON: Record<Result, GameResultKind> = {
-  win: 'victory',
-  loss: 'defeat',
-  draw: 'draw',
-  abandoned: 'abandoned',
-}
-
 /**
- * Two shapes, one row: when the viewer holds one of the two seats (their own account, or a
- * ladder member they solo-entered on behalf of), this renders the familiar "vs <opponent>",
- * mine-first VP, win/loss/draw badge, and Cancel/Verify actions -- exactly as before this page
- * showed everyone's games, since none of that changes for a game that's actually the viewer's own.
- * Otherwise -- someone else's game, now visible for the first time -- it falls back to the same
- * generic "seat1 vs seat2, winner bolded" shape LaddersPage/TournamentsPage's own game lists
- * already use, with no actions a non-participant couldn't actually perform anyway (RLS backs this
- * up regardless: cancel/verify are participant-only server-side).
+ * One shape for every row, regardless of whether the viewer played in it -- the same "seat1 vs
+ * seat2, winner bolded" layout `LaddersPage`/`TournamentsPage`'s own game lists already use, not a
+ * "vs opponent"/mine-first framing that only applied to the viewer's own games. Deliberately
+ * unpersonalized: a game the viewer played shouldn't look different from one they didn't.
+ *
+ * Cancel and Verify are the one exception -- gated on the viewer actually holding a seat (their
+ * own account, or a ladder member they solo-entered on behalf of), since those aren't a framing
+ * choice, they're real actions only a participant can take at all (RLS backs this up server-side
+ * regardless, so this is just not offering a button that would fail).
  */
 function HistoryGameRow({
   game,
@@ -203,85 +193,15 @@ function HistoryGameRow({
   const verifySeat = useVerifySeat(game.gameId)
   const endedAt = new Date(game.endedAt).toLocaleDateString()
 
-  const mySeat: HistoryGameSeat | null =
+  const mySeat =
     userId && game.seat1.userId === userId ? game.seat1 : userId && game.seat2.userId === userId ? game.seat2 : null
-  const opponentSeat = mySeat ? (mySeat === game.seat1 ? game.seat2 : game.seat1) : null
-
-  if (mySeat && opponentSeat) {
-    const mySeatKey = mySeat === game.seat1 ? 'seat_1' : 'seat_2'
-    const result: Result =
-      game.status === 'abandoned' ? 'abandoned' : game.outcome === 'draw' ? 'draw' : game.outcome === mySeatKey ? 'win' : 'loss'
-
-    return (
-      <li className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
-        <div className="flex items-center justify-between gap-2 px-4 pt-3">
-          <p className="min-w-0 truncate text-sm text-paper">
-            {mySeat.missionName} · vs{' '}
-            <PlayerNameLink
-              userId={opponentSeat.userId}
-              name={opponentSeat.displayName}
-              avatarUrl={opponentSeat.avatarUrl}
-              className="font-medium text-paper"
-            />
-          </p>
-          <button
-            type="button"
-            aria-label="Cancel game"
-            onClick={onCancel}
-            className="flex-shrink-0 text-paper/40 hover:text-red-400"
-          >
-            ✕
-          </button>
-        </div>
-        <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3">
-          <p className="min-w-0 truncate text-xs text-paper/50">
-            {mySeat.factionName ?? 'No faction'} · {game.pointsLimit} pts · {endedAt}
-            {game.ladderName ? ` · ${game.ladderName}` : ''}
-          </p>
-          <div className="flex flex-shrink-0 items-center gap-2 text-right">
-            <span
-              className={clsx(
-                'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold uppercase',
-                result === 'win' && 'bg-green-900/50 text-green-300',
-                result === 'loss' && 'bg-red-900/50 text-red-300',
-                (result === 'draw' || result === 'abandoned') && 'bg-white/10 text-paper/60',
-              )}
-            >
-              <ResultIcon result={RESULT_ICON[result]} />
-              {result}
-            </span>
-            <span className="text-sm text-paper/50">
-              {mySeat.totalVp}-{opponentSeat.totalVp}
-            </span>
-          </div>
-        </Link>
-        {mySeat.needsVerification && userId && (
-          <div className="flex items-center justify-between gap-2 border-t border-white/10 px-4 py-2">
-            <p className="text-[11px] text-paper/40">Entered on your behalf -- does this look right?</p>
-            <Button
-              variant="secondary"
-              disabled={verifySeat.isPending}
-              onClick={(e) => {
-                e.preventDefault()
-                verifySeat.mutate({ gamePlayerId: mySeat.gamePlayerId, userId })
-              }}
-            >
-              {verifySeat.isPending ? 'Verifying…' : 'Verify'}
-            </Button>
-          </div>
-        )}
-        {!mySeat.needsVerification && opponentSeat.needsVerification && (
-          <p className="border-t border-white/10 px-4 py-2 text-[11px] text-paper/40">
-            Unverified -- awaiting {opponentSeat.displayName}'s confirmation
-          </p>
-        )}
-      </li>
-    )
-  }
+  const unverifiedOtherSeat = [game.seat1, game.seat2].find(
+    (s) => s.needsVerification && s.gamePlayerId !== mySeat?.gamePlayerId,
+  )
 
   return (
     <li className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
-      <div className="px-4 pt-3">
+      <div className="flex items-center justify-between gap-2 px-4 pt-3">
         <p className="min-w-0 truncate text-sm text-paper">
           <PlayerNameLink
             userId={game.seat1.userId}
@@ -297,6 +217,16 @@ function HistoryGameRow({
             className={game.outcome === 'seat_2' ? 'font-semibold text-paper' : 'text-paper/70'}
           />
         </p>
+        {mySeat && (
+          <button
+            type="button"
+            aria-label="Cancel game"
+            onClick={onCancel}
+            className="flex-shrink-0 text-paper/40 hover:text-red-400"
+          >
+            ✕
+          </button>
+        )}
       </div>
       <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3">
         <p className="min-w-0 truncate text-xs text-paper/50">
@@ -309,6 +239,26 @@ function HistoryGameRow({
           {game.seat1.totalVp}-{game.seat2.totalVp}
         </span>
       </Link>
+      {mySeat?.needsVerification && userId && (
+        <div className="flex items-center justify-between gap-2 border-t border-white/10 px-4 py-2">
+          <p className="text-[11px] text-paper/40">Entered on your behalf -- does this look right?</p>
+          <Button
+            variant="secondary"
+            disabled={verifySeat.isPending}
+            onClick={(e) => {
+              e.preventDefault()
+              verifySeat.mutate({ gamePlayerId: mySeat.gamePlayerId, userId })
+            }}
+          >
+            {verifySeat.isPending ? 'Verifying…' : 'Verify'}
+          </Button>
+        </div>
+      )}
+      {!mySeat?.needsVerification && unverifiedOtherSeat && (
+        <p className="border-t border-white/10 px-4 py-2 text-[11px] text-paper/40">
+          Unverified -- awaiting {unverifiedOtherSeat.displayName}'s confirmation
+        </p>
+      )}
     </li>
   )
 }
