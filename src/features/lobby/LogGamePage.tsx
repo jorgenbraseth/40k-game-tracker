@@ -130,6 +130,26 @@ export function LogGamePage() {
           />
         </div>
 
+        {/* Ladder/tournament tagging comes before either seat's own fields -- picking a ladder
+            here is what populates the Opponent fieldset's "Player" dropdown below with that
+            ladder's own members, so it has to happen first, not as an afterthought at the
+            bottom of the form. */}
+        <GroupingsPicker
+          ladderIds={ladderIds}
+          tournamentIds={tournamentIds}
+          ladderOptions={(ladders.data ?? [])
+            .filter((l) => l.isMember && !l.archivedAt)
+            .map((l) => ({ id: l.id, name: l.name }))}
+          tournamentOptions={(tournaments.data ?? [])
+            .filter((t) => t.isMember && !t.archivedAt)
+            .map((t) => ({ id: t.id, name: t.name }))}
+          onChange={(next) => {
+            setLadderIds(next.ladderIds)
+            setTournamentIds(next.tournamentIds)
+            if (next.ladderIds[0] !== firstLadderId) setOpponentRepresentsUserId('')
+          }}
+        />
+
         <fieldset className="flex min-w-0 flex-col gap-3 rounded-xl border border-white/10 p-4">
           <legend className="px-1 text-sm font-semibold text-paper/80">You</legend>
           <Select label="Faction" value={myFactionId} onChange={(e) => setMyFactionId(e.target.value)}>
@@ -230,22 +250,6 @@ export function LogGamePage() {
             onChange={(e) => setOpponentVp(e.target.value)}
           />
         </fieldset>
-
-        <GroupingsPicker
-          ladderIds={ladderIds}
-          tournamentIds={tournamentIds}
-          ladderOptions={(ladders.data ?? [])
-            .filter((l) => l.isMember && !l.archivedAt)
-            .map((l) => ({ id: l.id, name: l.name }))}
-          tournamentOptions={(tournaments.data ?? [])
-            .filter((t) => t.isMember && !t.archivedAt)
-            .map((t) => ({ id: t.id, name: t.name }))}
-          onChange={(next) => {
-            setLadderIds(next.ladderIds)
-            setTournamentIds(next.tournamentIds)
-            if (next.ladderIds[0] !== firstLadderId) setOpponentRepresentsUserId('')
-          }}
-        />
 
         {logGame.isError && (
           <p className="text-sm text-red-400">
