@@ -31,8 +31,38 @@ export interface CompletedGameRow {
   opponentUnverified: boolean
 }
 
+export interface HistoryGameSeat {
+  gamePlayerId: string
+  /** The account behind this seat, if any -- their own, or whoever an unclaimed seat was
+   * attributed to -- null when there's nobody to link to. */
+  userId: string | null
+  displayName: string
+  factionId: string | null
+  factionName: string | null
+  forceDispositionId: string | null
+  forceDispositionName: string | null
+  armyName: string | null
+  missionName: string
+  totalVp: number
+  needsVerification: boolean
+}
+
+export interface AllGamesRow {
+  gameId: string
+  endedAt: string
+  pointsLimit: number
+  seat1: HistoryGameSeat
+  seat2: HistoryGameSeat
+  /** null means the game was abandoned rather than actually finishing with a result. */
+  outcome: 'seat_1' | 'seat_2' | 'draw' | null
+  status: 'complete' | 'abandoned'
+  ladderId: string | null
+  ladderName: string | null
+}
+
 export const historyKeys = {
   list: (userId: string) => ['history', userId] as const,
+  all: ['history', 'all'] as const,
 }
 
 export async function fetchCompletedGames(userId: string): Promise<CompletedGameRow[]> {
@@ -179,5 +209,139 @@ export function useCompletedGames(userId: string | undefined) {
     queryKey: historyKeys.list(userId ?? ''),
     queryFn: () => fetchCompletedGames(userId as string),
     enabled: Boolean(userId),
+  })
+}
+
+/** Every finished game, full stop -- not scoped to one player the way fetchCompletedGames is
+ * (that shape stays exactly as-is; StatsPage still depends on its my/opponent framing for
+ * computeStats). RLS already allows any signed-in user to read every finished game's rows (see
+ * 20260314000000_finished_game_visibility.sql) -- HistoryPage's own "my games only" filtering was
+ * purely a query-layer choice, not a backend restriction, so widening it here needed no migration.
+ * Seats are generic (seat1/seat2, not my/opponent), same shape as fetchLadderGames/
+ * fetchTournamentGames, since there's no "viewer" to be relative to until the caller checks a
+ * seat's userId against whoever's actually looking. */
+export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
+  const { data: games, error: gamesError } = await supabase
+    .from('games')
+    .select('*')
+    .in('status', ['complete', 'abandoned'])
+    .order('ended_at', { ascending: false })
+  if (gamesError) throw gamesError
+  if (games.length === 0) return []
+
+  const gameIds = games.map((g) => g.id)
+
+  const [playersRes, totalsRes, gameLaddersRes, verificationsRes] = await Promise.all([
+    supabase.from('game_players').select('*').in('game_id', gameIds).order('seat'),
+    supabase.from('game_totals').select('*').in('game_id', gameIds),
+    supabase.from('game_ladders').select('game_id, ladder_id').in('game_id', gameIds),
+    supabase.from('game_player_verifications').select('*').in('game_id', gameIds),
+  ])
+  if (playersRes.error) throw playersRes.error
+  if (totalsRes.error) throw totalsRes.error
+  if (gameLaddersRes.error) throw gameLaddersRes.error
+  if (verificationsRes.error) throw verificationsRes.error
+
+  // Same "only the first tag per game" simplification as fetchCompletedGames -- see its own
+  // comment for why (issue #75 lets a game carry more than one, but neither row shape has grown a
+  // multi-value display for it yet).
+  const ladderIdByGameId = new Map(gameLaddersRes.data.map((r) => [r.game_id, r.ladder_id]))
+  const ladderIds = [...new Set(gameLaddersRes.data.map((r) => r.ladder_id))]
+  const laddersRes = ladderIds.length
+    ? await supabase.from('ladders').select('id, name').in('id', ladderIds)
+    : { data: [], error: null }
+  if (laddersRes.error) throw laddersRes.error
+
+  const missionIds = [
+    ...new Set(playersRes.data.map((p) => p.mission_id).filter((id): id is string => Boolean(id))),
+  ]
+  const factionIds = [...new Set(playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id)))]
+  const forceDispositionIds = [
+    ...new Set(playersRes.data.map((p) => p.force_disposition_id).filter((id): id is string => Boolean(id))),
+  ]
+  const profileIds = [
+    ...new Set(
+      playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id)),
+    ),
+  ]
+
+  const [missionsRes, factionsRes, forceDispositionsRes, profilesRes] = await Promise.all([
+    missionIds.length
+      ? supabase.from('missions').select('id, name').in('id', missionIds)
+      : Promise.resolve({ data: [], error: null }),
+    factionIds.length
+      ? supabase.from('factions').select('id, name').in('id', factionIds)
+      : Promise.resolve({ data: [], error: null }),
+    forceDispositionIds.length
+      ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
+      : Promise.resolve({ data: [], error: null }),
+    profileIds.length
+      ? supabase.from('profiles').select('id, display_name').in('id', profileIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (missionsRes.error) throw missionsRes.error
+  if (factionsRes.error) throw factionsRes.error
+  if (forceDispositionsRes.error) throw forceDispositionsRes.error
+  if (profilesRes.error) throw profilesRes.error
+
+  const missionById = new Map(missionsRes.data?.map((m) => [m.id, m.name]))
+  const factionById = new Map(factionsRes.data?.map((f) => [f.id, f.name]))
+  const forceDispositionById = new Map(forceDispositionsRes.data?.map((fd) => [fd.id, fd.name]))
+  const ladderById = new Map(laddersRes.data?.map((l) => [l.id, l.name]))
+  const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+  const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
+  const playersByGameId = new Map<string, typeof playersRes.data>()
+  for (const p of playersRes.data) {
+    const list = playersByGameId.get(p.game_id) ?? []
+    list.push(p)
+    playersByGameId.set(p.game_id, list)
+  }
+
+  const seatFor = (p: (typeof playersRes.data)[number], gameStatus: 'complete' | 'abandoned'): HistoryGameSeat => {
+    const userId = p.user_id ?? p.represents_user_id
+    return {
+      gamePlayerId: p.id,
+      userId,
+      displayName: userId ? (nameByUserId.get(userId) ?? 'Unknown player') : p.army_name || 'Unnamed player',
+      factionId: p.faction_id,
+      factionName: p.faction_id ? (factionById.get(p.faction_id) ?? null) : null,
+      forceDispositionId: p.force_disposition_id,
+      forceDispositionName: p.force_disposition_id ? (forceDispositionById.get(p.force_disposition_id) ?? null) : null,
+      armyName: p.army_name,
+      missionName: (p.mission_id && missionById.get(p.mission_id)) || 'Unknown mission',
+      totalVp: totalByPlayerId.get(p.id) ?? 0,
+      needsVerification: needsVerification({ player: p }, gameStatus, verificationsRes.data),
+    }
+  }
+
+  const rows: AllGamesRow[] = []
+  for (const game of games) {
+    if (!game.outcome && game.status !== 'abandoned') continue
+    const [p1, p2] = playersByGameId.get(game.id) ?? []
+    if (!p1 || !p2) continue // shouldn't happen -- create_game always seats both -- skip defensively
+
+    rows.push({
+      gameId: game.id,
+      endedAt: game.ended_at ?? game.created_at,
+      pointsLimit: game.points_limit,
+      seat1: seatFor(p1, game.status as 'complete' | 'abandoned'),
+      seat2: seatFor(p2, game.status as 'complete' | 'abandoned'),
+      outcome: game.outcome,
+      status: game.status as 'complete' | 'abandoned',
+      ladderId: ladderIdByGameId.get(game.id) ?? null,
+      ladderName: (() => {
+        const ladderId = ladderIdByGameId.get(game.id)
+        return ladderId ? (ladderById.get(ladderId) ?? 'Unknown ladder') : null
+      })(),
+    })
+  }
+
+  return rows
+}
+
+export function useAllCompletedGames() {
+  return useQuery({
+    queryKey: historyKeys.all,
+    queryFn: fetchAllCompletedGames,
   })
 }
