@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
+import { GameLockBanner } from '@/components/GameLockBanner'
 import { Sheet } from '@/components/Sheet'
 import { Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
@@ -9,6 +10,7 @@ import { Stepper } from '@/components/Stepper'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { GameDetail } from '@/lib/queries/games'
 import {
+  isGameLocked,
   playerLabel,
   playerUserId,
   remainingCp,
@@ -133,6 +135,7 @@ export function Scoreboard({
   }
 
   const isActive = detail.game.status === 'active'
+  const locked = isGameLocked(detail.players, detail.verifications)
   const isLastRound = viewRound === endOfGameRound
   const isViewingCurrent = viewRound === detail.game.current_round
 
@@ -212,7 +215,9 @@ export function Scoreboard({
                   : `Round ${detail.game.current_round} of ${detail.game.total_rounds}`}
           </p>
           {!isParticipant && <p className="text-xs text-paper/40">Spectating -- nothing here is yours to change.</p>}
-          {!isActive && <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>}
+          {!isActive && !locked && (
+            <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>
+          )}
           {detail.game.layout_variant && (
             <p className="text-xs text-paper/40">
               Layout {detail.game.layout_variant}
@@ -237,6 +242,8 @@ export function Scoreboard({
           </button>
         </div>
       </div>
+
+      <GameLockBanner detail={detail} userId={user.id} />
 
       <Stepper
         total={endOfGameRound}
