@@ -12,6 +12,7 @@ function row(overrides: Partial<CompletedGameRow>): CompletedGameRow {
     mySeat: 1,
     myGamePlayerId: crypto.randomUUID(),
     myFactionName: 'Space Marines',
+    myForceDispositionName: 'Purge the Foe',
     myArmyName: null,
     myTotalVp: 80,
     opponentName: 'Rival',
@@ -45,11 +46,11 @@ describe('computeStats', () => {
     expect(stats.overall.winRate).toBeCloseTo(0.5)
   })
 
-  it('groups by faction, mission and opponent independently', () => {
+  it('groups by faction, Force Disposition and opponent independently', () => {
     const stats = computeStats([
-      row({ myFactionName: 'Orks', missionName: 'Terraform', opponentName: 'Alex', result: 'win' }),
-      row({ myFactionName: 'Orks', missionName: 'Terraform', opponentName: 'Alex', result: 'loss' }),
-      row({ myFactionName: 'Necrons', missionName: 'Scorched Earth', opponentName: 'Sam', result: 'win' }),
+      row({ myFactionName: 'Orks', myForceDispositionName: 'Purge the Foe', opponentName: 'Alex', result: 'win' }),
+      row({ myFactionName: 'Orks', myForceDispositionName: 'Purge the Foe', opponentName: 'Alex', result: 'loss' }),
+      row({ myFactionName: 'Necrons', myForceDispositionName: 'Reconnaissance', opponentName: 'Sam', result: 'win' }),
     ])
 
     expect(stats.byFaction).toEqual(
@@ -58,13 +59,18 @@ describe('computeStats', () => {
         expect.objectContaining({ key: 'Necrons', games: 1, wins: 1 }),
       ]),
     )
-    expect(stats.byMission.find((m) => m.key === 'Terraform')).toMatchObject({ games: 2 })
+    expect(stats.byDisposition.find((d) => d.key === 'Purge the Foe')).toMatchObject({ games: 2 })
     expect(stats.byOpponent.find((o) => o.key === 'Alex')).toMatchObject({ games: 2, wins: 1, losses: 1 })
   })
 
   it('falls back to "Unknown faction" when no faction was picked', () => {
     const stats = computeStats([row({ myFactionName: null })])
     expect(stats.byFaction[0]?.key).toBe('Unknown faction')
+  })
+
+  it('falls back to "Unknown disposition" when no Force Disposition was picked', () => {
+    const stats = computeStats([row({ myForceDispositionName: null })])
+    expect(stats.byDisposition[0]?.key).toBe('Unknown disposition')
   })
 
   it('sorts groups by games played, descending', () => {

@@ -12,6 +12,7 @@ export interface CompletedGameRow {
   mySeat: 1 | 2
   myGamePlayerId: string
   myFactionName: string | null
+  myForceDispositionName: string | null
   myArmyName: string | null
   myTotalVp: number
   opponentName: string
@@ -127,22 +128,30 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
     ),
   ]
   const factionIds = [...new Set(playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id)))]
+  const forceDispositionIds = [
+    ...new Set(playersRes.data.map((p) => p.force_disposition_id).filter((id): id is string => Boolean(id))),
+  ]
 
-  const [profilesRes, factionsRes] = await Promise.all([
+  const [profilesRes, factionsRes, forceDispositionsRes] = await Promise.all([
     profileIds.length
       ? supabase.from('profiles').select('id, display_name').in('id', profileIds)
       : Promise.resolve({ data: [], error: null }),
     factionIds.length
       ? supabase.from('factions').select('id, name').in('id', factionIds)
       : Promise.resolve({ data: [], error: null }),
+    forceDispositionIds.length
+      ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
   if (profilesRes.error) throw profilesRes.error
   if (factionsRes.error) throw factionsRes.error
+  if (forceDispositionsRes.error) throw forceDispositionsRes.error
 
   const missionById = new Map(missionsRes.data.map((m) => [m.id, m.name]))
   const ladderById = new Map(laddersRes.data?.map((l) => [l.id, l.name]))
   const profileById = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
   const factionById = new Map(factionsRes.data?.map((f) => [f.id, f.name]))
+  const forceDispositionById = new Map(forceDispositionsRes.data?.map((fd) => [fd.id, fd.name]))
   const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
   const playersByGameId = new Map<string, typeof playersRes.data>()
   for (const p of playersRes.data) {
@@ -176,6 +185,7 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
       mySeat: me.seat,
       myGamePlayerId: me.id,
       myFactionName: me.faction_id ? (factionById.get(me.faction_id) ?? null) : null,
+      myForceDispositionName: me.force_disposition_id ? (forceDispositionById.get(me.force_disposition_id) ?? null) : null,
       myArmyName: me.army_name,
       myTotalVp: totalByPlayerId.get(me.id) ?? 0,
       opponentName: !opponent
