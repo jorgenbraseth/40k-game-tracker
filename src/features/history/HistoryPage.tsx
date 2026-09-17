@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
@@ -186,6 +186,11 @@ export function HistoryPage() {
  * own account, or a ladder member they solo-entered on behalf of), since those aren't a framing
  * choice, they're real actions only a participant can take at all (RLS backs this up server-side
  * regardless, so this is just not offering a button that would fail).
+ *
+ * The whole row navigates to the game's summary on click/Enter (not just the meta/VP line) --
+ * same `role="link"`/`navigate` pattern as `LaddersPage`'s `GamesList` row, rather than an `<a>`,
+ * since `PlayerNameLink` inside already renders its own `<a>` and nesting anchors isn't valid
+ * HTML. The trash and Verify buttons stop propagation so they don't also trigger the navigation.
  */
 function HistoryGameRow({
   game,
@@ -197,6 +202,7 @@ function HistoryGameRow({
   onCancel: () => void
 }) {
   const verifySeat = useVerifySeat(game.gameId)
+  const navigate = useNavigate()
   const endedAt = new Date(game.endedAt).toLocaleDateString()
 
   const mySeat =
@@ -204,9 +210,18 @@ function HistoryGameRow({
   const unverifiedOtherSeat = [game.seat1, game.seat2].find(
     (s) => s.needsVerification && s.gamePlayerId !== mySeat?.gamePlayerId,
   )
+  const goToSummary = () => navigate(`/game/${game.gameId}/summary`)
 
   return (
-    <li className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10">
+    <li
+      role="link"
+      tabIndex={0}
+      onClick={goToSummary}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') goToSummary()
+      }}
+      className="cursor-pointer rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
+    >
       <div className="flex items-center justify-between gap-2 px-4 pt-3">
         <p className="min-w-0 truncate text-sm text-paper">
           <span className={game.outcome === 'seat_1' ? 'font-semibold text-paper' : 'text-paper/70'}>
@@ -221,7 +236,10 @@ function HistoryGameRow({
           <button
             type="button"
             aria-label="Cancel game"
-            onClick={onCancel}
+            onClick={(e) => {
+              e.stopPropagation()
+              onCancel()
+            }}
             className="flex-shrink-0 text-paper/40 hover:text-red-400"
           >
             <svg
@@ -247,7 +265,7 @@ function HistoryGameRow({
         <span className="text-paper/30"> vs </span>
         <PlayerNameLink userId={game.seat2.userId} name={game.seat2.displayName} avatarUrl={game.seat2.avatarUrl} />
       </p>
-      <Link to={`/game/${game.gameId}/summary`} className="flex items-center justify-between gap-3 px-4 pb-3 pt-1.5">
+      <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-1.5">
         <p className="min-w-0 truncate text-xs text-paper/50">
           {game.pointsLimit} pts · {endedAt}
           {game.ladderName ? ` · ${game.ladderName}` : ''}
@@ -256,7 +274,7 @@ function HistoryGameRow({
         <span className="flex-shrink-0 text-sm text-paper/50">
           {game.seat1.totalVp}-{game.seat2.totalVp}
         </span>
-      </Link>
+      </div>
       {mySeat?.needsVerification && userId && (
         <div className="flex items-center justify-between gap-2 border-t border-white/10 px-4 py-2">
           <p className="text-[11px] text-paper/40">Entered on your behalf -- does this look right?</p>
@@ -264,7 +282,7 @@ function HistoryGameRow({
             variant="secondary"
             disabled={verifySeat.isPending}
             onClick={(e) => {
-              e.preventDefault()
+              e.stopPropagation()
               verifySeat.mutate({ gamePlayerId: mySeat.gamePlayerId, userId })
             }}
           >
