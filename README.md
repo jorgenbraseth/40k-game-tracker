@@ -1130,3 +1130,12 @@ workflow.
 project and the production Google OAuth client by hand -- see
 "First thing to do" in `40k-tracker-plan.md`. Everything else in this repo
 is ready to run once those exist and the secrets above are set.
+
+`public/_headers` sets a couple of baseline hardening headers Cloudflare
+Pages applies to every response -- `Strict-Transport-Security` (the site
+is already HTTPS-only via Cloudflare's own redirect; this just makes that
+explicit to returning browsers) and `X-Frame-Options: DENY` (nothing here
+is meant to be embedded in someone else's iframe). No
+Content-Security-Policy yet -- getting one right without breaking the
+Google OAuth redirect, Supabase API/Storage calls, or avatar/layout
+images needs its own careful pass.
