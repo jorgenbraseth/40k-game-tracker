@@ -823,14 +823,16 @@ seat1/seat2 shape (`HistoryGameRow`/`AllGamesRow`), same "no single
 viewer to be relative to" reasoning as `fetchLadderGames`, rather than
 the existing `fetchCompletedGames`'s my/opponent framing -- which stays
 exactly as it was, since `StatsPage`/`computeStats` still depend on it
-for a single player's own record. `HistoryPage` renders each row one of
-two ways depending on whether the viewer holds one of its two seats
-(their own account, or someone they solo-entered on behalf of): the
-familiar mine-first "vs opponent" layout with Cancel/Verify actions for
-their own games, or a neutral "seat1 vs seat2, winner bolded" layout
-(mirroring `LaddersPage`/`TournamentsPage`'s own game lists) with no
-actions for everyone else's, since those are participant-gated
-server-side regardless. "My games only", Ladder, Faction, and Force
+for a single player's own record. `HistoryPage` renders every row the
+same way regardless of whether the viewer played in it -- the same
+"seat1 vs seat2, winner bolded" layout `LaddersPage`/`TournamentsPage`'s
+own game lists use, deliberately not personalized into a "vs opponent"/
+mine-first framing for the viewer's own games. Cancel and Verify are the
+one exception, shown only when the viewer actually holds one of the
+game's two seats (their own account, or someone they solo-entered on
+behalf of) -- not a framing choice, just not offering an action that
+would fail server-side anyway (both are participant-gated via RLS
+regardless). "My games only", Ladder, Faction, and Force
 Disposition are all filters over that one full set (Faction/Force
 Disposition matching either seat, so "show me every game anyone's
 played as Necrons" works), and -- like the pre-existing ladder filter --
