@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BrandLogo } from '@/components/BrandLogo'
 import { Sheet } from '@/components/Sheet'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -26,16 +26,22 @@ const navItems = [
 export function Layout() {
   const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  // Home already renders the same crest full-size as its own hero -- a second, small copy of it
+  // up here would just be redundant, so the header drops its own logo there and lets the nav (or,
+  // on mobile, the hamburger) sit alone against the right edge instead.
+  const onHome = useLocation().pathname === '/home'
 
   return (
     <div className="flex min-h-screen flex-col">
       <OfflineBanner />
       <UpdatePrompt />
       <header className="sticky top-0 z-40 border-b border-veil-strong bg-ink/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <NavLink to="/home" aria-label="40K Tracker" className="flex items-center">
-            <BrandLogo className="h-10 w-auto sm:h-12" />
-          </NavLink>
+        <div className={clsx('mx-auto flex max-w-3xl items-center px-4 py-3', onHome ? 'justify-end' : 'justify-between')}>
+          {!onHome && (
+            <NavLink to="/home" aria-label="40K Tracker" className="flex items-center">
+              <BrandLogo className="h-10 w-auto sm:h-12" />
+            </NavLink>
+          )}
           {user && (
             <>
               <nav className="hidden items-center gap-1 sm:flex">
