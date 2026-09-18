@@ -579,6 +579,10 @@ export interface Database {
         Args: { p_ladder_id: string; p_code: string }
         Returns: undefined
       }
+      join_ladder_by_invite_code: {
+        Args: { p_code: string }
+        Returns: string
+      }
       log_completed_game: {
         Args: {
           p_points_limit: number

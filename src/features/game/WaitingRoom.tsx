@@ -47,7 +47,7 @@ export function WaitingRoom({
   const ladders = useLadders(user?.id)
   const tournaments = useTournaments(user?.id)
   const deleteGame = useDeleteGame()
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
 
   const me = detail.players.find((p) => p.player.user_id === user?.id)
@@ -95,11 +95,13 @@ export function WaitingRoom({
               ? 'Both players need to pick Fixed or Tactical secondaries'
               : null
 
-  const copyCode = async () => {
+  const copy = async (kind: 'code' | 'link') => {
+    const text =
+      kind === 'code' ? detail.game.join_code : `${window.location.origin}/game/join/${detail.game.join_code}`
     try {
-      await navigator.clipboard.writeText(detail.game.join_code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      await navigator.clipboard.writeText(text)
+      setCopied(kind)
+      setTimeout(() => setCopied(null), 1500)
     } catch {
       // clipboard can be denied; the code is visible on screen regardless
     }
@@ -230,9 +232,14 @@ export function WaitingRoom({
             {detail.game.join_code}
           </span>
         </div>
-        <button type="button" onClick={copyCode} className="mt-2 text-sm text-paper/50 underline">
-          {copied ? 'Copied!' : 'Copy code'}
-        </button>
+        <div className="mt-2 flex items-center justify-center gap-3">
+          <button type="button" onClick={() => copy('code')} className="text-sm text-paper/50 underline">
+            {copied === 'code' ? 'Copied!' : 'Copy code'}
+          </button>
+          <button type="button" onClick={() => copy('link')} className="text-sm text-paper/50 underline">
+            {copied === 'link' ? 'Copied!' : 'Copy link'}
+          </button>
+        </div>
       </div>
 
       <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-5 text-center">

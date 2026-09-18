@@ -202,6 +202,23 @@ export function useJoinLadderByCode() {
   })
 }
 
+/** Joins whichever ladder a bare invite code (from a shared /ladders/join/<code> link) belongs to
+ * -- unlike useJoinLadderByCode, the caller doesn't already know the ladder id, so this goes
+ * through join_ladder_by_invite_code, which resolves it server-side from the code alone (codes
+ * are already globally unique). Joining twice is harmless (on conflict do nothing server-side),
+ * so a member re-opening their own ladder's link just lands back on it. */
+export function useJoinLadderByInviteCode() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data, error } = await supabase.rpc('join_ladder_by_invite_code', { p_code: code })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ladders'] }),
+  })
+}
+
 /** A ladder's own invite code -- only resolvable for a current member (get_ladder_invite_code
  * checks membership server-side), so the caller passes `undefined` for a ladder the viewer hasn't
  * joined rather than this hook trying and failing. */

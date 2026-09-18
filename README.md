@@ -35,10 +35,12 @@ players' own phones if they'd both rather enter their own numbers.
   everywhere the signed-in player looks, on every device they sign into,
   with no effect on anyone else's game or on how anything scores.
 - One player starts a game (points limit, optionally a ladder to tag it
-  to) and gets a short 6-character code. Nothing about either player's
-  army -- or the terrain layout -- goes here -- that's all decided in
-  the waiting room next, once both seats actually exist and, for the
-  layout, once a Force Disposition pairing is known.
+  to) and gets a short 6-character code, shareable either as that code
+  (typed into a "Join a game" form) or as a link that joins
+  automatically the moment it's opened, no typing needed. Nothing about
+  either player's army -- or the terrain layout -- goes here -- that's
+  all decided in the waiting room next, once both seats actually exist
+  and, for the layout, once a Force Disposition pairing is known.
 - A game already played somewhere else -- at a store, a tournament,
   before this app existed for a group -- can be **logged after the
   fact** instead: one form for both sides' faction, Force Disposition
@@ -271,8 +273,10 @@ page. Every ladder stays browsable by anyone signed in (name, member
 count, standings, game log), but actually joining one -- your own or
 someone else's -- requires that ladder's invite code, so a ladder's
 membership isn't open to whoever happens to find it in the browse
-list. Any current member can see and share the code; only the creator
-can regenerate it, invalidating whatever the old one was. The creator
+list. Any current member can see and share the code, either as the
+code itself or as a link that joins automatically once it's opened;
+only the creator can regenerate it, invalidating whatever the old one
+(code and link alike) was. The creator
 can't leave their own ladder the way any other member can -- archiving
 or deleting it (below) is the only way to step away from one they
 made, since leaving would otherwise strand it with no one left who can
@@ -665,6 +669,42 @@ is already `on delete set null` (both from the original ladders
 migration), so a tagged game just becomes untagged rather than losing
 its own history. Untagged games stay
 participant-only, unchanged.
+
+Shareable invite links are implemented for both ladders and games, on
+top of their existing codes rather than replacing them: a code typed
+into a form still works exactly as before, but the same code can also
+be shared as a URL (`/ladders/join/<code>`, `/game/join/<code>`) that
+joins automatically the moment it's opened. Games needed no schema
+change for this -- `join_game_by_code` already resolves a game from the
+code alone (it's globally unique), so `/game/join/:code` is purely a
+new route on the existing `JoinGamePage`, which auto-submits when a
+code arrives via the URL instead of the manual field, then redirects
+into the game. Ladders needed one new RPC,
+`join_ladder_by_invite_code(p_code)`
+(`20260404000000_ladder_invite_links.sql`): the existing
+`join_ladder_by_code(p_ladder_id, p_code)` needs a ladder id the client
+doesn't have from a bare link (`invite_code` is deliberately not part
+of the public "browse ladders" read path -- see above), so the new
+function resolves the ladder from the code itself server-side before
+inserting the membership row, same `on conflict do nothing` idempotency
+as the id-based version. `LadderJoinPage` (`/ladders/join/:code`) calls
+it on arrival and redirects to the Ladders page. Both `WaitingRoom`
+(games) and the Ladders page's invite-code section now offer "Copy
+code"/"Copy link" side by side. Since both join routes sit behind
+`ProtectedRoute`, opening one signed out bounces through the landing
+page first -- `ProtectedRoute` already stashed the original URL in
+router state, but until now nothing read it back, so sign-in always
+landed on `/home` regardless of what brought you there. `LandingPage`
+now resolves that stashed location into a `next` path (defaulting to
+`/home` when there isn't one) and redirects there once signed in;
+for the two flows that leave the SPA and come back (Google OAuth,
+and email confirmation on signup) `next` is round-tripped as a query
+param on the `/auth/callback` redirect URL, since router state doesn't
+survive that round trip, and `AuthCallback` only trusts it back if it
+looks like an in-app path (starts with `/`, not `//`). Net effect: a
+brand-new invitee who isn't signed in yet can still follow an invite
+link straight through sign-up/sign-in and land exactly on the
+ladder/game they were invited to, not on the home screen.
 
 Which ladder a game's tagged to also stays editable for the life of the
 game, not just a one-time pick at creation: `useSetLadder` (a plain

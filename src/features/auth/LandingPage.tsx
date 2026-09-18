@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { TextField } from '@/components/TextField'
 import { supabase } from '@/lib/supabase'
@@ -9,6 +9,7 @@ type Mode = 'login' | 'signup'
 
 export function LandingPage() {
   const { user, loading } = useAuth()
+  const location = useLocation()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,13 +18,21 @@ export function LandingPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmSent, setConfirmSent] = useState(false)
 
-  if (!loading && user) return <Navigate to="/home" replace />
+  // Where to send the viewer once they're signed in: ProtectedRoute stashes the page they were
+  // trying to reach (e.g. an invite link, /ladders/join/<code>) as location.state.from when it
+  // bounces them here, so signing in lands them back where they meant to go instead of always at
+  // /home. Safe to trust as a same-origin path -- it only ever comes from this app's own router
+  // state, never from anything externally supplied.
+  const from = (location.state as { from?: { pathname: string; search: string } } | null)?.from
+  const next = from ? `${from.pathname}${from.search}` : '/home'
+
+  if (!loading && user) return <Navigate to={next} replace />
 
   const signInWithGoogle = async () => {
     setError(null)
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
     })
     if (oauthError) setError(oauthError.message)
   }
@@ -42,7 +51,7 @@ export function LandingPage() {
           password,
           options: {
             data: { full_name: displayName.trim() },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
           },
         })
         if (signUpError) throw signUpError
