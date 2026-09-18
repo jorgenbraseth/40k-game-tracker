@@ -63,8 +63,16 @@ export const LOGOS: { id: Logo; label: string; src: string; width: number; heigh
     label: 'Sororitas',
     src: '/images/brand/logo-sororitas.webp',
     width: 700,
-    height: 546,
+    height: 549,
     quote: '40K Tracker -- faith is our shield, conviction our sword.',
+  },
+  {
+    id: 'greyknights',
+    label: 'Grey Knights',
+    src: '/images/brand/logo-greyknights.webp',
+    width: 700,
+    height: 564,
+    quote: '40K Tracker -- kill the daemon, burn the witch, purge the unclean.',
   },
 ]
 
