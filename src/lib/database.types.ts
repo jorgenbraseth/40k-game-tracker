@@ -13,7 +13,7 @@ export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
 export type SecondaryMode = 'fixed' | 'tactical'
 export type Theme = 'grimdark' | 'astartes' | 'aeldari' | 'parchment'
-export type Logo = 'default' | 'mechanicus' | 'tyranid' | 'custodes' | 'orks' | 'chaos' | 'sororitas'
+export type Logo = 'default' | 'votann' | 'tyranid' | 'custodes' | 'orks' | 'chaos' | 'sororitas'
 
 export interface Database {
   public: {
