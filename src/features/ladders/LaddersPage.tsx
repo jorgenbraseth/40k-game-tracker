@@ -57,7 +57,7 @@ function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingTy
       </div>
       {showInfo && <p className="mb-2 text-xs text-paper/40">{RANKING_TYPE_EXPLAINERS[rankingType]}</p>}
       {!standings.data || standings.data.length === 0 ? (
-        <p className="px-1 py-2 text-sm text-paper/50">No completed games tagged with this ladder yet.</p>
+        <p className="px-1 py-2 text-sm text-paper/50">No members in this ladder yet.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -278,14 +278,16 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
 function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreator: boolean }) {
   const inviteCode = useLadderInviteCode(ladderId)
   const regenerate = useRegenerateLadderInviteCode(ladderId)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null)
 
-  const copyCode = async () => {
+  const copy = async (kind: 'code' | 'link') => {
     if (!inviteCode.data) return
+    const text =
+      kind === 'code' ? inviteCode.data : `${window.location.origin}/ladders/join/${inviteCode.data}`
     try {
-      await navigator.clipboard.writeText(inviteCode.data)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      await navigator.clipboard.writeText(text)
+      setCopied(kind)
+      setTimeout(() => setCopied(null), 1500)
     } catch {
       // clipboard can be denied; the code is still visible on screen regardless
     }
@@ -300,15 +302,24 @@ function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreato
         </span>
         <button
           type="button"
-          onClick={copyCode}
+          onClick={() => copy('code')}
           disabled={!inviteCode.data}
           className="text-xs text-paper/50 underline hover:text-paper disabled:opacity-40"
         >
-          {copied ? 'Copied!' : 'Copy'}
+          {copied === 'code' ? 'Copied!' : 'Copy code'}
+        </button>
+        <button
+          type="button"
+          onClick={() => copy('link')}
+          disabled={!inviteCode.data}
+          className="text-xs text-paper/50 underline hover:text-paper disabled:opacity-40"
+        >
+          {copied === 'link' ? 'Copied!' : 'Copy link'}
         </button>
       </div>
       <p className="mt-1.5 text-xs text-paper/40">
-        Share this with whoever you want to invite -- anyone already in the ladder can share it.
+        Share the code, or a link that joins automatically once it's opened -- anyone already in
+        the ladder can share either.
       </p>
       {isCreator && (
         <button

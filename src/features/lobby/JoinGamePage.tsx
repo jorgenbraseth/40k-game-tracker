@@ -1,13 +1,40 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
+import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { TextField } from '@/components/TextField'
 import { useJoinGame } from '@/lib/queries/games'
 
 export function JoinGamePage() {
   const navigate = useNavigate()
+  const { code: codeParam } = useParams<{ code?: string }>()
   const joinGame = useJoinGame()
   const [code, setCode] = useState('')
+  const attemptedCode = useRef<string | null>(null)
+
+  // A shared invite link (/game/join/:code) auto-joins on arrival instead of asking the viewer
+  // to retype the code they already have -- the manual form below still exists for someone typing
+  // a code by hand.
+  useEffect(() => {
+    if (!codeParam || attemptedCode.current === codeParam) return
+    attemptedCode.current = codeParam
+    joinGame.mutate(
+      { code: codeParam },
+      { onSuccess: (gameId) => navigate(`/game/${gameId}`, { replace: true }) },
+    )
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [codeParam])
+
+  if (codeParam) {
+    if (joinGame.isError) {
+      return (
+        <div className="flex flex-col items-center gap-4 py-12">
+          <ErrorBanner message={joinGame.error instanceof Error ? joinGame.error.message : 'Could not join game.'} />
+        </div>
+      )
+    }
+    return <Spinner label="Joining game…" />
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
