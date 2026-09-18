@@ -1,98 +1,44 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from '@/components/Button'
-import { ConfirmSheet } from '@/components/ConfirmSheet'
-import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
+import { BrandLogo } from '@/components/BrandLogo'
 import { InstallHint } from '@/components/InstallHint'
-import { useAuth } from '@/features/auth/AuthProvider'
-import { useDeleteGame, useMyActiveGames } from '@/lib/queries/games'
 
+const SHORTCUTS = [
+  { to: '/game/lobby', label: 'New game', description: 'Start, join, or log a game' },
+  { to: '/history', label: 'History', description: 'Every finished game, yours and others’' },
+  { to: '/ladders', label: 'Ladders', description: 'Standings and Elo/Glicko-2 rankings' },
+  { to: '/tournaments', label: 'Tournaments', description: 'Bracket-style events' },
+  { to: '/stats', label: 'Stats', description: 'Your record, factions, and trends' },
+  { to: '/profile', label: 'Profile', description: 'Name, avatar, theme, and logo' },
+]
+
+/**
+ * The landing page for a signed-in visitor -- previously this was the "start/join a game" hub
+ * (now its own "New game" nav item, GameLobbyPage), so returning here didn't always mean "I want
+ * to play right now." This is a proper front door instead: the app's own crest, prominent, and a
+ * shortcut to every section, same shape as the shortcuts a "New game" card in the grid links to.
+ */
 export function HomePage() {
-  const { user } = useAuth()
-  const { data: activeGames, isLoading, isError, refetch } = useMyActiveGames(user?.id)
-  const deleteGame = useDeleteGame()
-  const [cancelingGameId, setCancelingGameId] = useState<string | null>(null)
-
   return (
     <div className="flex flex-col gap-8">
-      <InstallHint />
-
-      <div className="grid grid-cols-2 gap-3">
-        <Link to="/game/new">
-          <Button fullWidth>Start a game</Button>
-        </Link>
-        <Link to="/game/join">
-          <Button variant="secondary" fullWidth>
-            Join a game
-          </Button>
-        </Link>
+      <div className="flex flex-col items-center pt-2 text-center">
+        <BrandLogo className="h-44 w-auto drop-shadow-xl drop-shadow-gold/30 sm:h-56" />
+        <p className="mt-3 text-paper/60">Live score tracking for tabletop Warhammer 40,000.</p>
       </div>
 
-      <Link to="/game/log">
-        <Button variant="ghost" fullWidth>
-          Log a past game
-        </Button>
-      </Link>
+      <InstallHint />
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold tracking-wide text-paper/60 uppercase">
-          In progress
-        </h2>
-        {isLoading && <Spinner label="Loading your games…" />}
-        {isError && <ErrorBanner message="Couldn't load your games." onRetry={() => refetch()} />}
-        {!isLoading && !isError && activeGames?.length === 0 && (
-          <EmptyState
-            title="No games in progress"
-            description="Start a new game or join one with a code from your opponent."
-          />
-        )}
-        {activeGames && activeGames.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {activeGames.map((game) => (
-              <li
-                key={game.id}
-                className="flex items-center gap-2 rounded-xl border border-veil-strong bg-veil pr-2 hover:bg-veil-strong"
-              >
-                <Link to={`/game/${game.id}`} className="flex flex-1 items-center justify-between px-4 py-3">
-                  <span>
-                    <span className="font-medium text-paper">Code {game.join_code}</span>
-                    <span className="ml-2 text-sm text-paper/50 capitalize">{game.status}</span>
-                  </span>
-                  <span aria-hidden className="text-paper/40">
-                    →
-                  </span>
-                </Link>
-                <button
-                  type="button"
-                  aria-label="Cancel game"
-                  onClick={() => setCancelingGameId(game.id)}
-                  className="min-h-11 min-w-11 rounded-lg text-paper/40 hover:bg-veil-strong hover:text-danger"
-                >
-                  ✕
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <ConfirmSheet
-        open={cancelingGameId !== null}
-        onClose={() => setCancelingGameId(null)}
-        onConfirm={async () => {
-          if (!cancelingGameId) return
-          try {
-            await deleteGame.mutateAsync(cancelingGameId)
-            setCancelingGameId(null)
-          } catch {
-            // error already surfaced via toast in useDeleteGame; keep the sheet open to retry
-          }
-        }}
-        title="Cancel this game?"
-        message="This removes it completely for both players -- scores, setup, everything. This can't be undone."
-        confirmLabel="Cancel game"
-        pending={deleteGame.isPending}
-      />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {SHORTCUTS.map((shortcut) => (
+          <Link
+            key={shortcut.to}
+            to={shortcut.to}
+            className="flex flex-col gap-1 rounded-xl border border-veil-strong bg-veil p-4 hover:bg-veil-strong"
+          >
+            <span className="font-medium text-paper">{shortcut.label}</span>
+            <span className="text-xs text-paper/50">{shortcut.description}</span>
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
