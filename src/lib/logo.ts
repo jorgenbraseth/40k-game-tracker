@@ -5,14 +5,67 @@ export const DEFAULT_LOGO: Logo = 'default'
 
 /** width/height are each file's own intrinsic pixel size (they don't share one aspect ratio) --
  * passed through to the rendered <img> so the browser can reserve the right box before it loads,
- * same reason Layout's original hardcoded logo img had them. */
-export const LOGOS: { id: Logo; label: string; src: string; width: number; height: number }[] = [
-  { id: 'default', label: 'Classic', src: '/images/brand/logo.webp', width: 283, height: 220 },
-  { id: 'mechanicus', label: 'Mechanicus', src: '/images/brand/logo-mechanicus.webp', width: 700, height: 567 },
-  { id: 'tyranid', label: 'Tyranid', src: '/images/brand/logo-tyranid.webp', width: 700, height: 576 },
-  { id: 'custodes', label: 'Custodes', src: '/images/brand/logo-custodes.webp', width: 700, height: 561 },
-  { id: 'orks', label: 'Orks', src: '/images/brand/logo-orks.webp', width: 700, height: 542 },
-  { id: 'chaos', label: 'Chaos', src: '/images/brand/logo-chaos.webp', width: 700, height: 600 },
+ * same reason Layout's original hardcoded logo img had them. `quote` is a flavor line for the
+ * chosen crest -- used as the landing page's alt text (see BrandLogo's `altVariant`) instead of
+ * the plain "40K Tracker" the header uses, since the sign-in screen's logo has no surrounding nav
+ * link to already name the app for a screen reader. */
+export const LOGOS: { id: Logo; label: string; src: string; width: number; height: number; quote: string }[] = [
+  {
+    id: 'default',
+    label: 'Classic',
+    src: '/images/brand/logo.webp',
+    width: 283,
+    height: 220,
+    quote: '40K Tracker -- the Emperor protects.',
+  },
+  {
+    id: 'mechanicus',
+    label: 'Mechanicus',
+    src: '/images/brand/logo-mechanicus.webp',
+    width: 700,
+    height: 567,
+    quote: '40K Tracker -- knowledge is power, guard it well.',
+  },
+  {
+    id: 'tyranid',
+    label: 'Tyranid',
+    src: '/images/brand/logo-tyranid.webp',
+    width: 700,
+    height: 576,
+    quote: '40K Tracker -- the Great Devourer hungers.',
+  },
+  {
+    id: 'custodes',
+    label: 'Custodes',
+    src: '/images/brand/logo-custodes.webp',
+    width: 700,
+    height: 561,
+    quote: '40K Tracker -- Ave Imperator, none shall pass unchallenged.',
+  },
+  {
+    id: 'orks',
+    label: 'Orks',
+    src: '/images/brand/logo-orks.webp',
+    width: 700,
+    height: 542,
+    quote: "40K Tracker -- WAAAGH! 'Ere we go, 'ere we go, 'ere we go!",
+  },
+  {
+    id: 'chaos',
+    label: 'Chaos',
+    src: '/images/brand/logo-chaos.webp',
+    width: 700,
+    height: 600,
+    quote: '40K Tracker -- blood for the Blood God, skulls for the Skull Throne!',
+  },
+  {
+    id: 'sororitas',
+    label: 'Sororitas',
+    src: '/images/brand/logo-sororitas.webp',
+    width: 700,
+    height: 546,
+    quote: '40K Tracker -- faith is our shield, conviction our sword.',
+  },
 ]
 
 const LOGO_BY_ID = new Map(LOGOS.map((l) => [l.id, l]))
