@@ -10,6 +10,7 @@ import { UpdatePrompt } from './UpdatePrompt'
 
 const navItems = [
   { to: '/home', label: 'Home' },
+  { to: '/game/lobby', label: 'New game' },
   { to: '/history', label: 'History' },
   { to: '/ladders', label: 'Ladders' },
   { to: '/tournaments', label: 'Tournaments' },
@@ -18,7 +19,7 @@ const navItems = [
 ]
 
 /**
- * The 6 nav links + Sign out don't fit in one row at phone width without forcing a horizontal
+ * The 7 nav links + Sign out don't fit in one row at phone width without forcing a horizontal
  * zoom-out -- shown inline from `sm:` up, collapsed behind a hamburger button (opening the same
  * `Sheet` used for every other picker in this app) below it.
  */

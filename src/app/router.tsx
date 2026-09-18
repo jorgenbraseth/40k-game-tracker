@@ -6,6 +6,7 @@ import { SummaryPage } from '@/features/game/SummaryPage'
 import { HistoryPage } from '@/features/history/HistoryPage'
 import { LadderJoinPage } from '@/features/ladders/LadderJoinPage'
 import { LaddersPage } from '@/features/ladders/LaddersPage'
+import { GameLobbyPage } from '@/features/lobby/GameLobbyPage'
 import { HomePage } from '@/features/lobby/HomePage'
 import { JoinGamePage } from '@/features/lobby/JoinGamePage'
 import { LogGamePage } from '@/features/lobby/LogGamePage'
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
         element: <Layout />,
         children: [
           { path: '/home', element: <HomePage /> },
+          { path: '/game/lobby', element: <GameLobbyPage /> },
           { path: '/game/new', element: <NewGamePage /> },
           { path: '/game/join', element: <JoinGamePage /> },
           { path: '/game/join/:code', element: <JoinGamePage /> },

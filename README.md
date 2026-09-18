@@ -40,6 +40,12 @@ players' own phones if they'd both rather enter their own numbers.
   eight faction-flavored alternatives (Votann, Tyranid, Custodes, Orks,
   Chaos, Sororitas, Grey Knights, Mechanicus) -- same "purely cosmetic,
   no effect on scoring" shape as the theme picker right next to it.
+- Signing in lands on a proper Home page, not straight into "start a
+  game": the same prominent crest as the sign-in screen up top, and a
+  shortcut to every section underneath (New game, History, Ladders,
+  Tournaments, Stats, Profile) -- a front door, not a single-purpose
+  lobby. Starting, joining, or logging a game, plus whatever's already
+  in progress, lives one tap away behind its own "New game" nav item.
 - One player starts a game (points limit, optionally a ladder to tag it
   to) and gets a short 6-character code, shareable either as that code
   (typed into a "Join a game" form) or as a link that joins
@@ -384,6 +390,16 @@ app URL, with one caveat worth knowing before you rely on it:
   dashboard (Auth → Providers → Google) before it'll work in production;
   email/password sign-in works today without any extra setup.
 
+Home is a proper landing page rather than the "start/join a game" hub it used to be: `HomePage`
+(`src/features/lobby/HomePage.tsx`) is now just the prominent `BrandLogo`, the tagline, `InstallHint`,
+and a `SHORTCUTS` grid linking to every section. Everything Home used to render directly -- the
+Start/Join/Log-a-game buttons and the in-progress games list -- moved unchanged into
+`GameLobbyPage` (`src/features/lobby/GameLobbyPage.tsx`), at its own route (`/game/lobby`) and nav
+item ("New game", `src/app/Layout.tsx`'s `navItems`, placed right after Home). Nothing about that
+content itself changed, only where it lives -- same reason a "Cancel this game" redirect or a
+Summary page's "Home" button still just goes to `/home`, since landing on the new dashboard after
+finishing or cancelling a game is a perfectly good place to end up too.
+
 Mission/deployment/secondary objective content is the real Chapter
 Approved 2026-27 deck, sourced from the public card text -- see "Ruleset
 / mission content" below, including the one deliberate exception to this
@@ -494,7 +510,7 @@ solo-entry attribution as a live bookkept game (`represents_user_id` to
 a real ladder member who can later confirm or dispute it, or a free-text
 name with no account at all) and goes through the normal verification
 flow. `src/features/lobby/LogGamePage.tsx` is the one form for all of
-this, reachable from Home alongside "Start a game"/"Join a game".
+this, reachable from the New game lobby alongside "Start a game"/"Join a game".
 
 Turn order is implemented: `game_players.turn_order` ('first'/'second')
 is modeled exactly like `role` at the schema level (a partial unique
@@ -925,7 +941,7 @@ back online, no separate offline queue needed) with rollback and an
 error toast if a save genuinely fails; ending a game early (concede /
 opponent left) works from any round; canceling a game outright (distinct
 from ending it, this deletes it entirely rather than keeping a record)
-is available from the Home list, History list, waiting room, and
+is available from the New game lobby's in-progress list, History list, waiting room, and
 scoreboard, always behind a confirm step; and `game_players`/`games`
 state transitions that used to be enforced only in the UI (starting a
 game before its setup is actually complete, cross-game score writes) are
