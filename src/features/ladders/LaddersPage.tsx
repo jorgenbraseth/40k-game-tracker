@@ -75,7 +75,7 @@ function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingTy
             </thead>
             <tbody>
               {standings.data.map((row, i) => (
-                <tr key={row.userId} className="border-t border-white/10">
+                <tr key={row.userId} className="border-t border-veil-strong">
                   <td className="py-1.5 pr-2 text-paper/50">{i + 1}</td>
                   <td className="py-1.5 pr-2 font-medium text-paper">
                     <PlayerNameLink userId={row.userId} name={row.displayName} avatarUrl={row.avatarUrl} />
@@ -114,7 +114,7 @@ function GamesList({ ladderId }: { ladderId: string }) {
   const games = useLadderGames(expanded ? ladderId : undefined)
 
   return (
-    <div className="mt-3 border-t border-white/10 pt-3">
+    <div className="mt-3 border-t border-veil-strong pt-3">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -141,7 +141,7 @@ function GamesList({ ladderId }: { ladderId: string }) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') navigate(`/game/${g.gameId}/summary`)
                   }}
-                  className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+                  className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm hover:bg-veil-strong"
                 >
                   <span className="min-w-0 truncate">
                     <PlayerNameLink
@@ -194,7 +194,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
   }
 
   return (
-    <li className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <li className="rounded-xl border border-veil-strong bg-veil p-4">
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={() => setExpanded((v) => !v)} className="min-w-0 flex-1 text-left">
           <p className="truncate font-medium text-paper">
@@ -217,7 +217,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
         )}
       </div>
       {expanded && (
-        <div className="mt-3 border-t border-white/10 pt-3">
+        <div className="mt-3 border-t border-veil-strong pt-3">
           <StandingsTable ladderId={ladder.id} rankingType={ladder.rankingType} />
           <GamesList ladderId={ladder.id} />
           {(ladder.isMember || isCreator) && (
@@ -258,7 +258,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
             required
           />
           {join.isError && (
-            <p className="text-sm text-red-400">
+            <p className="text-sm text-danger">
               {join.error instanceof Error ? join.error.message : 'Could not join this ladder.'}
             </p>
           )}
@@ -295,7 +295,7 @@ function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreato
     <div>
       <p className="text-xs font-semibold tracking-wide text-paper/60 uppercase">Invite code</p>
       <div className="mt-1.5 flex items-center gap-3">
-        <span className="rounded-lg bg-white/10 px-3 py-1.5 font-mono text-lg tracking-[0.25em] text-gold">
+        <span className="rounded-lg bg-veil-strong px-3 py-1.5 font-mono text-lg tracking-[0.25em] text-gold">
           {inviteCode.data ?? '······'}
         </span>
         <button
@@ -315,7 +315,7 @@ function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreato
           type="button"
           disabled={regenerate.isPending}
           onClick={() => regenerate.mutate()}
-          className="mt-2 text-xs text-paper/40 underline hover:text-red-400"
+          className="mt-2 text-xs text-paper/40 underline hover:text-danger"
         >
           {regenerate.isPending ? 'Regenerating…' : 'Regenerate code (invalidates the old one)'}
         </button>
@@ -344,7 +344,7 @@ function LadderSettings({
   const isArchived = Boolean(ladder.archivedAt)
 
   return (
-    <div className="mt-3 border-t border-white/10 pt-3">
+    <div className="mt-3 border-t border-veil-strong pt-3">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -356,7 +356,7 @@ function LadderSettings({
         <div className="mt-3 flex flex-col gap-4">
           <InviteCodeSection ladderId={ladder.id} isCreator={isCreator} />
           {isCreator && (
-            <div className="border-t border-white/10 pt-3">
+            <div className="border-t border-veil-strong pt-3">
               <Select
                 label="Ranking type"
                 value={ladder.rankingType}
@@ -385,7 +385,7 @@ function LadderSettings({
                   ? 'Brings it back into the browse list and the "tag this game" picker.'
                   : "Hides it from the browse list and the \"tag this game\" picker -- standings and game history stay exactly as they are, and you can restore it any time."}
               </p>
-              <button type="button" onClick={onRequestDelete} className="mt-3 text-xs text-paper/40 underline hover:text-red-400">
+              <button type="button" onClick={onRequestDelete} className="mt-3 text-xs text-paper/40 underline hover:text-danger">
                 Delete ladder permanently
               </button>
             </div>

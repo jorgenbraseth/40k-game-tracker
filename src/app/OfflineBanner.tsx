@@ -5,7 +5,7 @@ export function OfflineBanner() {
   if (online) return null
 
   return (
-    <div className="bg-red-900 px-4 py-1.5 text-center text-xs font-medium text-paper">
+    <div className="bg-danger px-4 py-1.5 text-center text-xs font-medium text-onfill">
       You're offline. Your taps are saved on this screen and will send once you're back online.
     </div>
   )

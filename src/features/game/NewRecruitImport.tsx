@@ -61,7 +61,7 @@ export function NewRecruitImport({
   }
 
   return (
-    <form onSubmit={onImport} className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3">
+    <form onSubmit={onImport} className="flex flex-col gap-2 rounded-lg border border-veil-strong bg-veil p-3">
       <TextField
         label="NewRecruit list link"
         type="url"

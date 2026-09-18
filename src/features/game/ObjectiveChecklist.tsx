@@ -58,7 +58,7 @@ export function ObjectiveChecklist({
             <div
               className={clsx(
                 'flex items-center gap-2.5 rounded-lg border px-2.5 py-2',
-                achieved ? 'border-gold/40 bg-gold/10' : 'border-white/10 bg-white/5',
+                achieved ? 'border-gold/40 bg-gold/10' : 'border-veil-strong bg-veil',
                 line.is_cumulative_bonus && 'ml-3',
               )}
             >
@@ -83,7 +83,7 @@ export function ObjectiveChecklist({
                     aria-label="Decrease count"
                     disabled={!editable || count <= 0}
                     onClick={() => onChangeCount(line.id, count - 1)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-paper active:scale-95 disabled:opacity-30"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-veil-strong text-lg text-paper active:scale-95 disabled:opacity-30"
                   >
                     −
                   </button>
@@ -93,7 +93,7 @@ export function ObjectiveChecklist({
                     aria-label="Increase count"
                     disabled={!editable}
                     onClick={() => onChangeCount(line.id, count + 1)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-paper active:scale-95 disabled:opacity-30"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-veil-strong text-lg text-paper active:scale-95 disabled:opacity-30"
                   >
                     +
                   </button>
@@ -106,7 +106,7 @@ export function ObjectiveChecklist({
                   onClick={() => onChangeCount(line.id, achieved ? 0 : 1)}
                   className={clsx(
                     'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-base font-bold active:scale-95 disabled:cursor-default disabled:active:scale-100',
-                    achieved ? 'bg-gold text-ink' : 'bg-white/10 text-paper/30',
+                    achieved ? 'bg-gold text-ink' : 'bg-veil-strong text-paper/30',
                   )}
                 >
                   ✓

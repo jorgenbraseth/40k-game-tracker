@@ -150,7 +150,7 @@ export function LogGamePage() {
           }}
         />
 
-        <fieldset className="flex min-w-0 flex-col gap-3 rounded-xl border border-white/10 p-4">
+        <fieldset className="flex min-w-0 flex-col gap-3 rounded-xl border border-veil-strong p-4">
           <legend className="px-1 text-sm font-semibold text-paper/80">You</legend>
           <Select label="Faction" value={myFactionId} onChange={(e) => setMyFactionId(e.target.value)}>
             <option value="">Pick faction</option>
@@ -188,7 +188,7 @@ export function LogGamePage() {
           />
         </fieldset>
 
-        <fieldset className="flex min-w-0 flex-col gap-3 rounded-xl border border-white/10 p-4">
+        <fieldset className="flex min-w-0 flex-col gap-3 rounded-xl border border-veil-strong p-4">
           <legend className="px-1 text-sm font-semibold text-paper/80">Opponent</legend>
           {(ladderMembers.data?.length ?? 0) > 0 && (
             <div>
@@ -252,7 +252,7 @@ export function LogGamePage() {
         </fieldset>
 
         {logGame.isError && (
-          <p className="text-sm text-red-400">
+          <p className="text-sm text-danger">
             {logGame.error instanceof Error ? logGame.error.message : 'Could not log this game.'}
           </p>
         )}

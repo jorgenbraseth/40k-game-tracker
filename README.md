@@ -29,7 +29,11 @@ players' own phones if they'd both rather enter their own numbers.
   shows up (ladder/tournament standings and game lists, History, their
   own stats page) -- optional, and falls back to a plain initial when
   not set, same as a Google account's own picture already does for
-  anyone who signed up that way.
+  anyone who signed up that way. Profile also has a **theme** picker --
+  a purely cosmetic, per-account choice of color scheme (the original
+  grimdark look, or three lighter/brighter alternatives) that applies
+  everywhere the signed-in player looks, on every device they sign into,
+  with no effect on anyone else's game or on how anything scores.
 - One player starts a game (points limit, optionally a ladder to tag it
   to) and gets a short 6-character code. Nothing about either player's
   army -- or the terrain layout -- goes here -- that's all decided in
@@ -951,6 +955,37 @@ those are tighter, more overflow-sensitive layouts where a 1-on-1
 scoreboard gets less benefit from an avatar than a list of many names
 does; `PlayerNameLink`'s optional prop means adding it there later is a
 small, isolated follow-up, not a redesign.
+
+Theming is implemented: `profiles.theme`
+(`20260918000000_profile_theme.sql`, `'grimdark' | 'astartes' | 'aeldari' |
+'parchment'`, defaulting existing and new profiles to `'grimdark'`, the
+original look) drives a `data-theme` attribute on `<html>`. Every color a
+component uses is a semantic Tailwind v4 `@theme` token (`ink`/`paper`,
+`blood`/`blood-dark`, `gold`, `steel`, the `veil`/`veil-strong`/`veil-loud`
+subtle-fill/hairline scale, `danger`/`danger-dark`, `success`, and the
+fixed `onfill` used only for text sitting on a solid `blood`/`steel`/
+`danger` fill) rather than a literal color anywhere in a component --
+`src/index.css` redefines those same variable names once per theme under
+`[data-theme='astartes'|'aeldari'|'parchment']` (grimdark needs no
+selector, it's the base `@theme` values), so no component changed to add
+the other three. That ruled out literal `white/black`-at-N%-opacity
+utilities too, since a translucent white wash is invisible on a light
+theme's background -- every `bg-white/5`-style utility across the app
+was replaced with the `veil` scale, and `text-red-400`/`text-green-400`
+with `danger`/`success`, so panels, dividers, error/online-status text,
+and the modal/photo-viewer scrims all still read correctly under
+`aeldari`/`parchment`'s light backgrounds, not just the two dark themes.
+`ThemeSync` (`src/app/ThemeSync.tsx`, mounted once in `App.tsx`) applies
+the signed-in user's `profiles.theme` to `<html>` whenever it loads or
+changes, and caches it to `localStorage` (`40k-theme`); a small inline
+script in `index.html`, running before React, reads that same cached
+value so a returning visitor never sees a flash of the default theme
+before their real one applies. `ProfilePage` renders all four as a
+swatch grid (ink/blood/gold preview dots per theme, sourced from
+`src/lib/theme.ts`'s own copy of those hex values, since the picker has
+to show themes that aren't the active one); picking one applies
+instantly (`applyTheme`) and saves through the same `useUpdateProfile`
+mutation display name/avatar already use.
 
 ## Stack
 

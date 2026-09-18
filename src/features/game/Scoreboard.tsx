@@ -229,14 +229,14 @@ export function Scoreboard({
           {isParticipant && (
             <span
               aria-label={opponentOnline ? 'opponent online' : 'opponent offline'}
-              className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`}
+              className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${opponentOnline ? 'bg-success' : 'bg-paper/30'}`}
             />
           )}
           <button
             type="button"
             onClick={() => setMoreSheetOpen(true)}
             aria-label="More"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-paper/60 hover:bg-white/10 hover:text-paper"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-paper/60 hover:bg-veil-strong hover:text-paper"
           >
             ⋯
           </button>
@@ -254,7 +254,7 @@ export function Scoreboard({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {orderedPlayers.map((entry) => (
-          <div key={entry.player.id} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
+          <div key={entry.player.id} className="flex flex-col items-center gap-2 rounded-2xl border border-veil-strong bg-veil p-3">
             <div className="text-center">
               <p className="font-semibold text-paper">
                 <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
@@ -302,7 +302,7 @@ export function Scoreboard({
             />
 
             {viewRound === endOfGameRound ? (
-              <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-paper/60">
+              <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm text-paper/60">
                 <span className="text-xs font-medium tracking-wide uppercase">CP</span>
                 <span className="font-semibold text-gold">
                   {remainingCp(detail.commandPoints, entry.player.id)}
@@ -324,7 +324,7 @@ export function Scoreboard({
 
             {viewRound === endOfGameRound ? (
               isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) ? (
-                <label className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                <label className="flex w-full items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm">
                   <span className="text-paper/80">
                     Painted <span className="text-paper/40">(+10VP)</span>
                   </span>
@@ -341,7 +341,7 @@ export function Scoreboard({
                 // painted_bonus is a game_players column, so only the seat's own account (or an
                 // unclaimed seat, above) can write it -- unlike round/secondary scores, which any
                 // participant can enter for either side (see round_scores' RLS comment).
-                <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-paper/60">
+                <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm text-paper/60">
                   <span>
                     Painted <span className="text-paper/40">(+10VP)</span>
                   </span>
@@ -392,7 +392,7 @@ export function Scoreboard({
       )}
 
       {/* Running totals -- always visible without scrolling, per the design brief. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-veil-strong bg-ink/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur">
         <div className="mx-auto max-w-3xl">
           <p className="text-center text-[10px] font-medium tracking-wide text-paper/40 uppercase">
             {viewRound === endOfGameRound ? 'End of game' : `Round ${viewRound} of ${detail.game.total_rounds}`}
@@ -435,7 +435,7 @@ export function Scoreboard({
               {playerLabel(p2, 'Seat 2')} wins
             </Button>
           </div>
-          <Button variant="ghost" className="text-red-300" onClick={abandon} disabled={abandonGame.isPending}>
+          <Button variant="ghost" className="text-danger" onClick={abandon} disabled={abandonGame.isPending}>
             Abandon game (no result / opponent had to leave)
           </Button>
           <p className="text-center text-xs text-paper/40">
@@ -447,7 +447,7 @@ export function Scoreboard({
               setEndSheetOpen(false)
               setCancelSheetOpen(true)
             }}
-            className="text-center text-xs text-paper/30 underline hover:text-red-400"
+            className="text-center text-xs text-paper/30 underline hover:text-danger"
           >
             Or cancel this game entirely, removing it completely
           </button>
@@ -501,7 +501,7 @@ export function Scoreboard({
                 setMoreSheetOpen(false)
                 setConfigSheetOpen(true)
               }}
-              className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-white/5"
+              className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-veil"
             >
               Game configuration
             </button>
@@ -509,13 +509,13 @@ export function Scoreboard({
           <Link
             to={`/game/${detail.game.id}/summary`}
             onClick={() => setMoreSheetOpen(false)}
-            className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-white/5"
+            className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-veil"
           >
             Summary
           </Link>
           {isParticipant && (
             <p className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-paper/60">
-              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-success' : 'bg-paper/30'}`} />
               Opponent {opponentOnline ? 'online' : 'offline'}
             </p>
           )}

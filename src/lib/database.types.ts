@@ -12,6 +12,7 @@ export type PlayerRole = 'attacker' | 'defender'
 export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
 export type SecondaryMode = 'fixed' | 'tactical'
+export type Theme = 'grimdark' | 'astartes' | 'aeldari' | 'parchment'
 
 export interface Database {
   public: {
@@ -131,12 +132,14 @@ export interface Database {
           id: string
           display_name: string
           avatar_url: string | null
+          theme: Theme
           created_at: string
         }
         Insert: {
           id: string
           display_name: string
           avatar_url?: string | null
+          theme?: Theme
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['profiles']['Row']>

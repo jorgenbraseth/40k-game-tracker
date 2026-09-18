@@ -62,7 +62,7 @@ export function LandingPage() {
         <p className="mt-2 text-paper/60">Live score tracking for tabletop Warhammer 40,000.</p>
       </div>
 
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-6">
+      <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-6">
         {confirmSent ? (
           <div className="text-center">
             <p className="text-paper">Check your email to confirm your account.</p>
@@ -79,18 +79,18 @@ export function LandingPage() {
           </div>
         ) : (
           <>
-            <div className="mb-5 flex rounded-lg bg-white/5 p-1">
+            <div className="mb-5 flex rounded-lg bg-veil p-1">
               <button
                 type="button"
                 onClick={() => setMode('login')}
-                className={`min-h-9 flex-1 rounded-md text-sm font-medium ${mode === 'login' ? 'bg-white/10 text-paper' : 'text-paper/50'}`}
+                className={`min-h-9 flex-1 rounded-md text-sm font-medium ${mode === 'login' ? 'bg-veil-strong text-paper' : 'text-paper/50'}`}
               >
                 Sign in
               </button>
               <button
                 type="button"
                 onClick={() => setMode('signup')}
-                className={`min-h-9 flex-1 rounded-md text-sm font-medium ${mode === 'signup' ? 'bg-white/10 text-paper' : 'text-paper/50'}`}
+                className={`min-h-9 flex-1 rounded-md text-sm font-medium ${mode === 'signup' ? 'bg-veil-strong text-paper' : 'text-paper/50'}`}
               >
                 Sign up
               </button>
@@ -101,9 +101,9 @@ export function LandingPage() {
             </Button>
 
             <div className="my-4 flex items-center gap-3 text-xs text-paper/40">
-              <div className="h-px flex-1 bg-white/10" />
+              <div className="h-px flex-1 bg-veil-strong" />
               or with email
-              <div className="h-px flex-1 bg-white/10" />
+              <div className="h-px flex-1 bg-veil-strong" />
             </div>
 
             <form onSubmit={submitEmail} className="flex flex-col gap-3">
@@ -135,7 +135,7 @@ export function LandingPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
-              {error && <p className="text-sm text-red-400">{error}</p>}
+              {error && <p className="text-sm text-danger">{error}</p>}
               <Button type="submit" disabled={busy} fullWidth>
                 {busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
               </Button>

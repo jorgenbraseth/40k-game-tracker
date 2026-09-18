@@ -71,7 +71,7 @@ export function NewGamePage() {
         />
 
         {createGame.isError && (
-          <p className="text-sm text-red-400">
+          <p className="text-sm text-danger">
             {createGame.error instanceof Error ? createGame.error.message : 'Could not create game.'}
           </p>
         )}

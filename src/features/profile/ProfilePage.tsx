@@ -4,7 +4,9 @@ import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { clsx } from '@/lib/clsx'
 import { useProfile, useRemoveAvatar, useUpdateProfile, useUploadAvatar } from '@/lib/queries/profile'
+import { applyTheme, THEMES } from '@/lib/theme'
 
 export function ProfilePage() {
   const { user } = useAuth()
@@ -32,6 +34,11 @@ export function ProfilePage() {
     if (file) uploadAvatar.mutate(file)
   }
 
+  const onPickTheme = (theme: (typeof THEMES)[number]['id']) => {
+    applyTheme(theme) // instant, so picking a swatch previews it right away
+    updateProfile.mutate({ theme })
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold text-paper">Profile</h1>
@@ -57,6 +64,34 @@ export function ProfilePage() {
           <p className="text-xs text-paper/40">Shown wherever your name shows up -- resized and compressed automatically.</p>
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onPickAvatar} />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-paper">Theme</h2>
+          <p className="text-xs text-paper/40">Applies everywhere, on every device you sign into.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {THEMES.map((theme) => (
+            <button
+              key={theme.id}
+              type="button"
+              onClick={() => onPickTheme(theme.id)}
+              aria-pressed={profile.theme === theme.id}
+              className={clsx(
+                'flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors',
+                profile.theme === theme.id ? 'border-gold bg-gold/10' : 'border-veil-strong hover:bg-veil',
+              )}
+            >
+              <span className="flex gap-1">
+                <span className="h-5 w-5 rounded-full border border-veil-loud" style={{ background: theme.preview.ink }} />
+                <span className="h-5 w-5 rounded-full border border-veil-loud" style={{ background: theme.preview.blood }} />
+                <span className="h-5 w-5 rounded-full border border-veil-loud" style={{ background: theme.preview.gold }} />
+              </span>
+              <span className="text-xs font-medium text-paper">{theme.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <form onSubmit={onSubmit} className="flex max-w-sm flex-col gap-4">

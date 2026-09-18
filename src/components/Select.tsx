@@ -16,7 +16,7 @@ export function Select({ label, id, children, ...props }: SelectProps) {
       </label>
       <select
         id={fieldId}
-        className="min-h-11 rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-paper focus:border-gold focus:outline-none"
+        className="min-h-11 rounded-lg border border-veil-strong bg-veil px-3 py-2.5 text-paper focus:border-gold focus:outline-none"
         {...props}
       >
         {children}

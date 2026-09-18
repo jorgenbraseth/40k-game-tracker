@@ -1,5 +1,28 @@
 @import 'tailwindcss';
 
+/*
+ * Semantic color tokens. Every theme redefines the same variable names, so
+ * component classes (bg-ink, text-paper, bg-blood, text-gold, bg-steel,
+ * bg-veil, text-danger, text-success, text-onfill, ...) never change --
+ * only the values behind them do. `grimdark` (the original look) is the
+ * default and needs no [data-theme] selector; other themes are picked by
+ * setting data-theme on <html> (see ThemeProvider).
+ *
+ * Roles:
+ *   ink            page/card background
+ *   paper          primary text (contrasts with ink)
+ *   blood/blood-dark  primary action fill / its hover
+ *   gold           pervasive highlight accent (scores, selection, links)
+ *   steel          neutral/secondary fill
+ *   veil/-strong/-loud  subtle fill + hairline scale, replaces literal
+ *                  white-or-black-at-N%-opacity so panels/dividers still
+ *                  read correctly on a light theme
+ *   danger/-dark   destructive/error text & fills
+ *   success        positive/online-status text & fills
+ *   onfill         fixed light text color for anything sitting on a solid
+ *                  blood/steel/danger fill -- NOT theme-dependent: every
+ *                  theme keeps those three dark/saturated enough for it
+ */
 @theme {
   --color-ink: #0b0c10;
   --color-paper: #f7f6f3;
@@ -7,10 +30,65 @@
   --color-blood-dark: #8a1414;
   --color-gold: #e3a83a;
   --color-steel: #4b4f5a;
+  --color-veil: #17181c;
+  --color-veil-strong: #24252a;
+  --color-veil-loud: #34363d;
+  --color-danger: #f87171;
+  --color-danger-dark: #b91c1c;
+  --color-success: #4ade80;
+  --color-onfill: #f7f6f3;
 }
 
 :root {
   color-scheme: dark;
+}
+
+[data-theme='astartes'] {
+  color-scheme: dark;
+  --color-ink: #141a24;
+  --color-paper: #f0eee6;
+  --color-blood: #2e5aa8;
+  --color-blood-dark: #1f3d75;
+  --color-gold: #5b8def;
+  --color-steel: #4b5568;
+  --color-veil: #1c2330;
+  --color-veil-strong: #262e3d;
+  --color-veil-loud: #333d4f;
+  --color-danger: #f87171;
+  --color-danger-dark: #b91c1c;
+  --color-success: #4ade80;
+}
+
+[data-theme='aeldari'] {
+  color-scheme: light;
+  --color-ink: #f4f1ea;
+  --color-paper: #2a2130;
+  --color-blood: #5b3a94;
+  --color-blood-dark: #462d74;
+  --color-gold: #146356;
+  --color-steel: #6b6275;
+  --color-veil: #ece7dc;
+  --color-veil-strong: #e2dccb;
+  --color-veil-loud: #d3cbb4;
+  --color-danger: #b3261e;
+  --color-danger-dark: #8a1c17;
+  --color-success: #186b40;
+}
+
+[data-theme='parchment'] {
+  color-scheme: light;
+  --color-ink: #ede4d3;
+  --color-paper: #211c14;
+  --color-blood: #a4222b;
+  --color-blood-dark: #7a1620;
+  --color-gold: #7a5c16;
+  --color-steel: #6b5a3f;
+  --color-veil: #e6dac0;
+  --color-veil-strong: #ddccaa;
+  --color-veil-loud: #cdb98c;
+  --color-danger: #9c2b2b;
+  --color-danger-dark: #7a1f1f;
+  --color-success: #226b34;
 }
 
 html,

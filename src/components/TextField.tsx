@@ -19,8 +19,8 @@ export function TextField({ label, error, id, className, ...props }: TextFieldPr
       <input
         id={fieldId}
         className={clsx(
-          'min-h-11 rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-paper placeholder:text-paper/40 focus:border-gold focus:outline-none',
-          error && 'border-red-500',
+          'min-h-11 rounded-lg border border-veil-strong bg-veil px-3 py-2.5 text-paper placeholder:text-paper/40 focus:border-gold focus:outline-none',
+          error && 'border-danger',
           className,
         )}
         aria-invalid={Boolean(error)}
@@ -28,7 +28,7 @@ export function TextField({ label, error, id, className, ...props }: TextFieldPr
         {...props}
       />
       {error && (
-        <p id={`${fieldId}-error`} className="text-sm text-red-400">
+        <p id={`${fieldId}-error`} className="text-sm text-danger">
           {error}
         </p>
       )}

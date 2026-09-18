@@ -49,7 +49,7 @@ export function ImageOptionGrid({
               }}
               className={clsx(
                 'flex cursor-pointer flex-col overflow-hidden rounded-lg border text-left active:scale-95',
-                selected ? 'border-gold bg-gold/10' : 'border-white/15 bg-white/5',
+                selected ? 'border-gold bg-gold/10' : 'border-veil-strong bg-veil',
               )}
             >
               <div className="relative">
@@ -58,10 +58,10 @@ export function ImageOptionGrid({
                     src={option.imagePath}
                     alt=""
                     loading="lazy"
-                    className="aspect-[44/60] w-full bg-white/5 object-contain"
+                    className="aspect-[44/60] w-full bg-veil object-contain"
                   />
                 ) : (
-                  <div className="flex aspect-[44/60] w-full items-center justify-center bg-white/5 text-xs text-paper/30">
+                  <div className="flex aspect-[44/60] w-full items-center justify-center bg-veil text-xs text-paper/30">
                     No image
                   </div>
                 )}
@@ -73,7 +73,7 @@ export function ImageOptionGrid({
                       e.stopPropagation()
                       setExpanded(option)
                     }}
-                    className="absolute right-1 bottom-1 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-black/60 text-base leading-none text-paper hover:bg-black/80"
+                    className="absolute right-1 bottom-1 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-black/60 text-base leading-none text-onfill hover:bg-black/80"
                   >
                     ⤢
                   </button>

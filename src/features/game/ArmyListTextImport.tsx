@@ -61,7 +61,7 @@ export function ArmyListTextImport({
   }
 
   return (
-    <form onSubmit={onImport} className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3">
+    <form onSubmit={onImport} className="flex flex-col gap-2 rounded-lg border border-veil-strong bg-veil p-3">
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-paper/80">Army list text</label>
         <textarea
@@ -69,7 +69,7 @@ export function ArmyListTextImport({
           onChange={(e) => setText(e.target.value)}
           rows={6}
           placeholder="Paste your exported army list here…"
-          className="min-h-24 rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-paper placeholder:text-paper/40 focus:border-gold focus:outline-none"
+          className="min-h-24 rounded-lg border border-veil-strong bg-veil px-3 py-2.5 text-sm text-paper placeholder:text-paper/40 focus:border-gold focus:outline-none"
         />
       </div>
       <p className="text-xs text-paper/40">
@@ -77,7 +77,7 @@ export function ArmyListTextImport({
         just stays for the pickers below.
       </p>
       {notFound && (
-        <p className="text-sm text-red-400">
+        <p className="text-sm text-danger">
           Couldn't find a recognizable Faction or Force Disposition in that text -- pick them
           manually below.
         </p>

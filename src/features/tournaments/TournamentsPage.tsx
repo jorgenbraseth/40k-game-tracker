@@ -52,7 +52,7 @@ function StandingsTable({ tournamentId }: { tournamentId: string }) {
         </thead>
         <tbody>
           {standings.data.map((row, i) => (
-            <tr key={row.userId} className="border-t border-white/10">
+            <tr key={row.userId} className="border-t border-veil-strong">
               <td className="py-1.5 pr-2 text-paper/50">{i + 1}</td>
               <td className="py-1.5 pr-2 font-medium text-paper">
                 <PlayerNameLink userId={row.userId} name={row.displayName} avatarUrl={row.avatarUrl} />
@@ -80,7 +80,7 @@ function GamesList({ tournamentId }: { tournamentId: string }) {
   const games = useTournamentGames(expanded ? tournamentId : undefined)
 
   return (
-    <div className="mt-3 border-t border-white/10 pt-3">
+    <div className="mt-3 border-t border-veil-strong pt-3">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -107,7 +107,7 @@ function GamesList({ tournamentId }: { tournamentId: string }) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') navigate(`/game/${g.gameId}/summary`)
                   }}
-                  className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+                  className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm hover:bg-veil-strong"
                 >
                   <span className="min-w-0 truncate">
                     <PlayerNameLink
@@ -158,7 +158,7 @@ function InviteCodeSection({ tournamentId, isCreator }: { tournamentId: string; 
     <div>
       <p className="text-xs font-semibold tracking-wide text-paper/60 uppercase">Invite code</p>
       <div className="mt-1.5 flex items-center gap-3">
-        <span className="rounded-lg bg-white/10 px-3 py-1.5 font-mono text-lg tracking-[0.25em] text-gold">
+        <span className="rounded-lg bg-veil-strong px-3 py-1.5 font-mono text-lg tracking-[0.25em] text-gold">
           {inviteCode.data ?? '······'}
         </span>
         <button
@@ -178,7 +178,7 @@ function InviteCodeSection({ tournamentId, isCreator }: { tournamentId: string; 
           type="button"
           disabled={regenerate.isPending}
           onClick={() => regenerate.mutate()}
-          className="mt-2 text-xs text-paper/40 underline hover:text-red-400"
+          className="mt-2 text-xs text-paper/40 underline hover:text-danger"
         >
           {regenerate.isPending ? 'Regenerating…' : 'Regenerate code (invalidates the old one)'}
         </button>
@@ -202,7 +202,7 @@ function TournamentSettings({
   const isArchived = Boolean(tournament.archivedAt)
 
   return (
-    <div className="mt-3 border-t border-white/10 pt-3">
+    <div className="mt-3 border-t border-veil-strong pt-3">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -214,7 +214,7 @@ function TournamentSettings({
         <div className="mt-3 flex flex-col gap-4">
           <InviteCodeSection tournamentId={tournament.id} isCreator={isCreator} />
           {isCreator && (
-            <div className="border-t border-white/10 pt-3">
+            <div className="border-t border-veil-strong pt-3">
               <Button
                 variant="ghost"
                 disabled={archive.isPending}
@@ -230,7 +230,7 @@ function TournamentSettings({
               <button
                 type="button"
                 onClick={onRequestDelete}
-                className="mt-3 text-xs text-paper/40 underline hover:text-red-400"
+                className="mt-3 text-xs text-paper/40 underline hover:text-danger"
               >
                 Delete tournament permanently
               </button>
@@ -273,7 +273,7 @@ function TournamentRow({ tournament, userId }: { tournament: TournamentSummary; 
   }
 
   return (
-    <li className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <li className="rounded-xl border border-veil-strong bg-veil p-4">
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={() => setExpanded((v) => !v)} className="min-w-0 flex-1 text-left">
           <p className="truncate font-medium text-paper">
@@ -299,7 +299,7 @@ function TournamentRow({ tournament, userId }: { tournament: TournamentSummary; 
         )}
       </div>
       {expanded && (
-        <div className="mt-3 border-t border-white/10 pt-3">
+        <div className="mt-3 border-t border-veil-strong pt-3">
           <StandingsTable tournamentId={tournament.id} />
           <GamesList tournamentId={tournament.id} />
           {(tournament.isMember || isCreator) && (
@@ -344,7 +344,7 @@ function TournamentRow({ tournament, userId }: { tournament: TournamentSummary; 
             required
           />
           {join.isError && (
-            <p className="text-sm text-red-400">
+            <p className="text-sm text-danger">
               {join.error instanceof Error ? join.error.message : 'Could not join this tournament.'}
             </p>
           )}

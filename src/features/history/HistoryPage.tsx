@@ -220,7 +220,7 @@ function HistoryGameRow({
       onKeyDown={(e) => {
         if (e.key === 'Enter') goToSummary()
       }}
-      className="cursor-pointer rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
+      className="cursor-pointer rounded-xl border border-veil-strong bg-veil hover:bg-veil-strong"
     >
       <div className="flex items-center justify-between gap-2 px-4 pt-3">
         <p className="min-w-0 truncate text-sm text-paper">
@@ -240,7 +240,7 @@ function HistoryGameRow({
               e.stopPropagation()
               onCancel()
             }}
-            className="flex-shrink-0 text-paper/40 hover:text-red-400"
+            className="flex-shrink-0 text-paper/40 hover:text-danger"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -277,7 +277,7 @@ function HistoryGameRow({
         </span>
       </div>
       {mySeat?.needsVerification && userId && (
-        <div className="flex items-center justify-between gap-2 border-t border-white/10 px-4 py-2">
+        <div className="flex items-center justify-between gap-2 border-t border-veil-strong px-4 py-2">
           <p className="text-[11px] text-paper/40">Entered on your behalf -- does this look right?</p>
           <Button
             variant="secondary"
@@ -292,7 +292,7 @@ function HistoryGameRow({
         </div>
       )}
       {!mySeat?.needsVerification && unverifiedOtherSeat && (
-        <p className="border-t border-white/10 px-4 py-2 text-[11px] text-paper/40">
+        <p className="border-t border-veil-strong px-4 py-2 text-[11px] text-paper/40">
           Unverified -- awaiting {unverifiedOtherSeat.displayName}'s confirmation
         </p>
       )}

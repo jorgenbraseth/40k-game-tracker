@@ -41,7 +41,7 @@ export function InstallHint() {
   if (dismissed || (!canPrompt && !iOSHintEligible)) return null
 
   return (
-    <div className="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
+    <div className="flex items-start justify-between gap-3 rounded-xl border border-veil-strong bg-veil p-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-paper">Install 40K Tracker</p>
         <p className="mt-0.5 text-xs text-paper/60">

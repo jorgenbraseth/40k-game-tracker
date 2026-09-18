@@ -44,11 +44,11 @@ export function GroupingsPicker({
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-paper/80">Ladders / tournaments (optional)</span>
-      <div className="flex flex-col gap-1 rounded-lg border border-white/15 bg-white/5 p-1">
+      <div className="flex flex-col gap-1 rounded-lg border border-veil-strong bg-veil p-1">
         {ladderOptions.map((l) => (
           <label
             key={l.id}
-            className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-paper/80 hover:bg-white/5"
+            className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-paper/80 hover:bg-veil"
           >
             <input
               type="checkbox"
@@ -63,7 +63,7 @@ export function GroupingsPicker({
         {tournamentOptions.map((t) => (
           <label
             key={t.id}
-            className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-paper/80 hover:bg-white/5"
+            className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-paper/80 hover:bg-veil"
           >
             <input
               type="checkbox"
@@ -73,7 +73,7 @@ export function GroupingsPicker({
               className="h-4 w-4 flex-shrink-0 accent-gold"
             />
             <span className="min-w-0 truncate">{t.name}</span>
-            <span className="ml-auto flex-shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] text-paper/50">
+            <span className="ml-auto flex-shrink-0 rounded-full bg-veil-strong px-1.5 py-0.5 text-[10px] text-paper/50">
               tournament
             </span>
           </label>

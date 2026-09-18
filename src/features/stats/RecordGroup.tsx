@@ -9,7 +9,7 @@ export function RecordGroup({ title, records }: { title: string; records: Groupe
         {records.map((r) => (
           <li
             key={r.key}
-            className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+            className="flex items-center justify-between rounded-lg border border-veil-strong bg-veil px-3 py-2"
           >
             <span className="text-paper">{r.key}</span>
             <span className="text-sm text-paper/60">

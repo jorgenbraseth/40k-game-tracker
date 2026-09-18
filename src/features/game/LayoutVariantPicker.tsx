@@ -22,7 +22,7 @@ function LayoutVariantSkeleton() {
         {LETTERS.map((letter) => (
           <div
             key={letter}
-            className="flex aspect-[44/60] w-full animate-pulse items-center justify-center rounded-lg border border-white/10 bg-white/5 text-xs text-paper/20"
+            className="flex aspect-[44/60] w-full animate-pulse items-center justify-center rounded-lg border border-veil-strong bg-veil text-xs text-paper/20"
           >
             Layout {letter}
           </div>
