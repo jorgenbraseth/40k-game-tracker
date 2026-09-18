@@ -5,6 +5,7 @@ import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { clsx } from '@/lib/clsx'
+import { cacheLogo, LOGOS } from '@/lib/logo'
 import { useProfile, useRemoveAvatar, useUpdateProfile, useUploadAvatar } from '@/lib/queries/profile'
 import { applyTheme, THEMES } from '@/lib/theme'
 
@@ -37,6 +38,11 @@ export function ProfilePage() {
   const onPickTheme = (theme: (typeof THEMES)[number]['id']) => {
     applyTheme(theme) // instant, so picking a swatch previews it right away
     updateProfile.mutate({ theme })
+  }
+
+  const onPickLogo = (logo: (typeof LOGOS)[number]['id']) => {
+    cacheLogo(logo) // instant, so picking a crest previews it right away everywhere it's shown
+    updateProfile.mutate({ logo })
   }
 
   return (
@@ -89,6 +95,30 @@ export function ProfilePage() {
                 <span className="h-5 w-5 rounded-full border border-veil-loud" style={{ background: theme.preview.gold }} />
               </span>
               <span className="text-xs font-medium text-paper">{theme.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-paper">Logo</h2>
+          <p className="text-xs text-paper/40">The crest shown in the header and on the sign-in screen.</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {LOGOS.map((logo) => (
+            <button
+              key={logo.id}
+              type="button"
+              onClick={() => onPickLogo(logo.id)}
+              aria-pressed={profile.logo === logo.id}
+              className={clsx(
+                'flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors',
+                profile.logo === logo.id ? 'border-gold bg-gold/10' : 'border-veil-strong hover:bg-veil',
+              )}
+            >
+              <img src={logo.src} alt="" className="h-12 w-12 object-contain" />
+              <span className="text-xs font-medium text-paper">{logo.label}</span>
             </button>
           ))}
         </div>

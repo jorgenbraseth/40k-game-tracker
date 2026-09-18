@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { BrandLogo } from '@/components/BrandLogo'
 import { Button } from '@/components/Button'
 import { TextField } from '@/components/TextField'
 import { supabase } from '@/lib/supabase'
@@ -66,9 +67,10 @@ export function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-10">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-wide text-gold">40K Tracker</h1>
-        <p className="mt-2 text-paper/60">Live score tracking for tabletop Warhammer 40,000.</p>
+      <div className="flex flex-col items-center text-center">
+        <h1 className="sr-only">40K Tracker</h1>
+        <BrandLogo className="h-36 w-auto drop-shadow-xl drop-shadow-gold/30 sm:h-44" />
+        <p className="mt-3 text-paper/60">Live score tracking for tabletop Warhammer 40,000.</p>
       </div>
 
       <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-6">
