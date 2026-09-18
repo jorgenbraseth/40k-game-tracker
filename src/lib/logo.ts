@@ -74,6 +74,14 @@ export const LOGOS: { id: Logo; label: string; src: string; width: number; heigh
     height: 564,
     quote: '40K Tracker -- kill the daemon, burn the witch, purge the unclean.',
   },
+  {
+    id: 'mechanicus',
+    label: 'Mechanicus',
+    src: '/images/brand/logo-mechanicus.webp',
+    width: 700,
+    height: 554,
+    quote: '40K Tracker -- knowledge is power, guard it well.',
+  },
 ]
 
 const LOGO_BY_ID = new Map(LOGOS.map((l) => [l.id, l]))
