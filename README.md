@@ -681,7 +681,7 @@ new route on the existing `JoinGamePage`, which auto-submits when a
 code arrives via the URL instead of the manual field, then redirects
 into the game. Ladders needed one new RPC,
 `join_ladder_by_invite_code(p_code)`
-(`20260404000000_ladder_invite_links.sql`): the existing
+(`20260918010000_ladder_invite_links.sql`): the existing
 `join_ladder_by_code(p_ladder_id, p_code)` needs a ladder id the client
 doesn't have from a bare link (`invite_code` is deliberately not part
 of the public "browse ladders" read path -- see above), so the new
