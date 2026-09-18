@@ -35,11 +35,11 @@ players' own phones if they'd both rather enter their own numbers.
   everywhere the signed-in player looks, on every device they sign into,
   with no effect on anyone else's game or on how anything scores. The
   app's own crest is a matching per-account choice: the header logo and
-  the prominent one on the sign-in screen both follow whichever of eight
+  the prominent one on the sign-in screen both follow whichever of nine
   the signed-in player picked from Profile -- the original Aquila, or
-  seven faction-flavored alternatives (Votann, Tyranid, Custodes, Orks,
-  Chaos, Sororitas, Grey Knights) -- same "purely cosmetic, no effect on
-  scoring" shape as the theme picker right next to it.
+  eight faction-flavored alternatives (Votann, Tyranid, Custodes, Orks,
+  Chaos, Sororitas, Grey Knights, Mechanicus) -- same "purely cosmetic,
+  no effect on scoring" shape as the theme picker right next to it.
 - One player starts a game (points limit, optionally a ladder to tag it
   to) and gets a short 6-character code, shareable either as that code
   (typed into a "Join a game" form) or as a link that joins
@@ -1048,10 +1048,12 @@ The app's crest is a matching per-account pick, implemented the same shape as th
 so that migration drops and recreates `profiles_logo_check`, a pattern reused again in
 `20260918040000_rename_logo_mechanicus_to_votann.sql` to rename the mislabeled `'mechanicus'` value
 to `'votann'` once it turned out that crest was actually Leagues of Votann, migrating any profile
-that had already picked it along with it, and once more in `20260918050000_profile_logo_greyknights.sql`
-to add `'greyknights'` -- defaulting existing and new profiles to `'default'`, the original Aquila)
+that had already picked it along with it, and twice more in `20260918050000_profile_logo_greyknights.sql`
+and `20260918060000_profile_logo_mechanicus.sql` to add `'greyknights'` and, once a genuine Mechanicus
+crest replaced the mislabeled one, a proper `'mechanicus'` -- defaulting existing and new profiles to
+`'default'`, the original Aquila)
 resolves through `src/lib/logo.ts`'s `LOGOS` table (each entry's own `src` plus its
-intrinsic `width`/`height`, since the eight crests don't share one aspect ratio) to whichever image
+intrinsic `width`/`height`, since the nine crests don't share one aspect ratio) to whichever image
 `BrandLogo` (`src/components/BrandLogo.tsx`) renders -- the single component both `Layout`'s header
 and `LandingPage`'s now-prominent sign-in hero use, so there's one place resolving "whose logo is
 this" rather than two copies. Resolution prefers the signed-in user's live `profiles.logo`, falling
@@ -1060,7 +1062,7 @@ signed-out landing page and the moment before a signed-in user's profile has loa
 two-tier fallback theming uses, just without theme's inline `index.html` bootstrap script, since a
 single swapped `<img>` is a far smaller flash than a whole page repainting under the wrong colors.
 `LogoSync` (`src/app/LogoSync.tsx`, mounted in `App.tsx` alongside `ThemeSync`) keeps that cache in
-sync with the loaded profile. `ProfilePage` renders all eight as an image-thumbnail grid, the same
+sync with the loaded profile. `ProfilePage` renders all nine as an image-thumbnail grid, the same
 selected/unselected swatch-button styling the theme picker uses. Picking one calls
 `cacheLogo` for the immediate localStorage-backed fallback and `useUpdateProfile({ logo })` --
 which now applies every patch optimistically (`onMutate` merges it into the cached profile before
