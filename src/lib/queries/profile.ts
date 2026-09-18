@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Theme } from '@/lib/database.types'
 import { resizeImageToAvatar } from '@/lib/resizeImage'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
@@ -26,11 +27,12 @@ export function useProfile(userId: string | undefined) {
 export function useUpdateProfile(userId: string | undefined) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (patch: { display_name?: string; avatar_url?: string | null }) => {
+    mutationFn: async (patch: { display_name?: string; avatar_url?: string | null; theme?: Theme }) => {
       if (!userId) throw new Error('Not signed in')
       const { error } = await supabase.from('profiles').update(patch).eq('id', userId)
       if (error) throw error
     },
+    onError: () => showToast("Couldn't save that change. Try again."),
     onSuccess: () => {
       if (userId) queryClient.invalidateQueries({ queryKey: profileKeys.detail(userId) })
     },

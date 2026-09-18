@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Applies the last-saved theme before first paint, so there's no flash of the default
+      // (grimdark) theme while React and the real profile load. ThemeSync corrects/re-caches
+      // this once the signed-in user's profile loads.
+      ;(function () {
+        try {
+          var theme = localStorage.getItem('40k-theme')
+          if (theme === 'astartes' || theme === 'aeldari' || theme === 'parchment') {
+            document.documentElement.setAttribute('data-theme', theme)
+          }
+        } catch (e) {}
+      })()
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Live score tracking for tabletop Warhammer 40,000 games." />

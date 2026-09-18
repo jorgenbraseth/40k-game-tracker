@@ -25,7 +25,7 @@ export function Stepper({ total, current, onChange, labels }: StepperProps) {
             'flex h-11 min-w-11 items-center justify-center rounded-full px-2 font-semibold transition-colors',
             round === current
               ? 'bg-gold text-ink'
-              : 'bg-white/5 text-paper/60 hover:bg-white/10',
+              : 'bg-veil text-paper/60 hover:bg-veil-strong',
           )}
         >
           {labels?.[round] ?? round}

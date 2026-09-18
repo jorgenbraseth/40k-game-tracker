@@ -193,7 +193,7 @@ export function SecondaryScores({
             key={d.id}
             className={clsx(
               'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm',
-              drawnThisRound ? 'bg-gold/10 ring-1 ring-gold/30' : 'bg-white/5',
+              drawnThisRound ? 'bg-gold/10 ring-1 ring-gold/30' : 'bg-veil',
             )}
           >
             <button
@@ -206,7 +206,7 @@ export function SecondaryScores({
               <span
                 className={clsx(
                   'flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                  drawnThisRound ? 'bg-gold/20 text-gold' : 'bg-white/10 text-paper/50',
+                  drawnThisRound ? 'bg-gold/20 text-gold' : 'bg-veil-strong text-paper/50',
                 )}
               >
                 {drawnThisRound ? 'Drawn this round' : `Drawn R${d.battle_round}`}
@@ -217,7 +217,7 @@ export function SecondaryScores({
                 type="button"
                 aria-label={`Undo draw of ${objective?.name}`}
                 onClick={() => undraw.mutate({ gamePlayerId, secondaryObjectiveId: d.secondary_objective_id })}
-                className="ml-2 text-paper/40 hover:text-red-400"
+                className="ml-2 text-paper/40 hover:text-danger"
               >
                 ✕
               </button>
@@ -233,7 +233,7 @@ export function SecondaryScores({
         const objective = available.find((a) => a.id === s.secondary_objective_id)
         const drawnRound = drawnRoundBySecondaryId.get(s.secondary_objective_id)
         return (
-          <div key={s.id} className="flex items-center justify-between rounded-lg bg-white/5 px-2.5 py-1.5 text-sm">
+          <div key={s.id} className="flex items-center justify-between rounded-lg bg-veil px-2.5 py-1.5 text-sm">
             <button
               type="button"
               onClick={() => editable && setScoringObjectiveId(s.secondary_objective_id)}
@@ -255,7 +255,7 @@ export function SecondaryScores({
                 onClick={() =>
                   remove.mutate({ gamePlayerId, battleRound: s.battle_round, secondaryObjectiveId: s.secondary_objective_id })
                 }
-                className="ml-2 text-paper/40 hover:text-red-400"
+                className="ml-2 text-paper/40 hover:text-danger"
               >
                 ✕
               </button>
@@ -269,14 +269,14 @@ export function SecondaryScores({
           <button
             type="button"
             onClick={drawRandom}
-            className="min-h-9 rounded-lg border border-dashed border-white/20 py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
+            className="min-h-9 rounded-lg border border-dashed border-veil-loud py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
           >
             🎲 Random secondary
           </button>
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="min-h-9 rounded-lg border border-dashed border-white/20 py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
+            className="min-h-9 rounded-lg border border-dashed border-veil-loud py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
           >
             + Select secondary
           </button>
@@ -290,7 +290,7 @@ export function SecondaryScores({
               <button
                 type="button"
                 onClick={() => drawOne(objective.id)}
-                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left hover:bg-white/10"
+                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left hover:bg-veil-strong"
               >
                 <span className="min-w-0 flex-1 text-paper">{objective.name}</span>
                 <span className="flex-shrink-0 text-xs text-paper/40">up to {objective.max_vp}VP</span>
@@ -311,7 +311,7 @@ export function SecondaryScores({
               <ObjectiveChecklist lines={scoringLines} counts={counts} onChangeCount={handleChangeCount} compact />
             )}
 
-            <div className="border-t border-white/10 pt-3">
+            <div className="border-t border-veil-strong pt-3">
               {manualDraft === null ? (
                 <button
                   type="button"
@@ -349,7 +349,7 @@ export function SecondaryScores({
                       }
                       setManualDraft(null)
                     }}
-                    className="w-20 rounded border border-white/15 bg-white/5 px-2 py-1 text-center text-paper focus:border-gold focus:outline-none"
+                    className="w-20 rounded border border-veil-strong bg-veil px-2 py-1 text-center text-paper focus:border-gold focus:outline-none"
                   />
                 </div>
               )}

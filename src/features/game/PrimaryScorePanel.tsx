@@ -104,7 +104,7 @@ export function PrimaryScorePanel({
       )}
 
       {editable && (
-        <div className="border-t border-white/10 pt-2">
+        <div className="border-t border-veil-strong pt-2">
           {manualDraft === null ? (
             <button
               type="button"
@@ -132,7 +132,7 @@ export function PrimaryScorePanel({
                   upsertRound.mutate({ gamePlayerId, battleRound, primaryVp: vp, userId })
                   setManualDraft(null)
                 }}
-                className="w-20 rounded border border-white/15 bg-white/5 px-2 py-1 text-center text-paper focus:border-gold focus:outline-none"
+                className="w-20 rounded border border-veil-strong bg-veil px-2 py-1 text-center text-paper focus:border-gold focus:outline-none"
               />
             </div>
           )}

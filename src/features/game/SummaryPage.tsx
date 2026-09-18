@@ -69,7 +69,7 @@ export function SummaryPage() {
             <ResultIcon result={resultLabel.toLowerCase() as GameResultKind} size="lg" className="mx-auto" />
             <p
               className={`mt-1 text-sm font-semibold tracking-widest uppercase ${
-                resultLabel === 'Victory' ? 'text-green-400' : resultLabel === 'Defeat' ? 'text-red-400' : 'text-paper/60'
+                resultLabel === 'Victory' ? 'text-success' : resultLabel === 'Defeat' ? 'text-danger' : 'text-paper/60'
               }`}
             >
               {resultLabel}
@@ -81,16 +81,16 @@ export function SummaryPage() {
       </div>
 
       {game.layout_variant && (
-        <div className="mx-auto flex w-full max-w-[12rem] flex-col overflow-hidden rounded-lg border border-white/10 bg-white/5">
+        <div className="mx-auto flex w-full max-w-[12rem] flex-col overflow-hidden rounded-lg border border-veil-strong bg-veil">
           {layoutImagePath ? (
             <img
               src={layoutImagePath}
               alt=""
               loading="lazy"
-              className="aspect-[44/60] w-full bg-white/5 object-contain"
+              className="aspect-[44/60] w-full bg-veil object-contain"
             />
           ) : (
-            <div className="flex aspect-[44/60] w-full items-center justify-center bg-white/5 text-xs text-paper/30">
+            <div className="flex aspect-[44/60] w-full items-center justify-center bg-veil text-xs text-paper/30">
               No image
             </div>
           )}
@@ -106,7 +106,7 @@ export function SummaryPage() {
           const iOwnThisSeat = unverified && user?.id === (entry.player.user_id ?? entry.player.represents_user_id)
           const isRepresented = Boolean(entry.player.represents_user_id) && !entry.player.user_id
           return (
-            <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+            <div key={entry.player.id} className="rounded-2xl border border-veil-strong bg-veil p-4 text-center">
               <p className="font-medium text-paper">
                 <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
               </p>
@@ -149,7 +149,7 @@ export function SummaryPage() {
                     </p>
                   </div>
                 ) : (
-                  <p className="mt-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-paper/50">
+                  <p className="mt-2 rounded-full bg-veil-strong px-2 py-0.5 text-[11px] font-medium text-paper/50">
                     Unverified -- awaiting {playerLabel(entry, 'their')}'s confirmation
                   </p>
                 ))}
@@ -171,10 +171,10 @@ export function SummaryPage() {
             </button>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/10">
+          <div className="overflow-x-auto rounded-xl border border-veil-strong">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/10 text-paper/50">
+                <tr className="border-b border-veil-strong text-paper/50">
                   <th className="px-3 py-2 text-left font-medium">Round</th>
                   <th className="px-3 py-2 text-right font-medium">
                     <PlayerNameLink userId={playerUserId(p1)} name={playerLabel(p1, 'Seat 1')} />
@@ -213,13 +213,13 @@ export function SummaryPage() {
                   const p2Secondaries = secondariesFor(p2?.player.id)
                   return (
                     <Fragment key={round}>
-                      <tr className="border-b border-white/5 last:border-0">
+                      <tr className="border-b border-veil last:border-0">
                         <td className="px-3 py-2 text-paper/70">{round === endOfGameRound ? 'End' : round}</td>
                         <td className="px-3 py-2 text-right text-paper">{score(p1?.player.id)}</td>
                         <td className="px-3 py-2 text-right text-paper">{score(p2?.player.id)}</td>
                       </tr>
                       {showSecondaries && (p1Secondaries.length > 0 || p2Secondaries.length > 0) && (
-                        <tr className="border-b border-white/5 bg-white/[0.02] last:border-0">
+                        <tr className="border-b border-veil bg-veil last:border-0">
                           <td></td>
                           {[p1Secondaries, p2Secondaries].map((list, i) => (
                             <td key={i} className="px-3 pb-2 text-right align-top">

@@ -11,7 +11,7 @@ export function Toaster() {
         <div
           key={t.id}
           role="alert"
-          className="max-w-sm rounded-lg bg-red-900/95 px-4 py-2.5 text-center text-sm text-paper shadow-lg"
+          className="max-w-sm rounded-lg bg-danger/95 px-4 py-2.5 text-center text-sm text-onfill shadow-lg"
         >
           {t.message}
         </div>

@@ -37,7 +37,7 @@ export function CommandPointsPanel({
   }
 
   const counterButtonClass =
-    'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-lg text-paper active:scale-95 disabled:opacity-30'
+    'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-veil-strong text-lg text-paper active:scale-95 disabled:opacity-30'
 
   return (
     <div className="flex w-full flex-col gap-1.5">
@@ -49,7 +49,7 @@ export function CommandPointsPanel({
         </span>
       </div>
 
-      <div className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-1.5 py-1.5">
+      <div className="flex items-center justify-center gap-1.5 rounded-lg border border-veil-strong bg-veil px-1.5 py-1.5">
         <div className="flex flex-1 items-center justify-center gap-1">
           <span className="text-[11px] text-paper/60">Gained</span>
           <div className="flex flex-shrink-0 items-center gap-1">
@@ -75,7 +75,7 @@ export function CommandPointsPanel({
           </div>
         </div>
 
-        <div className="h-6 w-px flex-shrink-0 bg-white/10" />
+        <div className="h-6 w-px flex-shrink-0 bg-veil-strong" />
 
         <div className="flex flex-1 items-center justify-center gap-1">
           <span className="text-[11px] text-paper/60">Spent</span>

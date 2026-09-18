@@ -110,9 +110,9 @@ export function WaitingRoom({
   if (!isParticipant) {
     return (
       <div className="flex flex-col items-center gap-8 text-center">
-        <p className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-paper/60">Spectating</p>
+        <p className="rounded-full bg-veil-strong px-3 py-1 text-xs font-medium text-paper/60">Spectating</p>
 
-        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
+        <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-5 text-center">
           <p className="mb-1 text-sm font-semibold text-paper/60 uppercase">Primary missions</p>
           {missionResolved ? (
             <div className="flex flex-col gap-2">
@@ -141,7 +141,7 @@ export function WaitingRoom({
 
         <div className="flex w-full max-w-sm flex-col gap-3">
           {detail.players.map((entry) => (
-            <div key={entry.player.id} className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+            <div key={entry.player.id} className="rounded-2xl border border-veil-strong bg-veil p-5 text-left">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium text-paper">
                   <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
@@ -149,9 +149,9 @@ export function WaitingRoom({
                 </p>
                 {entry.player.user_id && (
                   <span
-                    className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}
+                    className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-success' : 'text-paper/40'}`}
                   >
-                    <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+                    <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-success' : 'bg-paper/30'}`} />
                     {opponentOnline ? 'online' : 'offline'}
                   </span>
                 )}
@@ -169,7 +169,7 @@ export function WaitingRoom({
         </div>
 
         {detail.players.length === 2 && (
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+          <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-5 text-left">
             <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Game configuration</p>
             <dl className="flex flex-col gap-2 text-sm">
               <div className="flex items-center justify-between gap-2">
@@ -235,7 +235,7 @@ export function WaitingRoom({
         </button>
       </div>
 
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
+      <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-5 text-center">
         <p className="mb-1 text-sm font-semibold text-paper/60 uppercase">Primary missions</p>
         {missionResolved ? (
           <div className="flex flex-col gap-2">
@@ -256,7 +256,7 @@ export function WaitingRoom({
         )}
       </div>
 
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+      <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-5 text-left">
         <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Your setup</p>
         <div className="flex flex-col gap-3">
           <PlayerSetupFields
@@ -272,7 +272,7 @@ export function WaitingRoom({
         </div>
       </div>
 
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+      <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-5 text-left">
         <p className="mb-2 text-sm font-semibold text-paper/60 uppercase">Player 2</p>
         {opponent && !opponent.player.user_id ? (
           <div className="flex flex-col gap-3">
@@ -302,9 +302,9 @@ export function WaitingRoom({
               </p>
             </div>
             <span
-              className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-green-400' : 'text-paper/40'}`}
+              className={`flex items-center gap-1.5 text-xs ${opponentOnline ? 'text-success' : 'text-paper/40'}`}
             >
-              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-green-400' : 'bg-paper/30'}`} />
+              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-success' : 'bg-paper/30'}`} />
               {opponentOnline ? 'online' : 'offline'}
             </span>
           </div>
@@ -314,7 +314,7 @@ export function WaitingRoom({
       </div>
 
       {opponent && (
-        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+        <div className="w-full max-w-sm rounded-2xl border border-veil-strong bg-veil p-5 text-left">
           <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Game configuration</p>
           <GameConfigPicker
             me={me}
@@ -350,7 +350,7 @@ export function WaitingRoom({
         <button
           type="button"
           onClick={() => setCancelSheetOpen(true)}
-          className="mt-2 text-center text-xs text-paper/40 underline hover:text-red-400"
+          className="mt-2 text-center text-xs text-paper/40 underline hover:text-danger"
         >
           Cancel this game
         </button>

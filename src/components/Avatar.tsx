@@ -31,7 +31,7 @@ export function Avatar({
       aria-hidden
       className={clsx(
         size,
-        'flex flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-[0.6rem] font-semibold text-paper/60',
+        'flex flex-shrink-0 items-center justify-center rounded-full bg-veil-strong text-[0.6rem] font-semibold text-paper/60',
         className,
       )}
     >

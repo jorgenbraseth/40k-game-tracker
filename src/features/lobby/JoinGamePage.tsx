@@ -35,7 +35,7 @@ export function JoinGamePage() {
           required
         />
         {joinGame.isError && (
-          <p className="text-sm text-red-400">
+          <p className="text-sm text-danger">
             {joinGame.error instanceof Error ? joinGame.error.message : 'Could not join game.'}
           </p>
         )}

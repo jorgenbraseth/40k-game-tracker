@@ -9,10 +9,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-blood hover:bg-blood-dark text-paper disabled:bg-steel',
-  secondary: 'bg-steel hover:bg-steel/80 text-paper disabled:opacity-50',
-  ghost: 'bg-transparent hover:bg-white/10 text-paper disabled:opacity-50',
-  danger: 'bg-red-900 hover:bg-red-800 text-paper disabled:opacity-50',
+  primary: 'bg-blood hover:bg-blood-dark text-onfill disabled:bg-steel',
+  secondary: 'bg-steel hover:bg-steel/80 text-onfill disabled:opacity-50',
+  ghost: 'bg-transparent hover:bg-veil-strong text-paper disabled:opacity-50',
+  danger: 'bg-danger hover:bg-danger-dark text-onfill disabled:opacity-50',
 }
 
 export function Button({ variant = 'primary', fullWidth, className, ...props }: ButtonProps) {

@@ -51,7 +51,7 @@ export function HomePage() {
             {activeGames.map((game) => (
               <li
                 key={game.id}
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 pr-2 hover:bg-white/10"
+                className="flex items-center gap-2 rounded-xl border border-veil-strong bg-veil pr-2 hover:bg-veil-strong"
               >
                 <Link to={`/game/${game.id}`} className="flex flex-1 items-center justify-between px-4 py-3">
                   <span>
@@ -66,7 +66,7 @@ export function HomePage() {
                   type="button"
                   aria-label="Cancel game"
                   onClick={() => setCancelingGameId(game.id)}
-                  className="min-h-11 min-w-11 rounded-lg text-paper/40 hover:bg-white/10 hover:text-red-400"
+                  className="min-h-11 min-w-11 rounded-lg text-paper/40 hover:bg-veil-strong hover:text-danger"
                 >
                   ✕
                 </button>

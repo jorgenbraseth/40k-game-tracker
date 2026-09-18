@@ -43,7 +43,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 min-w-11 flex-shrink-0 rounded-full text-paper/60 hover:bg-white/10 hover:text-paper"
+            className="min-h-11 min-w-11 flex-shrink-0 rounded-full text-paper/60 hover:bg-veil-strong hover:text-paper"
             aria-label="Close"
           >
             ✕

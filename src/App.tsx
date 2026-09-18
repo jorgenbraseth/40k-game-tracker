@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router-dom'
 import { ErrorBoundary } from './app/ErrorBoundary'
 import { queryClient } from './app/queryClient'
 import { router } from './app/router'
+import { ThemeSync } from './app/ThemeSync'
 import { Toaster } from './components/Toaster'
 import { AuthProvider } from './features/auth/AuthProvider'
 
@@ -11,6 +12,7 @@ export function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          <ThemeSync />
           <RouterProvider router={router} />
           <Toaster />
         </AuthProvider>
