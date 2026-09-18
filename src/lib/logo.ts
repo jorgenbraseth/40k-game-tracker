@@ -82,6 +82,14 @@ export const LOGOS: { id: Logo; label: string; src: string; width: number; heigh
     height: 554,
     quote: '40K Tracker -- knowledge is power, guard it well.',
   },
+  {
+    id: 'thousandsons',
+    label: 'Thousand Sons',
+    src: '/images/brand/logo-thousandsons.webp',
+    width: 700,
+    height: 546,
+    quote: '40K Tracker -- trust in your allotted flaw.',
+  },
 ]
 
 const LOGO_BY_ID = new Map(LOGOS.map((l) => [l.id, l]))

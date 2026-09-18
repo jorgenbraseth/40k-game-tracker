@@ -23,6 +23,7 @@ export type Logo =
   | 'sororitas'
   | 'greyknights'
   | 'mechanicus'
+  | 'thousandsons'
 
 export interface Database {
   public: {
