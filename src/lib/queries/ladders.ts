@@ -287,6 +287,11 @@ export function useLadderMembers(ladderId: string | undefined) {
  * only counts toward standings if the bookkeeper attributed it to a ladder member
  * (game_players.represents_user_id) -- otherwise there's no stable identity to aggregate by.
  *
+ * Every current ladder member gets a row even with zero games played, sitting at the ranking
+ * system's starting rating -- otherwise a new member would be invisible on their own ladder until
+ * their first game. A game's own participants still show up too even when they aren't (or are no
+ * longer) a member, same as before.
+ *
  * Ranking is Elo or Glicko-2 (issue #68, see src/lib/elo.ts and src/lib/glicko2.ts), whichever
  * this ladder's own ranking_type is set to: each ladder is its own independent rating pool,
  * replayed from scratch in chronological order every time this is called. Both are
@@ -298,36 +303,40 @@ export function useLadderMembers(ladderId: string | undefined) {
  * points with an unattributed opponent -- but it still counts toward the descriptive W/D/L/VP
  * columns for whichever side does. */
 export async function fetchLadderStandings(ladderId: string): Promise<LadderStandingRow[]> {
-  const [ladderRes, tagsRes] = await Promise.all([
+  const [ladderRes, membersRes, tagsRes] = await Promise.all([
     supabase.from('ladders').select('ranking_type').eq('id', ladderId).single(),
+    supabase.from('ladder_members').select('user_id').eq('ladder_id', ladderId),
     supabase.from('game_ladders').select('game_id').eq('ladder_id', ladderId),
   ])
   if (ladderRes.error) throw ladderRes.error
+  if (membersRes.error) throw membersRes.error
   if (tagsRes.error) throw tagsRes.error
-  if (tagsRes.data.length === 0) return []
-
-  const { data: games, error: gamesError } = await supabase
-    .from('games')
-    .select('id, outcome, ended_at, created_at')
-    .in(
-      'id',
-      tagsRes.data.map((t) => t.game_id),
-    )
-    .eq('status', 'complete')
-  if (gamesError) throw gamesError
-  if (games.length === 0) return []
 
   const rankingType = ladderRes.data.ranking_type
   const startingRating = rankingType === 'glicko2' ? GLICKO2_STARTING_RATING : ELO_STARTING_RATING
+
+  const gameIdsFromTags = tagsRes.data.map((t) => t.game_id)
+  const { data: games, error: gamesError } =
+    gameIdsFromTags.length === 0
+      ? { data: [], error: null }
+      : await supabase
+          .from('games')
+          .select('id, outcome, ended_at, created_at')
+          .in('id', gameIdsFromTags)
+          .eq('status', 'complete')
+  if (gamesError) throw gamesError
 
   const gameIds = games.map((g) => g.id)
   const outcomeByGameId = new Map(games.map((g) => [g.id, g.outcome]))
   const playedAtByGameId = new Map(games.map((g) => [g.id, g.ended_at ?? g.created_at]))
 
-  const [playersRes, totalsRes] = await Promise.all([
-    supabase.from('game_players').select('*').in('game_id', gameIds),
-    supabase.from('game_totals').select('*').in('game_id', gameIds),
-  ])
+  const [playersRes, totalsRes] =
+    gameIds.length === 0
+      ? [{ data: [], error: null }, { data: [], error: null }]
+      : await Promise.all([
+          supabase.from('game_players').select('*').in('game_id', gameIds),
+          supabase.from('game_totals').select('*').in('game_id', gameIds),
+        ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
 
@@ -340,9 +349,10 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
   }
 
   const profileIds = [
-    ...new Set(
-      playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id)),
-    ),
+    ...new Set([
+      ...membersRes.data.map((m) => m.user_id),
+      ...playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id)),
+    ]),
   ]
   const profilesRes = profileIds.length
     ? await supabase.from('profiles').select('id, display_name, avatar_url').in('id', profileIds)
@@ -352,6 +362,20 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
   const avatarByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.avatar_url]))
 
   const rowByUserId = new Map<string, LadderStandingRow>()
+  for (const m of membersRes.data) {
+    rowByUserId.set(m.user_id, {
+      userId: m.user_id,
+      displayName: nameByUserId.get(m.user_id) ?? 'Unknown player',
+      avatarUrl: avatarByUserId.get(m.user_id) ?? null,
+      gamesPlayed: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      rating: startingRating,
+      vpFor: 0,
+      vpAgainst: 0,
+    })
+  }
   const ratingGames: EloGame[] = []
 
   for (const gameId of gameIds) {
@@ -399,7 +423,9 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
     row.rating = Math.round(ratingByUserId.get(row.userId) ?? startingRating)
   }
 
-  return [...rowByUserId.values()].sort((a, b) => b.rating - a.rating)
+  return [...rowByUserId.values()].sort(
+    (a, b) => b.rating - a.rating || a.displayName.localeCompare(b.displayName),
+  )
 }
 
 export function useLadderStandings(ladderId: string | undefined) {

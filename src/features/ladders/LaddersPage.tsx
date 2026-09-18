@@ -57,7 +57,7 @@ function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingTy
       </div>
       {showInfo && <p className="mb-2 text-xs text-paper/40">{RANKING_TYPE_EXPLAINERS[rankingType]}</p>}
       {!standings.data || standings.data.length === 0 ? (
-        <p className="px-1 py-2 text-sm text-paper/50">No completed games tagged with this ladder yet.</p>
+        <p className="px-1 py-2 text-sm text-paper/50">No members in this ladder yet.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

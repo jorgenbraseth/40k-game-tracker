@@ -701,6 +701,14 @@ of the Glicko-2 system" paper. Massey-Colley remains out of scope (see
 issue #26): no natural per-game "you gained/lost N points" story, which
 is most of the point of showing a rating at all.
 
+Standings show every current ladder member, not just the ones who've
+played a tagged game yet: `fetchLadderStandings` seeds one row per
+`ladder_members` row at that ranking type's starting rating (1500,
+0-0-0) before folding in game history, so a newly joined member is
+visible on their own ladder immediately instead of only appearing after
+their first result. A game's own participants still get a row too even
+when they aren't (or are no longer) a member, same as before.
+
 Each ladder's own game log is implemented too, alongside its standings:
 a second "Show games" disclosure inside an already-expanded ladder row
 (`LaddersPage`'s `GamesList`, `fetchLadderGames` in
