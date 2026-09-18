@@ -13,6 +13,7 @@ export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
 export type SecondaryMode = 'fixed' | 'tactical'
 export type Theme = 'grimdark' | 'astartes' | 'aeldari' | 'parchment'
+export type Logo = 'default' | 'mechanicus' | 'tyranid' | 'custodes' | 'orks' | 'chaos'
 
 export interface Database {
   public: {
@@ -133,6 +134,7 @@ export interface Database {
           display_name: string
           avatar_url: string | null
           theme: Theme
+          logo: Logo
           created_at: string
         }
         Insert: {
@@ -140,6 +142,7 @@ export interface Database {
           display_name: string
           avatar_url?: string | null
           theme?: Theme
+          logo?: Logo
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['profiles']['Row']>
