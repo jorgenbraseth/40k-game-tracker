@@ -37,7 +37,7 @@ players' own phones if they'd both rather enter their own numbers.
   app's own crest is a matching per-account choice: the header logo and
   the prominent one on the sign-in screen both follow whichever of seven
   the signed-in player picked from Profile -- the original Aquila, or
-  six faction-flavored alternatives (Mechanicus, Tyranid, Custodes,
+  six faction-flavored alternatives (Votann, Tyranid, Custodes,
   Orks, Chaos, Sororitas) -- same "purely cosmetic, no effect on
   scoring" shape as the theme picker right next to it.
 - One player starts a game (points limit, optionally a ladder to tag it
@@ -1042,10 +1042,13 @@ instantly (`applyTheme`) and saves through the same `useUpdateProfile`
 mutation display name/avatar already use.
 
 The app's crest is a matching per-account pick, implemented the same shape as theming:
-`profiles.logo` (`20260918020000_profile_logo.sql`, `'default' | 'mechanicus' | 'tyranid' |
-'custodes' | 'orks' | 'chaos'`, widened to add `'sororitas'` in `20260918030000_profile_logo_sororitas.sql`
--- a check constraint can't just be extended in place, so that migration drops and recreates
-`profiles_logo_check` -- defaulting existing and new profiles to `'default'`, the original Aquila)
+`profiles.logo` (`20260918020000_profile_logo.sql`, originally `'default' | 'mechanicus' |
+'tyranid' | 'custodes' | 'orks' | 'chaos'`, widened to add `'sororitas'` in
+`20260918030000_profile_logo_sororitas.sql` -- a check constraint can't just be extended in place,
+so that migration drops and recreates `profiles_logo_check`, a pattern reused again in
+`20260918040000_rename_logo_mechanicus_to_votann.sql` to rename the mislabeled `'mechanicus'` value
+to `'votann'` once it turned out that crest was actually Leagues of Votann, migrating any profile
+that had already picked it along with it -- defaulting existing and new profiles to `'default'`, the original Aquila)
 resolves through `src/lib/logo.ts`'s `LOGOS` table (each entry's own `src` plus its
 intrinsic `width`/`height`, since the seven crests don't share one aspect ratio) to whichever image
 `BrandLogo` (`src/components/BrandLogo.tsx`) renders -- the single component both `Layout`'s header

@@ -19,12 +19,12 @@ export const LOGOS: { id: Logo; label: string; src: string; width: number; heigh
     quote: '40K Tracker -- the Emperor protects.',
   },
   {
-    id: 'mechanicus',
-    label: 'Mechanicus',
-    src: '/images/brand/logo-mechanicus.webp',
+    id: 'votann',
+    label: 'Votann',
+    src: '/images/brand/logo-votann.webp',
     width: 700,
     height: 567,
-    quote: '40K Tracker -- knowledge is power, guard it well.',
+    quote: '40K Tracker -- for kin, clan, and the Ancestors watching.',
   },
   {
     id: 'tyranid',
