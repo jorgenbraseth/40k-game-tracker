@@ -1070,9 +1070,13 @@ crest replaced the mislabeled one, a proper `'mechanicus'` -- defaulting existin
 `'default'`, the original Aquila)
 resolves through `src/lib/logo.ts`'s `LOGOS` table (each entry's own `src` plus its
 intrinsic `width`/`height`, since the nine crests don't share one aspect ratio) to whichever image
-`BrandLogo` (`src/components/BrandLogo.tsx`) renders -- the single component both `Layout`'s header
-and `LandingPage`'s now-prominent sign-in hero use, so there's one place resolving "whose logo is
-this" rather than two copies. Resolution prefers the signed-in user's live `profiles.logo`, falling
+`BrandLogo` (`src/components/BrandLogo.tsx`) renders -- the single component `Layout`'s header,
+`LandingPage`'s sign-in hero, and `HomePage`'s own hero all use, so there's one place resolving
+"whose logo is this" rather than three copies. `Layout` skips its own copy specifically on `/home`
+(`useLocation().pathname === '/home'`), since Home already renders the same crest full-size right
+below the header -- a second, small one up there would just be redundant; every other page still
+shows it, as the app's one consistent "back to Home" anchor. Resolution prefers the signed-in
+user's live `profiles.logo`, falling
 back to whatever was last cached to `localStorage` (`40k-logo`) for that device -- covering the
 signed-out landing page and the moment before a signed-in user's profile has loaded -- the same
 two-tier fallback theming uses, just without theme's inline `index.html` bootstrap script, since a
