@@ -266,19 +266,22 @@ players' own phones if they'd both rather enter their own numbers.
   full-screen launch with no browser chrome eating screen space, and the
   app shell (not your game data -- see "What's actually in place right
   now") loads instantly even over that same flaky venue wifi, since it's
-  cached on the device rather than re-fetched every visit.
+  cached on the device rather than re-fetched every visit. Beyond that
+  browser-install path, the same web app is also meant to ship as a real
+  Google Play / App Store listing -- not a rewrite, a Capacitor wrapper
+  around this same build (issue #97's research, issues #125/#126 for the
+  per-platform plans) -- Android first, iOS once Android's proven out.
 
 **What this deliberately is not (out of scope):**
 tournaments/events, an army list builder, in-app chat, push
-notifications, rematch chains, CP/painting scoring, offline-first play
+notifications, rematch chains, CP/painting scoring, or offline-first play
 (a persisted local write queue that lets you keep entering scores with
 no connection at all -- distinct from the installable app shell above,
-which still needs a connection to actually save anything), or an
-app-store-distributed native wrapper (Capacitor/React Native). See
-section 11 of `40k-tracker-plan.md` for the original v1 scoping --
-superseded on three points since: ladders/ranking (below), spectating
-(above), and installability (above) all turned out to be wanted after
-all, so those lines from the
+which still needs a connection to actually save anything). See section
+11 of `40k-tracker-plan.md` for the original v1 scoping -- superseded on
+four points since: ladders/ranking (below), spectating (above),
+installability (above), and an app-store-distributed native wrapper
+(above) all turned out to be wanted after all, so those lines from the
 original out-of-scope list no longer hold.
 
 **Ladders:** a ladder is just a named group of players
@@ -386,11 +389,26 @@ otherwise lock mid-way through.
 ## What's actually in place right now
 
 Everything in "the goal" above is implemented and deployed at the live
-app URL, with one caveat worth knowing before you rely on it:
+app URL, with two caveats worth knowing before you rely on them:
 
 - **Google sign-in needs its OAuth client wired up** in the Supabase
   dashboard (Auth → Providers → Google) before it'll work in production;
   email/password sign-in works today without any extra setup.
+- **The Android app-store wrapper (issue #125) is scaffolding, not a
+  shipped app yet.** `capacitor.config.ts` and the generated `android/`
+  native project are in the repo, wired up with a native-aware Google
+  sign-in flow (`src/lib/nativeAuth.ts` -- routes OAuth through the
+  system browser and picks the redirect back up via a
+  `com.fortyktracker.app://` deep link, since Google blocks sign-in from
+  inside an embedded WebView) and a native keep-awake fallback
+  (`src/lib/useWakeLock.ts`, via `@capacitor-community/keep-awake`) for
+  the same mid-game screen-on behavior the web build already has. Not
+  yet done: it hasn't been run on a physical device or emulator, the
+  custom-scheme redirect still needs registering as a Supabase Auth
+  redirect URL, and none of the account-bound release steps (a signing
+  keystore, Google Play Developer account, store listing, Data Safety
+  form) exist yet -- see #125 for the full remaining checklist. iOS
+  (#126) hasn't been started.
 
 Home is a proper landing page rather than the "start/join a game" hub it used to be: `HomePage`
 (`src/features/lobby/HomePage.tsx`) is now just the prominent `BrandLogo`, the tagline, `InstallHint`,

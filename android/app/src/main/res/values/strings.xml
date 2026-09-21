@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">40K Tracker</string>
+    <string name="title_activity_main">40K Tracker</string>
+    <string name="package_name">com.fortyktracker.app</string>
+    <string name="custom_url_scheme">com.fortyktracker.app</string>
+</resources>
