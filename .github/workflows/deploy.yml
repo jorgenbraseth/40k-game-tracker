@@ -12,7 +12,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    # cloudflare/pages-action creates a GitHub Deployment to track each
+    # cloudflare/wrangler-action's gitHubToken input creates a GitHub Deployment to track each
     # Pages release; the default GITHUB_TOKEN is read-only unless a job
     # explicitly asks for write access to that API.
     permissions:
@@ -69,11 +69,12 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
+      # cloudflare/pages-action was deleted upstream (Cloudflare deprecated it in favor of
+      # wrangler-action, which now handles Pages deploys via `wrangler pages deploy`).
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: 40k-game-tracker
-          directory: dist
+          command: pages deploy dist --project-name=40k-game-tracker
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
