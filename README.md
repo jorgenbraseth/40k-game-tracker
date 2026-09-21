@@ -402,13 +402,17 @@ app URL, with two caveats worth knowing before you rely on them:
   `com.fortyktracker.app://` deep link, since Google blocks sign-in from
   inside an embedded WebView) and a native keep-awake fallback
   (`src/lib/useWakeLock.ts`, via `@capacitor-community/keep-awake`) for
-  the same mid-game screen-on behavior the web build already has. Not
-  yet done: it hasn't been run on a physical device or emulator, the
-  custom-scheme redirect still needs registering as a Supabase Auth
-  redirect URL, and none of the account-bound release steps (a signing
-  keystore, Google Play Developer account, store listing, Data Safety
-  form) exist yet -- see #125 for the full remaining checklist. iOS
-  (#126) hasn't been started.
+  the same mid-game screen-on behavior the web build already has, and
+  it's been tested on a real device with real Google sign-in working end
+  to end. A `/privacy` page exists (linked from the landing page and the
+  signed-in footer) with real, code-grounded content, and
+  `android/app/build.gradle` has a release-signing config ready to read
+  a keystore once one exists. Still not done: the upload keystore itself
+  (a local, by-hand `keytool` step -- see README's "Publishing a real
+  (signed) Android release" below), the Google Play Developer account,
+  and the rest of the store listing (screenshots, description, content
+  rating, Data Safety form) -- see #125 for the full remaining
+  checklist. iOS (#126) hasn't been started.
 
 Home is a proper landing page rather than the "start/join a game" hub it used to be: `HomePage`
 (`src/features/lobby/HomePage.tsx`) is now just the prominent `BrandLogo`, the tagline, `InstallHint`,

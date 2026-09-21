@@ -1,0 +1,8 @@
+# Cloudflare Pages serves an actual file (JS/CSS/images/sw.js/manifest, all still under public/ or
+# dist/assets) before ever consulting this file, so this only ever applies to a client-side route
+# with no matching file -- e.g. a cold request to /privacy, /game/join/<code>, or any other
+# react-router path (router.tsx) that isn't just a client-side navigation from an already-loaded
+# page. Without it, opening one of those fresh (a shared invite link, a Play Store reviewer or a
+# search engine following /privacy) 404s instead of loading the app and letting react-router take
+# over client-side.
+/*  /index.html  200

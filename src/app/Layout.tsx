@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BrandLogo } from '@/components/BrandLogo'
 import { Sheet } from '@/components/Sheet'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -108,7 +108,10 @@ export function Layout() {
       */}
       <footer className="mx-auto w-full max-w-3xl border-t border-veil-strong px-4 pt-4 pb-[calc(1rem+var(--safe-inset-bottom))] text-center text-xs text-paper/40">
         Unofficial fan project. Not affiliated with, endorsed, sponsored, or specifically approved
-        by Games Workshop Limited. Warhammer 40,000 is a trademark of Games Workshop Limited.
+        by Games Workshop Limited. Warhammer 40,000 is a trademark of Games Workshop Limited.{' '}
+        <Link to="/privacy" className="underline hover:text-paper/60">
+          Privacy
+        </Link>
       </footer>
 
       {user && (
