@@ -35,12 +35,12 @@ export const LOGOS: { id: Logo; label: string; src: string; width: number; heigh
     quote: '40K Tracker -- the Great Devourer hungers.',
   },
   {
-    id: 'custodes',
-    label: 'Custodes',
-    src: '/images/brand/logo-custodes.webp',
+    id: 'tau',
+    label: "T'au",
+    src: '/images/brand/logo-tau.webp',
     width: 700,
     height: 561,
-    quote: '40K Tracker -- Ave Imperator, none shall pass unchallenged.',
+    quote: '40K Tracker -- for the Greater Good.',
   },
   {
     id: 'orks',
