@@ -108,6 +108,207 @@
   --color-success: #226b34;
 }
 
+/*
+ * Faction-paired themes -- one per non-default crest in logo.ts's LOGOS, same id as the matching
+ * Logo value. Every blood/steel/danger value here is checked against the fixed --color-onfill
+ * (#f7f6f3) text that sits on top of it on solid button fills (Button.tsx's primary/secondary/
+ * danger variants) -- WCAG AA (>=4.5:1), matching or beating this file's own best existing themes
+ * (aeldari/parchment sit ~5-8:1). gold is checked separately against that theme's own ink, since
+ * bg-gold fills sit under text-ink, not text-onfill (Stepper.tsx, UpdatePrompt.tsx).
+ */
+
+[data-theme='votann'] {
+  color-scheme: dark;
+  --color-ink: #14120e;
+  --color-paper: #f2ece0;
+  --color-blood: #9a5a24;
+  --color-blood-dark: #6e4019;
+  --color-gold: #2ea39a;
+  --color-steel: #5a5850;
+  --color-veil: #1d1a14;
+  --color-veil-strong: #2b271e;
+  --color-veil-loud: #3d372a;
+  --color-danger: #a8442c;
+  --color-danger-dark: #7c3220;
+  --color-success: #3e9e86;
+}
+
+[data-theme='tyranid'] {
+  color-scheme: dark;
+  --color-ink: #17101f;
+  --color-paper: #efe6d8;
+  --color-blood: #6a3fa0;
+  --color-blood-dark: #492b73;
+  --color-gold: #9fd63c;
+  --color-steel: #5c5468;
+  --color-veil: #201730;
+  --color-veil-strong: #2d2140;
+  --color-veil-loud: #3e2d57;
+  --color-danger: #a83a28;
+  --color-danger-dark: #7c2a1c;
+  --color-success: #4bab7a;
+}
+
+[data-theme='tau'] {
+  color-scheme: light;
+  --color-ink: #f2ede1;
+  --color-paper: #2b2e33;
+  --color-blood: #a8451c;
+  --color-blood-dark: #7a3214;
+  --color-gold: #1c5a80;
+  --color-steel: #6b6558;
+  --color-veil: #e8e1d1;
+  --color-veil-strong: #ddd4bf;
+  --color-veil-loud: #cabfa5;
+  --color-danger: #a8321f;
+  --color-danger-dark: #7c2416;
+  --color-success: #2f8f5b;
+}
+
+[data-theme='orks'] {
+  color-scheme: dark;
+  --color-ink: #12150e;
+  --color-paper: #f0ead8;
+  --color-blood: #4f7322;
+  --color-blood-dark: #375018;
+  --color-gold: #e8c12a;
+  --color-steel: #6b5c46;
+  --color-veil: #191d12;
+  --color-veil-strong: #252b1a;
+  --color-veil-loud: #343d25;
+  --color-danger: #a83a24;
+  --color-danger-dark: #7c2a1a;
+  --color-success: #6a9c3a;
+}
+
+[data-theme='chaos'] {
+  color-scheme: dark;
+  --color-ink: #0a0908;
+  --color-paper: #efe9dc;
+  --color-blood: #7a1b1e;
+  --color-blood-dark: #4f1113;
+  --color-gold: #a9812f;
+  --color-steel: #4a463f;
+  --color-veil: #141210;
+  --color-veil-strong: #201d19;
+  --color-veil-loud: #302b24;
+  --color-danger: #9c2b26;
+  --color-danger-dark: #74201c;
+  --color-success: #3f9e5c;
+}
+
+[data-theme='sororitas'] {
+  color-scheme: light;
+  --color-ink: #f5eeea;
+  --color-paper: #1c1614;
+  --color-blood: #a3222c;
+  --color-blood-dark: #7a1820;
+  --color-gold: #7a5c16;
+  --color-steel: #6e6560;
+  --color-veil: #ece2dc;
+  --color-veil-strong: #e0d2ca;
+  --color-veil-loud: #cfbcb1;
+  --color-danger: #a01f1f;
+  --color-danger-dark: #781717;
+  --color-success: #2f7a4a;
+}
+
+[data-theme='greyknights'] {
+  color-scheme: dark;
+  --color-ink: #0f1420;
+  --color-paper: #f1f2f5;
+  --color-blood: #3a4f8f;
+  --color-blood-dark: #283a68;
+  --color-gold: #c9a53f;
+  --color-steel: #454e5e;
+  --color-veil: #161c2a;
+  --color-veil-strong: #202838;
+  --color-veil-loud: #2d374a;
+  --color-danger: #a8393a;
+  --color-danger-dark: #7c2a2b;
+  --color-success: #4ec9a0;
+}
+
+[data-theme='mechanicus'] {
+  color-scheme: dark;
+  --color-ink: #170e0a;
+  --color-paper: #f0e4c9;
+  --color-blood: #8c2a1e;
+  --color-blood-dark: #5e1c14;
+  --color-gold: #b8823a;
+  --color-steel: #5c5750;
+  --color-veil: #1e140e;
+  --color-veil-strong: #2b1e15;
+  --color-veil-loud: #3d2c1f;
+  --color-danger: #a03824;
+  --color-danger-dark: #78291a;
+  --color-success: #6a9c4a;
+}
+
+[data-theme='thousandsons'] {
+  color-scheme: dark;
+  --color-ink: #0d1626;
+  --color-paper: #f2e6c4;
+  --color-blood: #1f6f78;
+  --color-blood-dark: #154e55;
+  --color-gold: #d9a92f;
+  --color-steel: #545f6e;
+  --color-veil: #121d30;
+  --color-veil-strong: #1a2840;
+  --color-veil-loud: #263757;
+  --color-danger: #a83a28;
+  --color-danger-dark: #7c2a1c;
+  --color-success: #4bab8c;
+}
+
+[data-theme='darkangels'] {
+  color-scheme: dark;
+  --color-ink: #0c1410;
+  --color-paper: #efe8d6;
+  --color-blood: #1f4a34;
+  --color-blood-dark: #143224;
+  --color-gold: #c9b27a;
+  --color-steel: #565f56;
+  --color-veil: #121b15;
+  --color-veil-strong: #1c281f;
+  --color-veil-loud: #2a3a2c;
+  --color-danger: #a3382c;
+  --color-danger-dark: #782920;
+  --color-success: #5cae6e;
+}
+
+[data-theme='worldeaters'] {
+  color-scheme: dark;
+  --color-ink: #120605;
+  --color-paper: #f2e6d8;
+  --color-blood: #b31f1a;
+  --color-blood-dark: #7c1310;
+  --color-gold: #b8823a;
+  --color-steel: #57504a;
+  --color-veil: #1a0c0a;
+  --color-veil-strong: #281412;
+  --color-veil-loud: #3a1e1a;
+  --color-danger: #a3231c;
+  --color-danger-dark: #781a15;
+  --color-success: #3f9e5c;
+}
+
+[data-theme='spacewolves'] {
+  color-scheme: light;
+  --color-ink: #eef1f4;
+  --color-paper: #1e2733;
+  --color-blood: #3c5a72;
+  --color-blood-dark: #29404f;
+  --color-gold: #8a5f1e;
+  --color-steel: #5c6874;
+  --color-veil: #e2e8ec;
+  --color-veil-strong: #d3dbe1;
+  --color-veil-loud: #bcc7cf;
+  --color-danger: #a3321f;
+  --color-danger-dark: #782517;
+  --color-success: #2f7a5c;
+}
+
 html,
 body,
 #root {

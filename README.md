@@ -30,18 +30,23 @@ players' own phones if they'd both rather enter their own numbers.
   own stats page) -- optional, and falls back to a plain initial when
   not set, same as a Google account's own picture already does for
   anyone who signed up that way. Profile also has a **theme** picker --
-  a purely cosmetic, per-account choice of color scheme (the original
-  grimdark look, or three lighter/brighter alternatives) that applies
+  a purely cosmetic, per-account choice of color scheme that applies
   everywhere the signed-in player looks, on every device they sign into,
-  with no effect on anyone else's game or on how anything scores. The
-  app's own crest is a matching per-account choice: the header logo and
-  the prominent one on the sign-in screen both follow whichever of
-  thirteen the signed-in player picked from Profile -- the original
-  Aquila, or twelve faction-flavored alternatives (Votann, Tyranid,
-  T'au, Orks, Chaos, Sororitas, Grey Knights, Mechanicus, Thousand
-  Sons, Dark Angels, World Eaters, Space Wolves) -- same "purely
-  cosmetic, no effect on scoring" shape as the theme picker
-  right next to it.
+  with no effect on anyone else's game or on how anything scores. Sixteen
+  options: the original grimdark look, three lighter/brighter generic
+  alternatives, and twelve faction-specific themes, one per crest below,
+  each grounded in that faction's real palette and iconography rather
+  than a generic recolor. The app's own crest is a separate, matching
+  per-account choice: the header logo and the prominent one on the
+  sign-in screen both follow whichever of thirteen the signed-in player
+  picked from Profile -- the original Aquila, or twelve faction-flavored
+  alternatives (Votann, Tyranid, T'au, Orks, Chaos, Sororitas, Grey
+  Knights, Mechanicus, Thousand Sons, Dark Angels, World Eaters, Space
+  Wolves) -- same "purely cosmetic, no effect on scoring" shape as the
+  theme picker right next to it. Theme and crest stay two fully
+  independent pickers -- picking a faction's theme doesn't change your
+  crest, and vice versa -- even though most people will probably pick
+  the matching pair.
 - Signing in lands on a proper Home page, not straight into "start a
   game": the same prominent crest as the sign-in screen up top, and a
   shortcut to every section underneath (New game, History, Ladders,
@@ -1051,30 +1056,43 @@ does; `PlayerNameLink`'s optional prop means adding it there later is a
 small, isolated follow-up, not a redesign.
 
 Theming is implemented: `profiles.theme`
-(`20260918000000_profile_theme.sql`, `'grimdark' | 'astartes' | 'aeldari' |
-'parchment'`, defaulting existing and new profiles to `'grimdark'`, the
-original look) drives a `data-theme` attribute on `<html>`. Every color a
-component uses is a semantic Tailwind v4 `@theme` token (`ink`/`paper`,
-`blood`/`blood-dark`, `gold`, `steel`, the `veil`/`veil-strong`/`veil-loud`
-subtle-fill/hairline scale, `danger`/`danger-dark`, `success`, and the
-fixed `onfill` used only for text sitting on a solid `blood`/`steel`/
-`danger` fill) rather than a literal color anywhere in a component --
-`src/index.css` redefines those same variable names once per theme under
-`[data-theme='astartes'|'aeldari'|'parchment']` (grimdark needs no
-selector, it's the base `@theme` values), so no component changed to add
-the other three. That ruled out literal `white/black`-at-N%-opacity
+(`20260918000000_profile_theme.sql` for the original four,
+`20260921000000_profile_theme_factions.sql` widening the same check
+constraint to add twelve more; `Theme` in `src/lib/database.types.ts` is
+the full sixteen-value union, `'grimdark' | 'astartes' | 'aeldari' |
+'parchment' | 'votann' | 'tyranid' | 'tau' | 'orks' | 'chaos' |
+'sororitas' | 'greyknights' | 'mechanicus' | 'thousandsons' |
+'darkangels' | 'worldeaters' | 'spacewolves'`, defaulting existing and
+new profiles to `'grimdark'`, the original look) drives a `data-theme`
+attribute on `<html>`. Every color a component uses is a semantic
+Tailwind v4 `@theme` token (`ink`/`paper`, `blood`/`blood-dark`, `gold`,
+`steel`, the `veil`/`veil-strong`/`veil-loud` subtle-fill/hairline
+scale, `danger`/`danger-dark`, `success`, and the fixed `onfill` used
+only for text sitting on a solid `blood`/`steel`/`danger` fill) rather
+than a literal color anywhere in a component -- `src/index.css`
+redefines those same variable names once per theme under a
+`[data-theme='...']` selector per non-default theme (grimdark needs no
+selector, it's the base `@theme` values), so no component changed to
+add the other fifteen. That ruled out literal `white/black`-at-N%-opacity
 utilities too, since a translucent white wash is invisible on a light
 theme's background -- every `bg-white/5`-style utility across the app
 was replaced with the `veil` scale, and `text-red-400`/`text-green-400`
 with `danger`/`success`, so panels, dividers, error/online-status text,
-and the modal/photo-viewer scrims all still read correctly under
-`aeldari`/`parchment`'s light backgrounds, not just the two dark themes.
-`ThemeSync` (`src/app/ThemeSync.tsx`, mounted once in `App.tsx`) applies
-the signed-in user's `profiles.theme` to `<html>` whenever it loads or
+and the modal/photo-viewer scrims all still read correctly under the
+light themes (`aeldari`/`parchment`/`tau`/`sororitas`/`spacewolves`),
+not just the dark ones. The twelve faction themes (`votann`, `tyranid`,
+`tau`, `orks`, `chaos`, `sororitas`, `greyknights`, `mechanicus`,
+`thousandsons`, `darkangels`, `worldeaters`, `spacewolves`) pair with
+the matching crest below by id, each grounded in that faction's real
+palette rather than a generic recolor, with every `blood`/`steel`/
+`danger` value checked for WCAG AA contrast (>=4.5:1) against `onfill`
+and every `gold` against that theme's own `ink`. `ThemeSync`
+(`src/app/ThemeSync.tsx`, mounted once in `App.tsx`) applies the
+signed-in user's `profiles.theme` to `<html>` whenever it loads or
 changes, and caches it to `localStorage` (`40k-theme`); a small inline
 script in `index.html`, running before React, reads that same cached
 value so a returning visitor never sees a flash of the default theme
-before their real one applies. `ProfilePage` renders all four as a
+before their real one applies. `ProfilePage` renders all sixteen as a
 swatch grid (ink/blood/gold preview dots per theme, sourced from
 `src/lib/theme.ts`'s own copy of those hex values, since the picker has
 to show themes that aren't the active one); picking one applies
