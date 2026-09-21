@@ -90,6 +90,30 @@ export const LOGOS: { id: Logo; label: string; src: string; width: number; heigh
     height: 546,
     quote: '40K Tracker -- trust in your allotted flaw.',
   },
+  {
+    id: 'darkangels',
+    label: 'Dark Angels',
+    src: '/images/brand/logo-darkangels.webp',
+    width: 700,
+    height: 546,
+    quote: '40K Tracker -- repent, redeem, endure.',
+  },
+  {
+    id: 'worldeaters',
+    label: 'World Eaters',
+    src: '/images/brand/logo-worldeaters.webp',
+    width: 700,
+    height: 546,
+    quote: '40K Tracker -- kill! maim! burn!',
+  },
+  {
+    id: 'spacewolves',
+    label: 'Space Wolves',
+    src: '/images/brand/logo-spacewolves.webp',
+    width: 700,
+    height: 547,
+    quote: '40K Tracker -- strength through the pack.',
+  },
 ]
 
 const LOGO_BY_ID = new Map(LOGOS.map((l) => [l.id, l]))

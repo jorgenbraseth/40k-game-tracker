@@ -24,6 +24,9 @@ export type Logo =
   | 'greyknights'
   | 'mechanicus'
   | 'thousandsons'
+  | 'darkangels'
+  | 'worldeaters'
+  | 'spacewolves'
 
 export interface Database {
   public: {
