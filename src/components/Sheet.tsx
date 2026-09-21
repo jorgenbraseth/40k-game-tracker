@@ -52,7 +52,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         {/* Only the body scrolls -- content taller than the viewport (e.g. Game configuration's
             groupings/layout/attacker/turn-order stack) used to just overflow off the top with no
             way to reach it; the header now stays put so the close button is always reachable. */}
-        <div className="overflow-x-hidden overflow-y-auto px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+        <div className="overflow-x-hidden overflow-y-auto px-5 pb-[calc(1.25rem+var(--safe-inset-bottom))]">
           {children}
         </div>
       </div>

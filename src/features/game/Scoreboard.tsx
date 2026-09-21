@@ -392,7 +392,7 @@ export function Scoreboard({
       )}
 
       {/* Running totals -- always visible without scrolling, per the design brief. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-veil-strong bg-ink/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-veil-strong bg-ink/95 px-4 pt-2 pb-[calc(0.5rem+var(--safe-inset-bottom))] backdrop-blur">
         <div className="mx-auto max-w-3xl">
           <p className="text-center text-[10px] font-medium tracking-wide text-paper/40 uppercase">
             {viewRound === endOfGameRound ? 'End of game' : `Round ${viewRound} of ${detail.game.total_rounds}`}

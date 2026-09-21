@@ -21,7 +21,7 @@ export function UpdatePrompt() {
   return (
     <div
       className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-between gap-3 bg-gold px-4 py-2.5 text-sm font-medium text-ink"
-      style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom))' }}
+      style={{ paddingBottom: 'calc(0.625rem + var(--safe-inset-bottom))' }}
     >
       <span>A new version is available.</span>
       <button

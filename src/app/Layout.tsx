@@ -46,7 +46,7 @@ export function Layout() {
         here (not just on the inner div) is load-bearing too -- without it, that safe-area padding
         strip is transparent, so scrolled-past page content shows through behind the status bar.
       */}
-      <header className="sticky top-0 z-40 bg-ink pt-[env(safe-area-inset-top)]">
+      <header className="sticky top-0 z-40 bg-ink pt-[var(--safe-inset-top)]">
         <div
           className={clsx(
             'mx-auto flex max-w-3xl items-center border-b border-veil-strong bg-ink/95 px-4 py-3 backdrop-blur',
@@ -101,12 +101,12 @@ export function Layout() {
       </main>
 
       {/*
-        pb includes env(safe-area-inset-bottom) -- on Android's edge-to-edge WebView (see the
-        header comment above), the last scrolled-to content otherwise sits right behind the
-        on-screen gesture/nav bar with no way to scroll it clear, since nothing reserves that
-        extra space in the page's total scrollable height.
+        pb includes the safe-area bottom inset (see index.css's --safe-inset-* -- on Android's
+        edge-to-edge WebView (see the header comment above), the last scrolled-to content
+        otherwise sits right behind the on-screen gesture/nav bar with no way to scroll it clear,
+        since nothing reserves that extra space in the page's total scrollable height.
       */}
-      <footer className="mx-auto w-full max-w-3xl border-t border-veil-strong px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-center text-xs text-paper/40">
+      <footer className="mx-auto w-full max-w-3xl border-t border-veil-strong px-4 pt-4 pb-[calc(1rem+var(--safe-inset-bottom))] text-center text-xs text-paper/40">
         Unofficial fan project. Not affiliated with, endorsed, sponsored, or specifically approved
         by Games Workshop Limited. Warhammer 40,000 is a trademark of Games Workshop Limited.
       </footer>
