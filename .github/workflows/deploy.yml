@@ -44,7 +44,11 @@ jobs:
       # Migrations run before the frontend deploy below. This means the old
       # frontend is briefly live against the new schema, so every migration
       # must be backward-compatible (add, don't rename/drop -- see
-      # supabase/migrations for the expand/contract convention).
+      # supabase/migrations for the expand/contract convention). Now that the
+      # Android/iOS apps exist (#125/#126) that window is much longer than
+      # this deploy's own few seconds -- see CLAUDE.md's "Backend changes
+      # must stay compatible with released native app builds", enforced on
+      # every PR by scripts/check-migration-compat.sh (ci.yml).
       - uses: supabase/setup-cli@v1
         with:
           version: latest

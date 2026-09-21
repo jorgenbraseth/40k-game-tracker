@@ -446,7 +446,7 @@ export function LaddersPage() {
       </div>
 
       <form onSubmit={onCreate} className="flex items-end gap-2">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <TextField
             label="Start a new ladder"
             value={newName}

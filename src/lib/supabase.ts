@@ -7,5 +7,9 @@ export const supabase = createClient<Database>(env.VITE_SUPABASE_URL, env.VITE_S
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // PKCE (rather than the implicit flow) so the native build can complete sign-in itself via
+    // `exchangeCodeForSession` -- see src/lib/nativeAuth.ts. Works the same as before on web,
+    // where `detectSessionInUrl` still exchanges the `?code=` on /auth/callback automatically.
+    flowType: 'pkce',
   },
 })

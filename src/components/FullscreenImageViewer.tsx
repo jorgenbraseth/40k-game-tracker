@@ -40,7 +40,7 @@ export function FullscreenImageViewer({
     >
       <img src={src} alt={alt} className="max-h-full max-w-full object-contain" />
       {label && (
-        <p className="pointer-events-none absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-onfill">
+        <p className="pointer-events-none absolute bottom-[calc(1.5rem+var(--safe-inset-bottom))] left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-onfill">
           {label}
         </p>
       )}
@@ -48,7 +48,7 @@ export function FullscreenImageViewer({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-black/60 text-xl text-onfill hover:bg-black/80"
+        className="absolute top-[calc(1rem+var(--safe-inset-top))] right-4 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-black/60 text-xl text-onfill hover:bg-black/80"
       >
         ✕
       </button>

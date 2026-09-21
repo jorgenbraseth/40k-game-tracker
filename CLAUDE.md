@@ -22,6 +22,49 @@ This applies whether the change comes from this repo's own session or a
 fresh one -- treat README.md as living documentation of the product, not
 a one-time snapshot from when the app was first built.
 
+## Backend changes must stay compatible with released native app builds
+
+Once the Android/iOS apps exist (issues #125/#126), a schema or RPC
+change can't assume it ships alongside the frontend that uses it the way
+a web deploy does. `deploy.yml` pushes migrations and the web frontend
+together on every merge to `main`, but the native apps bundle a frozen
+copy of the web build at release time (Capacitor's `webDir`, not a live
+fetch from www.40ktracker.com) -- see #125. A user's installed app can
+be weeks behind whatever's on `main`, with no way to get a fix until the
+next store release reaches them. This is a stricter, longer-lived
+version of the "old frontend briefly live against the new schema"
+window `deploy.yml`'s comments and `40k-tracker-plan.md` already design
+migrations around (expand-then-contract) -- treat that gap as spanning
+the whole period until a native release has shipped past the change,
+not just the few seconds of a web deploy.
+
+**The rule:** a migration must not remove or narrow anything an
+already-released native app build might still depend on -- no dropping
+or renaming a column/table/function, no narrowing a column's type, no
+adding a `NOT NULL` to an existing column, that an app already out in
+the world could still be reading, writing, or calling. Add the new
+shape alongside the old one (expand); only drop/rename/narrow the old
+shape (contract) once you know a native release has shipped past it --
+in practice, once #125/#126 exist, expect the "later migration, once a
+release has shipped" side of expand-then-contract to be a real wait for
+a store rollout, not the next commit.
+
+`scripts/check-migration-compat.sh` (run by `ci.yml` on every PR) is a
+tripwire for this, not a substitute for thinking about it: it greps new
+migrations for these shapes and fails unless the migration has a
+`-- breaking-change-ok: <reason>` comment explaining why it's actually
+safe (e.g. nothing has ever shipped past this column). It can't tell
+whether a native release has actually shipped past what it's flagging,
+so writing that comment is a real judgment call, not a formality to
+silence CI -- if you're not sure, don't add it, expand instead.
+
+This applies to Supabase RPC functions (`supabase.rpc(...)` calls) just
+as much as tables/columns -- a function's name and parameter shape are
+part of the same client-facing contract. It does *not* apply to RLS
+policies (drop-then-recreate is the normal way to update one) or to
+anything purely additive (a new table/column/function is invisible to,
+not broken by, a client that predates it).
+
 ## In-page view state belongs in the URL
 
 Any state that determines *what a page is showing* -- which round of a

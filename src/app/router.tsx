@@ -6,6 +6,7 @@ import { SummaryPage } from '@/features/game/SummaryPage'
 import { HistoryPage } from '@/features/history/HistoryPage'
 import { LadderJoinPage } from '@/features/ladders/LadderJoinPage'
 import { LaddersPage } from '@/features/ladders/LaddersPage'
+import { PrivacyPage } from '@/features/legal/PrivacyPage'
 import { GameLobbyPage } from '@/features/lobby/GameLobbyPage'
 import { HomePage } from '@/features/lobby/HomePage'
 import { JoinGamePage } from '@/features/lobby/JoinGamePage'
@@ -20,6 +21,7 @@ import { ProtectedRoute } from './ProtectedRoute'
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
   { path: '/auth/callback', element: <AuthCallback /> },
+  { path: '/privacy', element: <PrivacyPage /> },
   {
     element: <ProtectedRoute />,
     children: [

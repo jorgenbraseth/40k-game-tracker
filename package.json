@@ -10,9 +10,18 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npm run android:sync && npx cap open android",
+    "android:assets": "capacitor-assets generate --android --iconBackgroundColor '#0b0c10' --iconBackgroundColorDark '#0b0c10' --splashBackgroundColor '#0b0c10' --splashBackgroundColorDark '#0b0c10'",
+    "android:bundle": "npm run android:sync && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.102.8",
     "react": "^19.2.8",
@@ -21,6 +30,9 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

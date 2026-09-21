@@ -1,5 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js'
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react'
+import { listenForNativeOAuthRedirect } from '@/lib/nativeAuth'
 import { supabase } from '@/lib/supabase'
 
 interface AuthState {
@@ -27,7 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    // No-op on web -- see src/lib/nativeAuth.ts.
+    const stopListeningForNativeOAuth = listenForNativeOAuthRedirect()
+
+    return () => {
+      subscription.unsubscribe()
+      stopListeningForNativeOAuth()
+    }
   }, [])
 
   return (

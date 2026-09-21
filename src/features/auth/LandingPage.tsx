@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { BrandLogo } from '@/components/BrandLogo'
 import { Button } from '@/components/Button'
 import { TextField } from '@/components/TextField'
+import { NATIVE_OAUTH_REDIRECT, openNativeOAuth } from '@/lib/nativeAuth'
+import { isNativePlatform } from '@/lib/platform'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from './AuthProvider'
 
@@ -31,11 +33,20 @@ export function LandingPage() {
 
   const signInWithGoogle = async () => {
     setError(null)
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+    // Native (Capacitor) can't complete OAuth inside its own WebView -- Google blocks it -- so it
+    // hands off to the system browser instead and picks the result back up via a deep link
+    // (see src/lib/nativeAuth.ts) rather than the web build's https /auth/callback redirect.
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+      options: isNativePlatform()
+        ? { redirectTo: NATIVE_OAUTH_REDIRECT, skipBrowserRedirect: true }
+        : { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
     })
-    if (oauthError) setError(oauthError.message)
+    if (oauthError) {
+      setError(oauthError.message)
+      return
+    }
+    if (isNativePlatform() && data.url) openNativeOAuth(data.url)
   }
 
   const submitEmail = async (e: React.FormEvent) => {
@@ -154,6 +165,10 @@ export function LandingPage() {
           </>
         )}
       </div>
+
+      <Link to="/privacy" className="text-xs text-paper/40 underline hover:text-paper/60">
+        Privacy
+      </Link>
     </div>
   )
 }

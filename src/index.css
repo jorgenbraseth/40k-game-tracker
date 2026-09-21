@@ -41,6 +41,23 @@
 
 :root {
   color-scheme: dark;
+
+  /*
+   * Safe-area insets (notch/status bar/home indicator/gesture nav), read through one
+   * indirection rather than `env(safe-area-inset-*)` directly. Android WebView below version
+   * 140 has a real Chromium bug where `env()` reports those values as 0 or just wrong
+   * (https://issues.chromium.org/issues/40699457) -- Capacitor 8.5+'s bundled SystemBars plugin
+   * (android/app/src/main/java, no separate package needed) works around it by reading the
+   * actual WindowInsets natively and injecting `--safe-area-inset-*` as inline styles on this
+   * element instead, which these fall back to `env()` only when that injection hasn't happened
+   * (web, iOS, or before the WebView's first inset callback). Self-referential custom
+   * properties (`--safe-area-inset-top: var(--safe-area-inset-top, ...)`) don't work in CSS --
+   * hence the different name here from what Capacitor injects.
+   */
+  --safe-inset-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-inset-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --safe-inset-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --safe-inset-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
 }
 
 [data-theme='astartes'] {
