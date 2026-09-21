@@ -38,7 +38,7 @@ players' own phones if they'd both rather enter their own numbers.
   the prominent one on the sign-in screen both follow whichever of
   thirteen the signed-in player picked from Profile -- the original
   Aquila, or twelve faction-flavored alternatives (Votann, Tyranid,
-  Custodes, Orks, Chaos, Sororitas, Grey Knights, Mechanicus, Thousand
+  T'au, Orks, Chaos, Sororitas, Grey Knights, Mechanicus, Thousand
   Sons, Dark Angels, World Eaters, Space Wolves) -- same "purely
   cosmetic, no effect on scoring" shape as the theme picker
   right next to it.
@@ -1071,7 +1071,11 @@ that had already picked it along with it, and four more times in
 `20260918070000_profile_logo_thousandsons.sql`, and `20260918080000_profile_logo_chapter_pack.sql`
 to add `'greyknights'`, then (once a genuine Mechanicus crest replaced the mislabeled one) a proper
 `'mechanicus'`, then `'thousandsons'`, then `'darkangels'`/`'worldeaters'`/`'spacewolves'` together
-in one batch -- defaulting existing and new profiles to `'default'`, the original Aquila)
+in one batch, and once more in `20260918090000_rename_logo_custodes_to_tau.sql` -- the same
+mislabeling shape as the Votann rename, this time for the white/red robotic crest, which turned
+out to be T'au Empire iconography rather than Adeptus Custodes -- to rename `'custodes'` to `'tau'`,
+again migrating any profile that had already picked it -- defaulting existing and new profiles to
+`'default'`, the original Aquila)
 resolves through `src/lib/logo.ts`'s `LOGOS` table (each entry's own `src` plus its
 intrinsic `width`/`height`, since the thirteen crests don't share one aspect ratio) to whichever image
 `BrandLogo` (`src/components/BrandLogo.tsx`) renders -- the single component `Layout`'s header,

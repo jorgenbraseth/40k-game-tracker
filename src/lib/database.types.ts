@@ -17,7 +17,7 @@ export type Logo =
   | 'default'
   | 'votann'
   | 'tyranid'
-  | 'custodes'
+  | 'tau'
   | 'orks'
   | 'chaos'
   | 'sororitas'
