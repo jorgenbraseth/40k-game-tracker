@@ -1344,6 +1344,21 @@ would break an already-released native build -- see CLAUDE.md's "Backend
 changes must stay compatible with released native app builds" for the
 actual rule this enforces a tripwire for.
 
+**Publishing a real (signed) Android release**, as opposed to the debug
+APK above, needs an upload keystore that must never live in this repo
+(`android/.gitignore` excludes it) or in GitHub Actions secrets --
+generate one locally (`keytool -genkeypair ...`, see
+`android/keystore.properties.example` for the exact command and the
+properties file `android/app/build.gradle`'s signing config reads),
+copy the example to `android/keystore.properties`, fill in the real
+path/passwords, then `npm run android:bundle` produces a signed `.aab`
+at `android/app/build/outputs/bundle/release/`. Without that file,
+`assembleDebug`/`android-apk.yml` build exactly as before; only
+`bundleRelease`/`assembleRelease` need it, and fail with a clear message
+if it's missing rather than Gradle's own confusing one. See issue #125
+for the rest of the Play Store submission checklist (developer account,
+store listing, privacy policy, content rating, Data Safety form).
+
 **Before the first deploy**, you need to create the actual Supabase
 project and the production Google OAuth client by hand -- see
 "First thing to do" in `40k-tracker-plan.md`. Everything else in this repo

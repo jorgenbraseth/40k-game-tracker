@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npm run android:sync && npx cap open android",
-    "android:assets": "capacitor-assets generate --android --iconBackgroundColor '#0b0c10' --iconBackgroundColorDark '#0b0c10' --splashBackgroundColor '#0b0c10' --splashBackgroundColorDark '#0b0c10'"
+    "android:assets": "capacitor-assets generate --android --iconBackgroundColor '#0b0c10' --iconBackgroundColorDark '#0b0c10' --splashBackgroundColor '#0b0c10' --splashBackgroundColorDark '#0b0c10'",
+    "android:bundle": "npm run android:sync && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^8.0.1",

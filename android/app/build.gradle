@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+// Release signing (issue #125). Deliberately file-based, not env-var-based: the upload keystore
+// should exist only on a developer's own machine (see keystore.properties.example), never in this
+// repo or in CI secrets -- automating a signed CI release build is a separate, bigger trust
+// decision than the debug-only android-apk.yml workflow, and isn't set up here.
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def hasReleaseSigning = keystorePropertiesFile.exists()
+def keystoreProperties = new Properties()
+if (hasReleaseSigning) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.fortyktracker.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +27,37 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+}
+
+// Without keystore.properties, `assembleDebug` (this repo's CI, android-apk.yml) is completely
+// unaffected -- only an explicit `bundleRelease`/`assembleRelease` fails, with a clear reason
+// instead of Gradle's own confusing "keystore not set" error.
+if (!hasReleaseSigning) {
+    tasks.matching { it.name in ['bundleRelease', 'assembleRelease'] }.configureEach {
+        doFirst {
+            throw new GradleException(
+                "No android/keystore.properties found -- copy keystore.properties.example, point it at your " +
+                "upload keystore (see issue #125), and re-run. assembleDebug/android-apk.yml are unaffected."
+            )
         }
     }
 }
