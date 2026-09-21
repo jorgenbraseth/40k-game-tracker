@@ -17,6 +17,16 @@ const config: CapacitorConfig = {
     StatusBar: {
       // Matches the PWA manifest's theme_color/background_color (vite.config.ts) so the status
       // bar reads as part of the app chrome rather than a mismatched native default.
+      //
+      // backgroundColor/overlaysWebView only do anything below Android 15 (API 35) -- Android
+      // forces edge-to-edge (ignoring these) once minSdkVersion's app targets API 35 with no
+      // opt-out, and unconditionally from API 36 on (this app's compileSdk/targetSdk, per
+      // android/variables.gradle), so the WebView draws under the status bar regardless of these
+      // two values on any device actually running what this app targets. `style` still works
+      // everywhere (separate mechanism, status bar icon contrast only). The real, version-safe
+      // fix for content clearing the status bar is CSS: Layout.tsx's header pads itself by
+      // `env(safe-area-inset-top)`, which is 0 wherever the OS already reserves that space (older
+      // API levels, where these two values still apply) and the actual inset everywhere else.
       style: 'DARK',
       backgroundColor: '#0b0c10',
       overlaysWebView: false,

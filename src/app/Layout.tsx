@@ -35,8 +35,22 @@ export function Layout() {
     <div className="flex min-h-screen flex-col">
       <OfflineBanner />
       <UpdatePrompt />
-      <header className="sticky top-0 z-40 border-b border-veil-strong bg-ink/95 backdrop-blur">
-        <div className={clsx('mx-auto flex max-w-3xl items-center px-4 py-3', onHome ? 'justify-end' : 'justify-between')}>
+      {/*
+        Split from the inner div rather than blurring this element directly: Capacitor's Android
+        WebView (unlike a normal mobile browser) targets API 36, where the OS forces edge-to-edge
+        layout and ignores the old status-bar-push-down flags entirely (see capacitor.config.ts's
+        StatusBar config comment) -- so the safe-area padding below is load-bearing, not
+        decorative, or this bar renders under the status bar. Keeping `backdrop-blur` off this
+        sticky element and on the inner div instead sidesteps a known Chromium/WebView quirk where
+        `position: sticky` and `backdrop-filter` on the same element can stop sticking.
+      */}
+      <header className="sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
+        <div
+          className={clsx(
+            'mx-auto flex max-w-3xl items-center border-b border-veil-strong bg-ink/95 px-4 py-3 backdrop-blur',
+            onHome ? 'justify-end' : 'justify-between',
+          )}
+        >
           {!onHome && (
             <NavLink to="/home" aria-label="40K Tracker" className="flex items-center">
               <BrandLogo className="h-10 w-auto sm:h-12" />
