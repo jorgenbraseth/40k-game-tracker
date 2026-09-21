@@ -50,7 +50,16 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@v3
+      # GitHub's ubuntu-latest runners ship a fully licensed Android SDK already (at $ANDROID_HOME,
+      # see https://github.com/actions/runner-images) -- no need to fetch or license a second one.
+      # (This replaced android-actions/setup-android@v3, which failed here: it shells out to that
+      # same preinstalled sdkmanager to re-accept licenses and errored doing so -- likely a version
+      # mismatch between what the action expects and the cmdline-tools version this image ships.)
+      - name: Point Gradle at the preinstalled Android SDK
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 2 -name sdkmanager -type f | sort -V | tail -1)
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
 
       - name: Build web app
         run: npm run build
