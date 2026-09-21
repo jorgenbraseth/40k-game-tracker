@@ -1,0 +1,59 @@
+name: Build Android debug APK
+
+# Manual only -- for sideloading a debug build onto a real device to test the Capacitor wrapper
+# (issue #125) before it's anywhere near a Play Store release. Builds whichever branch you pick
+# from the Actions tab; never runs automatically, and never touches deploy.yml's production
+# pipeline (Cloudflare Pages only ever redeploys from a push to `main`).
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to build
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Same environment as deploy.yml -- needed for the real VITE_SUPABASE_URL/ANON_KEY below, so
+    # the installed APK actually talks to the real backend instead of a build-only placeholder
+    # (see ci.yml, which intentionally uses dummy values since it never ships its build output).
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Build web app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Sync into the native Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 40k-tracker-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
