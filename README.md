@@ -1328,6 +1328,14 @@ CLOUDFLARE_ACCOUNT_ID
 The service-role key is never used by the frontend, the repo, or this
 workflow.
 
+`android-apk.yml` (issue #125) is separate from that deploy pipeline and
+never pushes anywhere -- it builds a debug `.apk` from the Capacitor
+Android project (same `VITE_SUPABASE_*` secrets as above, so the build
+talks to the real backend) and uploads it as a downloadable Actions
+artifact, so a sideloadable test build exists without touching `main`.
+Runs automatically on every PR (posting/updating a comment with the
+download link) and on demand for any branch via `workflow_dispatch`.
+
 **Before the first deploy**, you need to create the actual Supabase
 project and the production Google OAuth client by hand -- see
 "First thing to do" in `40k-tracker-plan.md`. Everything else in this repo

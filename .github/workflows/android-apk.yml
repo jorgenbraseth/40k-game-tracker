@@ -1,10 +1,14 @@
 name: Build Android debug APK
 
-# Manual only -- for sideloading a debug build onto a real device to test the Capacitor wrapper
-# (issue #125) before it's anywhere near a Play Store release. Builds whichever branch you pick
-# from the Actions tab; never runs automatically, and never touches deploy.yml's production
-# pipeline (Cloudflare Pages only ever redeploys from a push to `main`).
+# Runs automatically on every PR (so there's always a fresh sideloadable build to test against,
+# without merging to main) and manually on any branch/tag/commit for out-of-band testing. Never
+# touches deploy.yml's production pipeline -- Cloudflare Pages only ever redeploys from a push to
+# `main`, which this workflow never pushes to.
 on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
     inputs:
       ref:
@@ -12,13 +16,22 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: android-apk-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     # Same environment as deploy.yml -- needed for the real VITE_SUPABASE_URL/ANON_KEY below, so
     # the installed APK actually talks to the real backend instead of a build-only placeholder
     # (see ci.yml, which intentionally uses dummy values since it never ships its build output).
+    # PRs from this repo's own branches (never forks, per this project's workflow) still get full
+    # access to environment secrets on the `pull_request` trigger.
     environment: production
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,8 +65,50 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        id: upload
+        uses: actions/upload-artifact@v4
         with:
           name: 40k-tracker-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+
+      - name: Comment on PR with download link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const marker = '<!-- android-apk-comment -->'
+            const shortSha = process.env.HEAD_SHA.slice(0, 7)
+            const body = [
+              marker,
+              '### 🤖 Android debug APK',
+              '',
+              `Built from ${shortSha}. [Download the APK](${process.env.ARTIFACT_URL}) (GitHub sign-in required, expires after 14 days) -- unzip it and sideload onto a device to test.`,
+            ].join('\n')
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const existing = comments.find((c) => c.body?.includes(marker))
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              })
+            }
