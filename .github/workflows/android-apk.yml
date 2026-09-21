@@ -58,8 +58,12 @@ jobs:
       - name: Point Gradle at the preinstalled Android SDK
         run: |
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 2 -name sdkmanager -type f | sort -V | tail -1)
-          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -name sdkmanager -type f | sort -V | tail -1)
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+          else
+            echo "::warning::No sdkmanager found under \$ANDROID_HOME/cmdline-tools -- skipping the defensive license re-accept (harmless if licenses are already accepted, which they are on GitHub-hosted runners)."
+          fi
 
       - name: Build web app
         run: npm run build

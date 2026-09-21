@@ -22,7 +22,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Google OAuth sign-in redirect target -- see src/lib/nativeAuth.ts. Custom scheme
+            <!-- Google OAuth sign-in redirect target, see src/lib/nativeAuth.ts. Custom scheme
                  rather than a verified https App Link for now, since App Link verification needs
                  the release signing cert's fingerprint published at
                  https://www.40ktracker.com/.well-known/assetlinks.json, which doesn't exist until
