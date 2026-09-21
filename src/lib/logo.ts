@@ -95,7 +95,7 @@ export const LOGOS: { id: Logo; label: string; src: string; width: number; heigh
     label: 'Dark Angels',
     src: '/images/brand/logo-darkangels.webp',
     width: 700,
-    height: 546,
+    height: 547,
     quote: '40K Tracker -- repent, redeem, endure.',
   },
   {
