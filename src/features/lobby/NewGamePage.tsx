@@ -2,13 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
-import { GroupingsPicker } from '@/components/GroupingsPicker'
+import { LadderPicker } from '@/components/LadderPicker'
 import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useCreateGame } from '@/lib/queries/games'
 import { useLadders } from '@/lib/queries/ladders'
 import { useCurrentMissionPack } from '@/lib/queries/referenceData'
-import { useTournaments } from '@/lib/queries/tournaments'
 
 const POINTS_OPTIONS = [500, 1000, 1500, 2000, 2500, 3000]
 
@@ -17,12 +16,10 @@ export function NewGamePage() {
   const { user } = useAuth()
   const missionPack = useCurrentMissionPack()
   const ladders = useLadders(user?.id)
-  const tournaments = useTournaments(user?.id)
   const createGame = useCreateGame()
 
   const [pointsLimit, setPointsLimit] = useState(2000)
   const [ladderIds, setLadderIds] = useState<string[]>([])
-  const [tournamentIds, setTournamentIds] = useState<string[]>([])
 
   if (missionPack.isLoading) return <Spinner label="Loading mission pack…" />
   if (missionPack.isError || !missionPack.data) {
@@ -34,7 +31,6 @@ export function NewGamePage() {
     const gameId = await createGame.mutateAsync({
       pointsLimit,
       ladderIds,
-      tournamentIds,
     })
     navigate(`/game/${gameId}`)
   }
@@ -55,19 +51,12 @@ export function NewGamePage() {
           ))}
         </Select>
 
-        <GroupingsPicker
+        <LadderPicker
           ladderIds={ladderIds}
-          tournamentIds={tournamentIds}
           ladderOptions={(ladders.data ?? [])
             .filter((l) => l.isMember && !l.archivedAt)
             .map((l) => ({ id: l.id, name: l.name }))}
-          tournamentOptions={(tournaments.data ?? [])
-            .filter((t) => t.isMember && !t.archivedAt)
-            .map((t) => ({ id: t.id, name: t.name }))}
-          onChange={(next) => {
-            setLadderIds(next.ladderIds)
-            setTournamentIds(next.tournamentIds)
-          }}
+          onChange={setLadderIds}
         />
 
         {createGame.isError && (

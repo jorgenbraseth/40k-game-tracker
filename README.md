@@ -26,7 +26,7 @@ players' own phones if they'd both rather enter their own numbers.
   scoreboard, and history/stats -- their email address is never shown
   to, or sent to, anyone else. A player can also add a profile photo
   from Profile (issue #73), shown as a small avatar wherever their name
-  shows up (ladder/tournament standings and game lists, History, their
+  shows up (ladder standings and game lists, History, their
   own stats page) -- optional, and falls back to a plain initial when
   not set, same as a Google account's own picture already does for
   anyone who signed up that way. Profile also has a **theme** picker --
@@ -49,7 +49,7 @@ players' own phones if they'd both rather enter their own numbers.
 - Signing in lands on a proper Home page, not straight into "start a
   game": the same prominent crest as the sign-in screen up top, and a
   shortcut to every section underneath (New game, History, Ladders,
-  Tournaments, Stats, Profile) -- a front door, not a single-purpose
+  Stats, Profile) -- a front door, not a single-purpose
   lobby. Starting, joining, or logging a game, plus whatever's already
   in progress, lives one tap away behind its own "New game" nav item.
 - One player starts a game (points limit, optionally a ladder to tag it
@@ -286,7 +286,13 @@ which still needs a connection to actually save anything). See section
 four points since: ladders/ranking (below), spectating (above),
 installability (above), and an app-store-distributed native wrapper
 (above) all turned out to be wanted after all, so those lines from the
-original out-of-scope list no longer hold.
+original out-of-scope list no longer hold. (Tournaments -- a bounded,
+one-off pool of games with its own W/D/L standings, separate from a
+ladder's open-ended history -- were actually built and shipped for a
+while, issue #74/#75, but have since been pulled back out; that ground
+is back to out of scope for now, not a line item ruled out from the
+start. Removed cleanly enough that bringing it back later is a real
+option, not a rewrite.)
 
 **Ladders:** a ladder is just a named group of players
 (`ladders`/`ladder_members`) -- create one from the dedicated Ladders
@@ -303,9 +309,8 @@ or deleting it (below) is the only way to step away from one they
 made, since leaving would otherwise strand it with no one left who can
 reach its settings. Tagging a
 game onto a ladder is entirely optional, chosen at creation
-time on the "Start a game" screen from a checklist alongside
-tournaments (below) -- a game can be tagged to any combination of
-ladders and/or tournaments at once (issue #75), not just one grouping
+time on the "Start a game" screen from a checklist -- a game can be
+tagged to any combination of ladders at once (issue #75), not just one
 total, so two players who share more than one ladder together don't
 have to pick which one a given game counts toward. Stays editable
 afterwards like everything else. A ladder's creator can archive it once it's run its
@@ -353,22 +358,6 @@ faction/mission/opponent, across every game they've finished, full stop
 shared ladder or a game the viewer happened to be part of. A game still
 in the lobby or being played is a different matter -- that stays visible
 only to its own participants until it actually finishes, same as always.
-
-**Tournaments:** a bounded pool of games -- a single weekend, an event
--- with its own standings, separate from a ladder's open-ended ongoing
-history (issue #74). Modeled just like a ladder (own dedicated
-Tournaments page, browsable by anyone signed in, invite-code-gated
-joining, archive/delete, creator-only settings) with two differences:
-an optional start/end date pair, purely descriptive -- shown on the
-card, never enforced against when a game can be tagged to it, same
-"bookkeeping tool, not guided workflow" philosophy as everything else
-here -- and standings are a plain W/D/L + VP-diff tally rather than a
-rating. A one-off bounded event has no ongoing skill to track between
-events the way an open-ended ladder does, so Elo/Glicko-2 doesn't
-apply here. A game can be tagged to a tournament, a ladder, both, or
-neither, all from the same checklist at creation (or edited
-afterwards from Game configuration) -- see Ladders above for the
-shared multi-tagging mechanics.
 
 **Terrain layout:** once a mission is resolved (both players' Force
 Dispositions known), the 3 recommended terrain layouts (A/B/C) for that
@@ -510,7 +499,7 @@ this -- shown in both `Scoreboard` (where an edit would otherwise just
 silently fail to save) and `SummaryPage` (where the confirm-result
 action itself lives) -- and `HistoryPage` hides its per-row delete
 button once a row is locked rather than offering an action that would
-fail. Retagging a game's ladders/tournaments and the End of Game
+fail. Retagging a game's ladders and the End of Game
 layout-variant pick are deliberately *not* gated by the lock (a
 documented scope trim): neither changes the recorded result itself, so
 locking them didn't seem worth the added surface for this pass.
@@ -1008,8 +997,8 @@ the existing `fetchCompletedGames`'s my/opponent framing -- which stays
 exactly as it was, since `StatsPage`/`computeStats` still depend on it
 for a single player's own record. `HistoryPage` renders every row the
 same way regardless of whether the viewer played in it -- the same
-"seat1 vs seat2, winner bolded" layout `LaddersPage`/`TournamentsPage`'s
-own game lists use, deliberately not personalized into a "vs opponent"/
+"seat1 vs seat2, winner bolded" layout `LaddersPage`'s own game list
+uses, deliberately not personalized into a "vs opponent"/
 mine-first framing for the viewer's own games. Within a row, the
 matchup (which armies fought) leads and is bolded for the winner, with
 the two players' names as a smaller, dimmer line underneath -- History
@@ -1045,7 +1034,7 @@ a neutral background when there isn't one. `PlayerNameLink` takes an
 optional `avatarUrl` and renders a small `Avatar` inline before the
 name when given one -- omitted entirely, it renders exactly as before,
 so this didn't require touching every existing call site at once, only
-the ones actually wired up: ladder/tournament standings and game lists,
+the ones actually wired up: ladder standings and game lists,
 History (both its "mine" and generic row layouts), and a player's own
 stats page header. Scoreboard/WaitingRoom/SummaryPage's own name
 displays weren't wired up in this pass -- deliberately trimmed, since
@@ -1202,7 +1191,7 @@ Email/password sign-in works out of the box against the local stack
 ```
 /src
   /app            router, providers, layout, error boundary
-  /features        auth, lobby, game, history, ladders, tournaments, stats, profile
+  /features        auth, lobby, game, history, ladders, stats, profile
   /components      shared UI primitives
   /lib             supabase client, generated types, query hooks, realtime hooks
 /supabase

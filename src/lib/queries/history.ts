@@ -239,9 +239,9 @@ export function useCompletedGames(userId: string | undefined) {
  * computeStats). RLS already allows any signed-in user to read every finished game's rows (see
  * 20260314000000_finished_game_visibility.sql) -- HistoryPage's own "my games only" filtering was
  * purely a query-layer choice, not a backend restriction, so widening it here needed no migration.
- * Seats are generic (seat1/seat2, not my/opponent), same shape as fetchLadderGames/
- * fetchTournamentGames, since there's no "viewer" to be relative to until the caller checks a
- * seat's userId against whoever's actually looking. */
+ * Seats are generic (seat1/seat2, not my/opponent), same shape as fetchLadderGames, since there's
+ * no "viewer" to be relative to until the caller checks a seat's userId against whoever's
+ * actually looking. */
 export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
   const { data: games, error: gamesError } = await supabase
     .from('games')

@@ -6,7 +6,6 @@ const SHORTCUTS = [
   { to: '/game/lobby', label: 'New game', description: 'Start, join, or log a game' },
   { to: '/history', label: 'History', description: 'Every finished game, yours and others’' },
   { to: '/ladders', label: 'Ladders', description: 'Standings and Elo/Glicko-2 rankings' },
-  { to: '/tournaments', label: 'Tournaments', description: 'Bracket-style events' },
   { to: '/stats', label: 'Stats', description: 'Your record, factions, and trends' },
   { to: '/profile', label: 'Profile', description: 'Name, avatar, theme, and logo' },
 ]
