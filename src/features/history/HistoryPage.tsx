@@ -172,7 +172,7 @@ export function HistoryPage() {
 
 /**
  * One shape for every row, regardless of whether the viewer played in it -- the same "seat1 vs
- * seat2, winner bolded" layout `LaddersPage`/`TournamentsPage`'s own game lists already use, not a
+ * seat2, winner bolded" layout `LaddersPage`'s own game list already uses, not a
  * "vs opponent"/mine-first framing that only applied to the viewer's own games. Deliberately
  * unpersonalized: a game the viewer played shouldn't look different from one they didn't.
  *

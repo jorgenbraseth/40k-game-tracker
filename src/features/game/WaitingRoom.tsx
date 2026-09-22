@@ -9,7 +9,7 @@ import {
   playerLabel,
   playerUserId,
   useDeleteGame,
-  useSetGameGroupings,
+  useSetGameLadders,
   useSetLayoutVariant,
   useSetRole,
   useSetTurnOrder,
@@ -18,7 +18,6 @@ import {
 } from '@/lib/queries/games'
 import { useLadders } from '@/lib/queries/ladders'
 import { useFactions, useForceDispositions, useMission, useMissionsForPack } from '@/lib/queries/referenceData'
-import { useTournaments } from '@/lib/queries/tournaments'
 import { GameConfigPicker } from './GameConfigPicker'
 import { PlayerSetupFields } from './PlayerSetupFields'
 
@@ -43,9 +42,8 @@ export function WaitingRoom({
   const updateSetup = useUpdatePlayerSetup(detail.game.id, missionsForPack.data)
   const startGame = useStartGame(detail.game.id)
   const setLayoutVariant = useSetLayoutVariant(detail.game.id)
-  const setGroupings = useSetGameGroupings(detail.game.id)
+  const setLadders = useSetGameLadders(detail.game.id)
   const ladders = useLadders(user?.id)
-  const tournaments = useTournaments(user?.id)
   const deleteGame = useDeleteGame()
   const [copied, setCopied] = useState<'code' | 'link' | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
@@ -55,9 +53,6 @@ export function WaitingRoom({
   const ladderOptions = (ladders.data ?? [])
     .filter((l) => (l.isMember && !l.archivedAt) || detail.ladderIds.includes(l.id))
     .map((l) => ({ id: l.id, name: l.name }))
-  const tournamentOptions = (tournaments.data ?? [])
-    .filter((t) => (t.isMember && !t.archivedAt) || detail.tournamentIds.includes(t.id))
-    .map((t) => ({ id: t.id, name: t.name }))
   const missionResolved = detail.players.length === 2 && detail.players.every((p) => p.player.mission_id)
   const bothFactionsSet = detail.players.length === 2 && detail.players.every((p) => p.player.faction_id)
   const layoutChosen = Boolean(detail.game.layout_variant)
@@ -175,11 +170,9 @@ export function WaitingRoom({
             <p className="mb-3 text-sm font-semibold text-paper/60 uppercase">Game configuration</p>
             <dl className="flex flex-col gap-2 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-paper/50">Ladders / tournaments</dt>
+                <dt className="text-paper/50">Ladders</dt>
                 <dd className="text-paper">
-                  {detail.ladderIds.length + detail.tournamentIds.length > 0
-                    ? `Tagged to ${detail.ladderIds.length + detail.tournamentIds.length}`
-                    : 'Not tagged'}
+                  {detail.ladderIds.length > 0 ? `Tagged to ${detail.ladderIds.length}` : 'Not tagged'}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2">
@@ -330,10 +323,8 @@ export function WaitingRoom({
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}
             ladderIds={detail.ladderIds}
-            tournamentIds={detail.tournamentIds}
             ladderOptions={ladderOptions}
-            tournamentOptions={tournamentOptions}
-            onSetGroupings={(next) => setGroupings.mutate(next)}
+            onSetLadders={(next) => setLadders.mutate({ ladderIds: next })}
             onSetRole={(role) =>
               setRole.mutate(role === 'attacker' ? me.player.id : role === 'defender' ? opponent.player.id : null)
             }
