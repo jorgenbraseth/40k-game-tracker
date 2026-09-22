@@ -5,9 +5,15 @@ import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { clsx } from '@/lib/clsx'
-import { cacheLogo, LOGOS } from '@/lib/logo'
+import type { ColorMode } from '@/lib/database.types'
 import { useProfile, useRemoveAvatar, useUpdateProfile, useUploadAvatar } from '@/lib/queries/profile'
-import { applyTheme, THEMES } from '@/lib/theme'
+import { applyColorMode, applyTheme, resolveColorMode, THEMES } from '@/lib/theme'
+
+const COLOR_MODES: { id: ColorMode; label: string }[] = [
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+  { id: 'system', label: 'System' },
+]
 
 export function ProfilePage() {
   const { user } = useAuth()
@@ -36,14 +42,16 @@ export function ProfilePage() {
   }
 
   const onPickTheme = (theme: (typeof THEMES)[number]['id']) => {
-    applyTheme(theme) // instant, so picking a swatch previews it right away
+    applyTheme(theme) // instant, so picking it previews the crest + colors right away
     updateProfile.mutate({ theme })
   }
 
-  const onPickLogo = (logo: (typeof LOGOS)[number]['id']) => {
-    cacheLogo(logo) // instant, so picking a crest previews it right away everywhere it's shown
-    updateProfile.mutate({ logo })
+  const onPickColorMode = (color_mode: ColorMode) => {
+    applyColorMode(color_mode) // instant, same as onPickTheme
+    updateProfile.mutate({ color_mode })
   }
+
+  const resolvedMode = resolveColorMode(profile.color_mode)
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,27 +82,22 @@ export function ProfilePage() {
 
       <div className="flex flex-col gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-paper">Theme</h2>
+          <h2 className="text-sm font-semibold text-paper">Appearance</h2>
           <p className="text-xs text-paper/40">Applies everywhere, on every device you sign into.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {THEMES.map((theme) => (
+        <div className="grid grid-cols-3 gap-2">
+          {COLOR_MODES.map((mode) => (
             <button
-              key={theme.id}
+              key={mode.id}
               type="button"
-              onClick={() => onPickTheme(theme.id)}
-              aria-pressed={profile.theme === theme.id}
+              onClick={() => onPickColorMode(mode.id)}
+              aria-pressed={profile.color_mode === mode.id}
               className={clsx(
-                'flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors',
-                profile.theme === theme.id ? 'border-gold bg-gold/10' : 'border-veil-strong hover:bg-veil',
+                'rounded-xl border p-2.5 text-center text-sm font-medium transition-colors',
+                profile.color_mode === mode.id ? 'border-gold bg-gold/10 text-paper' : 'border-veil-strong text-paper/70 hover:bg-veil',
               )}
             >
-              <span className="flex gap-1">
-                <span className="h-5 w-5 rounded-full border border-veil-loud" style={{ background: theme.preview.ink }} />
-                <span className="h-5 w-5 rounded-full border border-veil-loud" style={{ background: theme.preview.blood }} />
-                <span className="h-5 w-5 rounded-full border border-veil-loud" style={{ background: theme.preview.gold }} />
-              </span>
-              <span className="text-xs font-medium text-paper">{theme.label}</span>
+              {mode.label}
             </button>
           ))}
         </div>
@@ -102,25 +105,33 @@ export function ProfilePage() {
 
       <div className="flex flex-col gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-paper">Logo</h2>
-          <p className="text-xs text-paper/40">The crest shown in the header and on the sign-in screen.</p>
+          <h2 className="text-sm font-semibold text-paper">Theme</h2>
+          <p className="text-xs text-paper/40">The crest and colors shown everywhere, in your light or dark mode above.</p>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {LOGOS.map((logo) => (
-            <button
-              key={logo.id}
-              type="button"
-              onClick={() => onPickLogo(logo.id)}
-              aria-pressed={profile.logo === logo.id}
-              className={clsx(
-                'flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors',
-                profile.logo === logo.id ? 'border-gold bg-gold/10' : 'border-veil-strong hover:bg-veil',
-              )}
-            >
-              <img src={logo.src} alt="" className="h-12 w-12 object-contain" />
-              <span className="text-xs font-medium text-paper">{logo.label}</span>
-            </button>
-          ))}
+          {THEMES.map((theme) => {
+            const preview = resolvedMode === 'dark' ? theme.previewDark : theme.previewLight
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => onPickTheme(theme.id)}
+                aria-pressed={profile.theme === theme.id}
+                className={clsx(
+                  'flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors',
+                  profile.theme === theme.id ? 'border-gold bg-gold/10' : 'border-veil-strong hover:bg-veil',
+                )}
+              >
+                <img src={theme.src} alt="" className="h-12 w-12 object-contain" />
+                <span className="flex gap-1">
+                  <span className="h-3.5 w-3.5 rounded-full border border-veil-loud" style={{ background: preview.ink }} />
+                  <span className="h-3.5 w-3.5 rounded-full border border-veil-loud" style={{ background: preview.blood }} />
+                  <span className="h-3.5 w-3.5 rounded-full border border-veil-loud" style={{ background: preview.gold }} />
+                </span>
+                <span className="text-xs font-medium text-paper">{theme.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 

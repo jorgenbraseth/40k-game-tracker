@@ -12,11 +12,12 @@ export type PlayerRole = 'attacker' | 'defender'
 export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
 export type SecondaryMode = 'fixed' | 'tactical'
+// The theme *is* the crest now (see 20260922000000_collapse_theme_and_logo.sql) -- one value
+// drives both the color palette (index.css) and the logo (theme.ts's THEMES), so there's no
+// separate `Logo` type any more. 'grimdark' is the default, generic look; the rest are one per
+// faction. Each also has an independent light/dark variant -- see ColorMode.
 export type Theme =
   | 'grimdark'
-  | 'astartes'
-  | 'aeldari'
-  | 'parchment'
   | 'votann'
   | 'tyranid'
   | 'tau'
@@ -29,20 +30,7 @@ export type Theme =
   | 'darkangels'
   | 'worldeaters'
   | 'spacewolves'
-export type Logo =
-  | 'default'
-  | 'votann'
-  | 'tyranid'
-  | 'tau'
-  | 'orks'
-  | 'chaos'
-  | 'sororitas'
-  | 'greyknights'
-  | 'mechanicus'
-  | 'thousandsons'
-  | 'darkangels'
-  | 'worldeaters'
-  | 'spacewolves'
+export type ColorMode = 'light' | 'dark' | 'system'
 
 export interface Database {
   public: {
@@ -163,7 +151,7 @@ export interface Database {
           display_name: string
           avatar_url: string | null
           theme: Theme
-          logo: Logo
+          color_mode: ColorMode
           created_at: string
         }
         Insert: {
@@ -171,7 +159,7 @@ export interface Database {
           display_name: string
           avatar_url?: string | null
           theme?: Theme
-          logo?: Logo
+          color_mode?: ColorMode
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['profiles']['Row']>
@@ -264,45 +252,6 @@ export interface Database {
         }
         Insert: { game_id: string; ladder_id: string }
         Update: Partial<Database['public']['Tables']['game_ladders']['Row']>
-        Relationships: []
-      }
-      tournaments: {
-        Row: {
-          id: string
-          name: string
-          created_by: string | null
-          created_at: string
-          archived_at: string | null
-          invite_code: string
-          starts_on: string | null
-          ends_on: string | null
-        }
-        Insert: Partial<Database['public']['Tables']['tournaments']['Row']> & { name: string }
-        Update: Partial<Database['public']['Tables']['tournaments']['Row']>
-        Relationships: []
-      }
-      tournament_members: {
-        Row: {
-          id: string
-          tournament_id: string
-          user_id: string
-          joined_at: string
-        }
-        Insert: Partial<Database['public']['Tables']['tournament_members']['Row']> & {
-          tournament_id: string
-          user_id: string
-        }
-        Update: Partial<Database['public']['Tables']['tournament_members']['Row']>
-        Relationships: []
-      }
-      game_tournaments: {
-        Row: {
-          game_id: string
-          tournament_id: string
-          created_at: string
-        }
-        Insert: { game_id: string; tournament_id: string }
-        Update: Partial<Database['public']['Tables']['game_tournaments']['Row']>
         Relationships: []
       }
       round_scores: {
@@ -539,7 +488,6 @@ export interface Database {
         Args: {
           p_points_limit: number
           p_ladder_ids?: string[]
-          p_tournament_ids?: string[]
           p_force_disposition_id?: string | null
           p_faction_id?: string | null
           p_army_name?: string | null
@@ -579,26 +527,6 @@ export interface Database {
         Args: { p_game_id: string; p_ladder_ids: string[] }
         Returns: undefined
       }
-      set_game_tournaments: {
-        Args: { p_game_id: string; p_tournament_ids: string[] }
-        Returns: undefined
-      }
-      create_tournament: {
-        Args: { p_name: string; p_starts_on?: string | null; p_ends_on?: string | null }
-        Returns: string
-      }
-      get_tournament_invite_code: {
-        Args: { p_tournament_id: string }
-        Returns: string
-      }
-      regenerate_tournament_invite_code: {
-        Args: { p_tournament_id: string }
-        Returns: string
-      }
-      join_tournament_by_code: {
-        Args: { p_tournament_id: string; p_code: string }
-        Returns: undefined
-      }
       get_ladder_invite_code: {
         Args: { p_ladder_id: string }
         Returns: string
@@ -629,7 +557,6 @@ export interface Database {
           p_opponent_force_disposition_id?: string | null
           p_opponent_army_name?: string | null
           p_ladder_ids?: string[]
-          p_tournament_ids?: string[]
         }
         Returns: string
       }

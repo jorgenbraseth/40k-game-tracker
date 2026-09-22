@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Database, Logo, Theme } from '@/lib/database.types'
+import type { ColorMode, Database, Theme } from '@/lib/database.types'
 import { resizeImageToAvatar } from '@/lib/resizeImage'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
-type ProfilePatch = { display_name?: string; avatar_url?: string | null; theme?: Theme; logo?: Logo }
+type ProfilePatch = { display_name?: string; avatar_url?: string | null; theme?: Theme; color_mode?: ColorMode }
 
 export const profileKeys = {
   detail: (userId: string) => ['profile', userId] as const,
@@ -28,10 +28,10 @@ export function useProfile(userId: string | undefined) {
 }
 
 /** Optimistically merges the patch into the cached profile before the write even lands -- a
- * picker like the theme/logo swatches below needs its selection (and anything else reading the
- * same cached profile, e.g. BrandLogo's header instance) to update the instant it's clicked, not
- * once a round trip to Postgres and back completes. Rolled back on failure; reconciled with
- * whatever the server actually has on success either way. */
+ * picker like the theme swatches or the appearance toggle below needs its selection (and anything
+ * else reading the same cached profile, e.g. BrandLogo's header instance) to update the instant
+ * it's clicked, not once a round trip to Postgres and back completes. Rolled back on failure;
+ * reconciled with whatever the server actually has on success either way. */
 export function useUpdateProfile(userId: string | undefined) {
   const queryClient = useQueryClient()
   return useMutation({

@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
-import { GroupingsPicker } from '@/components/GroupingsPicker'
+import { LadderPicker } from '@/components/LadderPicker'
 import { Select } from '@/components/Select'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useLogCompletedGame } from '@/lib/queries/games'
 import { useLadderMembers, useLadders } from '@/lib/queries/ladders'
 import { useFactions, useForceDispositions } from '@/lib/queries/referenceData'
-import { useTournaments } from '@/lib/queries/tournaments'
 
 const POINTS_OPTIONS = [500, 1000, 1500, 2000, 2500, 3000]
 
@@ -37,13 +36,11 @@ export function LogGamePage() {
   const factions = useFactions()
   const forceDispositions = useForceDispositions()
   const ladders = useLadders(user?.id)
-  const tournaments = useTournaments(user?.id)
   const logGame = useLogCompletedGame()
 
   const [pointsLimit, setPointsLimit] = useState(2000)
   const [playedAt, setPlayedAt] = useState(today())
   const [ladderIds, setLadderIds] = useState<string[]>([])
-  const [tournamentIds, setTournamentIds] = useState<string[]>([])
 
   const [myFactionId, setMyFactionId] = useState('')
   const [myForceDispositionId, setMyForceDispositionId] = useState('')
@@ -97,7 +94,6 @@ export function LogGamePage() {
       opponentForceDispositionId,
       opponentArmyName: opponentArmyName || null,
       ladderIds,
-      tournamentIds,
     })
     navigate(`/game/${gameId}/summary`)
   }
@@ -130,23 +126,17 @@ export function LogGamePage() {
           />
         </div>
 
-        {/* Ladder/tournament tagging comes before either seat's own fields -- picking a ladder
-            here is what populates the Opponent fieldset's "Player" dropdown below with that
-            ladder's own members, so it has to happen first, not as an afterthought at the
-            bottom of the form. */}
-        <GroupingsPicker
+        {/* Ladder tagging comes before either seat's own fields -- picking a ladder here is what
+            populates the Opponent fieldset's "Player" dropdown below with that ladder's own
+            members, so it has to happen first, not as an afterthought at the bottom of the form. */}
+        <LadderPicker
           ladderIds={ladderIds}
-          tournamentIds={tournamentIds}
           ladderOptions={(ladders.data ?? [])
             .filter((l) => l.isMember && !l.archivedAt)
             .map((l) => ({ id: l.id, name: l.name }))}
-          tournamentOptions={(tournaments.data ?? [])
-            .filter((t) => t.isMember && !t.archivedAt)
-            .map((t) => ({ id: t.id, name: t.name }))}
           onChange={(next) => {
-            setLadderIds(next.ladderIds)
-            setTournamentIds(next.tournamentIds)
-            if (next.ladderIds[0] !== firstLadderId) setOpponentRepresentsUserId('')
+            setLadderIds(next)
+            if (next[0] !== firstLadderId) setOpponentRepresentsUserId('')
           }}
         />
 

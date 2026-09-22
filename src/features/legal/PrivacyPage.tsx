@@ -57,7 +57,7 @@ export function PrivacyPage() {
           <p>
             <strong className="text-paper">Game data.</strong> Whatever you or an opponent enter
             while using the app: factions, army names, an optional army-list link, round-by-round
-            scores and objectives, and which ladders or tournaments a game is tagged to.
+            scores and objectives, and which ladders a game is tagged to.
           </p>
         </section>
 

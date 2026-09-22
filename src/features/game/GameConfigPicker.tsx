@@ -1,5 +1,5 @@
 import { Button } from '@/components/Button'
-import { GroupingsPicker, type GroupingOption } from '@/components/GroupingsPicker'
+import { LadderPicker, type LadderOption } from '@/components/LadderPicker'
 import type { Database } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import { playerLabel } from '@/lib/queries/games'
@@ -30,10 +30,8 @@ export function GameConfigPicker({
   layoutVariant,
   onSetLayoutVariant,
   ladderIds,
-  tournamentIds,
   ladderOptions,
-  tournamentOptions,
-  onSetGroupings,
+  onSetLadders,
   disabled,
 }: {
   me: PlayerEntry
@@ -43,16 +41,13 @@ export function GameConfigPicker({
   layoutMission?: LayoutMission
   layoutVariant?: LayoutVariant
   onSetLayoutVariant?: (variant: LayoutVariant) => void
-  /** Which ladders/tournaments this game's currently tagged to (issue #75 -- any combination, not
-   * just one). */
+  /** Which ladders this game's currently tagged to (issue #75 -- any combination, not just one). */
   ladderIds?: string[]
-  tournamentIds?: string[]
-  /** Ladders/tournaments this viewer can pick from -- the ones they're a member of, non-archived,
-   * plus whichever the game's currently tagged to even if the viewer's since left or archived it,
-   * so a stale selection never just vanishes from the list. */
-  ladderOptions?: GroupingOption[]
-  tournamentOptions?: GroupingOption[]
-  onSetGroupings?: (next: { ladderIds: string[]; tournamentIds: string[] }) => void
+  /** Ladders this viewer can pick from -- the ones they're a member of, non-archived, plus
+   * whichever the game's currently tagged to even if the viewer's since left or archived it, so a
+   * stale selection never just vanishes from the list. */
+  ladderOptions?: LadderOption[]
+  onSetLadders?: (next: string[]) => void
   /** True for a spectator -- shows the exact same picks, just with nothing tappable (a write
    * would fail server-side regardless; this just avoids offering it). */
   disabled?: boolean
@@ -62,13 +57,11 @@ export function GameConfigPicker({
 
   return (
     <div className="flex flex-col gap-4">
-      {onSetGroupings && (
-        <GroupingsPicker
+      {onSetLadders && (
+        <LadderPicker
           ladderIds={ladderIds ?? []}
-          tournamentIds={tournamentIds ?? []}
           ladderOptions={ladderOptions ?? []}
-          tournamentOptions={tournamentOptions ?? []}
-          onChange={onSetGroupings}
+          onChange={onSetLadders}
           disabled={disabled}
         />
       )}
