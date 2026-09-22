@@ -1,9 +1,12 @@
 apply plugin: 'com.android.application'
 
-// Release signing (issue #125). Deliberately file-based, not env-var-based: the upload keystore
-// should exist only on a developer's own machine (see keystore.properties.example), never in this
-// repo or in CI secrets -- automating a signed CI release build is a separate, bigger trust
-// decision than the debug-only android-apk.yml workflow, and isn't set up here.
+// Release signing (issue #125). File-based, not properties baked into this build script: the
+// upload keystore still never lives in this repo (android/.gitignore excludes it) -- for a local
+// build it exists only on a developer's own machine (see keystore.properties.example); for
+// android-release.yml (manual-dispatch-only, see that workflow's own comments on the trust
+// trade-off of a keystore living in GitHub Actions secrets instead) it's decoded from a secret
+// into this same keystore.properties shape for the duration of that one job, then deleted. Either
+// way this file only ever reads keystore.properties -- it doesn't know or care which case it's in.
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def hasReleaseSigning = keystorePropertiesFile.exists()
 def keystoreProperties = new Properties()
@@ -18,8 +21,11 @@ android {
         applicationId "com.fortyktracker.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Play rejects a re-upload with the same versionCode, so android-release.yml passes both
+        // as -P Gradle properties per run instead of this needing a commit for every release;
+        // local/debug builds (npm run android:bundle, android-apk.yml) get the fallback below.
+        versionCode (project.hasProperty('versionCode') ? project.property('versionCode').toInteger() : 1)
+        versionName (project.hasProperty('versionName') ? project.property('versionName') : "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

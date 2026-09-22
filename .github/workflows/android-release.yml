@@ -1,0 +1,111 @@
+name: Build signed Android release bundle
+
+# Manual-dispatch-only, deliberately -- a real Play Store release should always be something you
+# consciously trigger, never a side effect of merging to main (unlike deploy.yml's web pipeline).
+#
+# This needs the upload keystore (see android/keystore.properties.example) available in CI, which
+# means it exists in GitHub Actions secrets rather than only on a developer's own machine -- a
+# real trust trade-off, not a free upgrade over the local `npm run android:bundle` flow: the key
+# now also depends on this repo's Actions configuration staying correctly scoped (no exposure to
+# forked-PR workflows, which this repo doesn't use anyway) rather than only on physical access to
+# one machine. Reasonable for a small solo project; revisit if that calculus ever changes. The
+# keystore is decoded into place for this job only and deleted at the end, success or failure.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to build
+        required: false
+        default: ''
+      versionCode:
+        description: 'Play Console versionCode (must be higher than the last uploaded build)'
+        required: true
+      versionName:
+        description: 'User-visible version name (e.g. 1.1)'
+        required: true
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Same environment as android-apk.yml/deploy.yml -- real VITE_SUPABASE_* secrets, and, if this
+    # repo's "production" environment has required reviewers configured, that approval gate also
+    # covers this workflow for free.
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Same as android-apk.yml -- ubuntu-latest already ships a fully licensed Android SDK.
+      - name: Point Gradle at the preinstalled Android SDK
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -name sdkmanager -type f | sort -V | tail -1)
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+          else
+            echo "::warning::No sdkmanager found under \$ANDROID_HOME/cmdline-tools -- skipping the defensive license re-accept (harmless if licenses are already accepted, which they are on GitHub-hosted runners)."
+          fi
+
+      - name: Build web app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Sync into the native Android project
+        run: npx cap sync android
+
+      - name: Decode signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+
+      - name: Write keystore.properties
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cat > android/keystore.properties <<EOF
+          storeFile=$GITHUB_WORKSPACE/android/upload-keystore.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Build signed release bundle
+        working-directory: android
+        run: ./gradlew bundleRelease -PversionCode=${{ inputs.versionCode }} -PversionName=${{ inputs.versionName }}
+
+      - name: Remove signing key and keystore.properties
+        # Always, even if the build above failed -- this job's workspace is thrown away either
+        # way, but no reason to leave the decoded key sitting around mid-failure-diagnosis.
+        if: always()
+        run: rm -f android/upload-keystore.jks android/keystore.properties
+
+      - name: Upload signed bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: 40k-tracker-release-${{ inputs.versionName }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 90
