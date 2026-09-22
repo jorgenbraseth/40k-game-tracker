@@ -30,23 +30,22 @@ players' own phones if they'd both rather enter their own numbers.
   own stats page) -- optional, and falls back to a plain initial when
   not set, same as a Google account's own picture already does for
   anyone who signed up that way. Profile also has a **theme** picker --
-  a purely cosmetic, per-account choice of color scheme that applies
-  everywhere the signed-in player looks, on every device they sign into,
-  with no effect on anyone else's game or on how anything scores. Sixteen
-  options: the original grimdark look, three lighter/brighter generic
-  alternatives, and twelve faction-specific themes, one per crest below,
-  each grounded in that faction's real palette and iconography rather
-  than a generic recolor. The app's own crest is a separate, matching
-  per-account choice: the header logo and the prominent one on the
-  sign-in screen both follow whichever of thirteen the signed-in player
-  picked from Profile -- the original Aquila, or twelve faction-flavored
-  alternatives (Votann, Tyranid, T'au, Orks, Chaos, Sororitas, Grey
-  Knights, Mechanicus, Thousand Sons, Dark Angels, World Eaters, Space
-  Wolves) -- same "purely cosmetic, no effect on scoring" shape as the
-  theme picker right next to it. Theme and crest stay two fully
-  independent pickers -- picking a faction's theme doesn't change your
-  crest, and vice versa -- even though most people will probably pick
-  the matching pair.
+  a purely cosmetic, per-account choice that applies everywhere the
+  signed-in player looks, on every device they sign into, with no effect
+  on anyone else's game or on how anything scores. Thirteen options: the
+  original grimdark look (the app's original crest included), or twelve
+  faction-specific themes (Votann, Tyranid, T'au, Orks, Chaos, Sororitas,
+  Grey Knights, Mechanicus, Thousand Sons, Dark Angels, World Eaters,
+  Space Wolves), each grounded in that faction's real palette and
+  iconography rather than a generic recolor. Picking a theme picks its
+  crest too -- the header logo and the prominent one on the sign-in
+  screen both follow it -- so there's one choice to make, not two that
+  can drift apart. Separately from *which* theme, **Appearance** picks
+  *how bright* it renders: Light, Dark, or System (follows the device's
+  OS-level preference, and keeps following it live if that changes while
+  the app's open). Every theme ships both a light and a dark palette, so
+  all thirteen work either way -- picking a faction and picking Light vs.
+  Dark are two fully independent choices.
 - Signing in lands on a proper Home page, not straight into "start a
   game": the same prominent crest as the sign-in screen up top, and a
   shortcut to every section underneath (New game, History, Ladders,
@@ -1055,94 +1054,84 @@ scoreboard gets less benefit from an avatar than a list of many names
 does; `PlayerNameLink`'s optional prop means adding it there later is a
 small, isolated follow-up, not a redesign.
 
-Theming is implemented: `profiles.theme`
-(`20260918000000_profile_theme.sql` for the original four,
-`20260921000000_profile_theme_factions.sql` widening the same check
-constraint to add twelve more; `Theme` in `src/lib/database.types.ts` is
-the full sixteen-value union, `'grimdark' | 'astartes' | 'aeldari' |
-'parchment' | 'votann' | 'tyranid' | 'tau' | 'orks' | 'chaos' |
-'sororitas' | 'greyknights' | 'mechanicus' | 'thousandsons' |
-'darkangels' | 'worldeaters' | 'spacewolves'`, defaulting existing and
-new profiles to `'grimdark'`, the original look) drives a `data-theme`
-attribute on `<html>`. Every color a component uses is a semantic
-Tailwind v4 `@theme` token (`ink`/`paper`, `blood`/`blood-dark`, `gold`,
-`steel`, the `veil`/`veil-strong`/`veil-loud` subtle-fill/hairline
-scale, `danger`/`danger-dark`, `success`, and the fixed `onfill` used
-only for text sitting on a solid `blood`/`steel`/`danger` fill) rather
-than a literal color anywhere in a component -- `src/index.css`
-redefines those same variable names once per theme under a
-`[data-theme='...']` selector per non-default theme (grimdark needs no
-selector, it's the base `@theme` values), so no component changed to
-add the other fifteen. That ruled out literal `white/black`-at-N%-opacity
-utilities too, since a translucent white wash is invisible on a light
-theme's background -- every `bg-white/5`-style utility across the app
-was replaced with the `veil` scale, and `text-red-400`/`text-green-400`
-with `danger`/`success`, so panels, dividers, error/online-status text,
-and the modal/photo-viewer scrims all still read correctly under the
-light themes (`aeldari`/`parchment`/`tau`/`sororitas`/`spacewolves`),
-not just the dark ones. The twelve faction themes (`votann`, `tyranid`,
-`tau`, `orks`, `chaos`, `sororitas`, `greyknights`, `mechanicus`,
-`thousandsons`, `darkangels`, `worldeaters`, `spacewolves`) pair with
-the matching crest below by id, each grounded in that faction's real
-palette rather than a generic recolor, with every `blood`/`steel`/
-`danger` value checked for WCAG AA contrast (>=4.5:1) against `onfill`
-and every `gold` against that theme's own `ink`. `ThemeSync`
-(`src/app/ThemeSync.tsx`, mounted once in `App.tsx`) applies the
-signed-in user's `profiles.theme` to `<html>` whenever it loads or
-changes, and caches it to `localStorage` (`40k-theme`); a small inline
-script in `index.html`, running before React, reads that same cached
-value so a returning visitor never sees a flash of the default theme
-before their real one applies. `ProfilePage` renders all sixteen as a
-swatch grid (ink/blood/gold preview dots per theme, sourced from
-`src/lib/theme.ts`'s own copy of those hex values, since the picker has
-to show themes that aren't the active one); picking one applies
-instantly (`applyTheme`) and saves through the same `useUpdateProfile`
-mutation display name/avatar already use.
+Theming and the app's crest are implemented as one combined per-account pick, not two: a single
+`profiles.theme` drives both. This collapses what was originally two independent pickers --
+`profiles.theme` (four generic looks, then twelve faction palettes added alongside them) and a
+separate `profiles.logo` (thirteen crests, going through several rename/mislabeling fixes of its
+own as the real faction was identified -- `'mechanicus'`→`'votann'`, `'custodes'`→`'tau'`, etc.) --
+into one after it turned out nobody wanted to mix-and-match a faction's colors with a different
+faction's crest in practice. `20260922000000_collapse_theme_and_logo.sql` does the actual
+collapse: for each existing profile, an explicitly-picked non-default logo wins as the new
+combined `theme` (a deliberate crest pick beats a possibly-still-default generic theme);
+otherwise a generic `'astartes'`/`'aeldari'`/`'parchment'` theme -- dropped, since none of those
+three ever had a matching crest -- falls back to `'grimdark'`; then `profiles.logo` and its check
+constraint are dropped outright, and `profiles_theme_check` is narrowed to the resulting
+thirteen-value union (`Theme` in `src/lib/database.types.ts`): `'grimdark'` (the original
+Aquila+palette, now one choice instead of two) plus one per faction -- `'votann'`, `'tyranid'`,
+`'tau'`, `'orks'`, `'chaos'`, `'sororitas'`, `'greyknights'`, `'mechanicus'`, `'thousandsons'`,
+`'darkangels'`, `'worldeaters'`, `'spacewolves'`. (This narrows and drops a column outright rather
+than expand-then-contract -- see the migration's own `-- breaking-change-ok:` comment: no native
+app has a real store release yet, only `android-apk.yml`'s debug-APK CI artifact, so nothing
+installed depends on the old two-column shape.) `src/lib/theme.ts`'s `THEMES` table is the single
+source of truth per theme now -- id, label, description, the crest's own `src`/intrinsic
+`width`/`height` (the thirteen don't share one aspect ratio) and in-universe `quote`, *and* two
+color-preview swatch sets (see below) -- replacing what used to be a separate `logo.ts`.
 
-The app's crest is a matching per-account pick, implemented the same shape as theming:
-`profiles.logo` (`20260918020000_profile_logo.sql`, originally `'default' | 'mechanicus' |
-'tyranid' | 'custodes' | 'orks' | 'chaos'`, widened to add `'sororitas'` in
-`20260918030000_profile_logo_sororitas.sql` -- a check constraint can't just be extended in place,
-so that migration drops and recreates `profiles_logo_check`, a pattern reused again in
-`20260918040000_rename_logo_mechanicus_to_votann.sql` to rename the mislabeled `'mechanicus'` value
-to `'votann'` once it turned out that crest was actually Leagues of Votann, migrating any profile
-that had already picked it along with it, and four more times in
-`20260918050000_profile_logo_greyknights.sql`, `20260918060000_profile_logo_mechanicus.sql`,
-`20260918070000_profile_logo_thousandsons.sql`, and `20260918080000_profile_logo_chapter_pack.sql`
-to add `'greyknights'`, then (once a genuine Mechanicus crest replaced the mislabeled one) a proper
-`'mechanicus'`, then `'thousandsons'`, then `'darkangels'`/`'worldeaters'`/`'spacewolves'` together
-in one batch, and once more in `20260918090000_rename_logo_custodes_to_tau.sql` -- the same
-mislabeling shape as the Votann rename, this time for the white/red robotic crest, which turned
-out to be T'au Empire iconography rather than Adeptus Custodes -- to rename `'custodes'` to `'tau'`,
-again migrating any profile that had already picked it -- defaulting existing and new profiles to
-`'default'`, the original Aquila)
-resolves through `src/lib/logo.ts`'s `LOGOS` table (each entry's own `src` plus its
-intrinsic `width`/`height`, since the thirteen crests don't share one aspect ratio) to whichever image
-`BrandLogo` (`src/components/BrandLogo.tsx`) renders -- the single component `Layout`'s header,
-`LandingPage`'s sign-in hero, and `HomePage`'s own hero all use, so there's one place resolving
-"whose logo is this" rather than three copies. `Layout` skips its own copy specifically on `/home`
+Independent of *which* theme, a second `profiles.color_mode` (`'light' | 'dark' | 'system'`,
+`ColorMode` in `database.types.ts`, defaulting new profiles to `'system'`, added by the same
+migration) picks *how bright* it renders -- every one of the thirteen themes now ships both a
+light and a dark palette in `src/index.css`, not just one fixed mode each the way the original
+sixteen-theme version did. Selection is a compound `[data-theme='x'][data-mode='y']` attribute
+selector per combination (25 explicit blocks -- 13 x 2, minus grimdark-dark, which needs none of
+its own since it's still the base `@theme` values, same as before) rather than the single
+`[data-theme='...']` the earlier version used. Every color a component uses is still a semantic
+Tailwind v4 `@theme` token (`ink`/`paper`, `blood`/`blood-dark`, `gold`, `steel`, the
+`veil`/`veil-strong`/`veil-loud` subtle-fill/hairline scale, `danger`/`danger-dark`, `success`,
+and the fixed `onfill` used only for text sitting on a solid `blood`/`steel`/`danger` fill) --
+picking a theme and picking a mode never touches component code, only which pair of attributes is
+on `<html>`. Deriving each theme's missing mode (nine of the twelve faction themes were dark-only,
+three light-only, before this) kept `blood`/`blood-dark`/`steel`/`danger`/`danger-dark` identical
+between a theme's two modes -- their only contrast requirement is against the fixed `onfill`,
+which never moves -- and only recomputed `ink`/`paper`/`veil*`/`gold`/`success` (`gold` and
+`success` are checked against that theme+mode's own `ink`, which does move, so they can't be
+shared the same way); every derived value still clears WCAG AA (>=4.5:1). `color-scheme` (native
+scrollbars/form controls) now lives in two mode-only rules (`[data-mode='dark']`/`[data-mode='light']`)
+instead of being repeated inside every theme block, since it only ever depended on the mode.
+`ThemeSync` (`src/app/ThemeSync.tsx`, mounted once in `App.tsx`) applies the signed-in user's
+`profiles.theme` and `profiles.color_mode` to `<html>` whenever either loads or changes, caches
+both to `localStorage` (`40k-theme`/`40k-color-mode`), and re-resolves `'system'` live if the OS
+preference changes while the app is open (a `matchMedia('(prefers-color-scheme: dark)')` change
+listener). A small inline script in `index.html`, running before React, reads those same cached
+keys (resolving `'system'` itself, since React hasn't loaded yet to do it) so a returning visitor
+never sees a flash of the wrong theme or mode before their real one applies -- this absorbed what
+used to be a separate, smaller-flash-tolerant fallback path for the crest alone (`LogoSync`, now
+gone; a single `<img>` swap used to be cheap enough to skip the bootstrap script, but theme and
+crest are the same field now, so there's only one fallback path to maintain).
+
+`ProfilePage` renders the thirteen themes as one combined swatch grid -- each button shows that
+theme's own crest thumbnail plus three small ink/blood/gold preview dots, both sourced from
+`theme.ts`'s own copy of those values (the picker has to show themes that aren't active, so it
+can't just read the live CSS variables) -- so picking a theme previews its crest and colors
+together, not as two separate decisions. Which of the two preview-dot sets a swatch shows (its
+`previewDark` or `previewLight`) follows the *current* resolved mode, so the grid always reflects
+what picking that theme would actually look like right now. A separate **Appearance** control
+(Light/Dark/System, three buttons) sits above it for the `color_mode` pick. Picking either applies
+instantly (`applyTheme`/`applyColorMode`, mutating `<html>` directly) and saves through
+`useUpdateProfile`, which applies every patch optimistically (`onMutate` merges it into the cached
+profile before the write lands, rolled back on failure) so the picker's own selected state and
+`BrandLogo`'s header instance update the moment either is clicked, not once Postgres responds.
+
+`BrandLogo` (`src/components/BrandLogo.tsx`) resolves `theme.ts`'s `getTheme(profile?.theme ??
+getCachedTheme())` to render the crest -- the single component `Layout`'s header, `LandingPage`'s
+sign-in hero, and `HomePage`'s own hero all use, so there's one place resolving "whose crest is
+this" rather than three copies. `Layout` skips its own copy specifically on `/home`
 (`useLocation().pathname === '/home'`), since Home already renders the same crest full-size right
 below the header -- a second, small one up there would just be redundant; every other page still
-shows it, as the app's one consistent "back to Home" anchor. Resolution prefers the signed-in
-user's live `profiles.logo`, falling
-back to whatever was last cached to `localStorage` (`40k-logo`) for that device -- covering the
-signed-out landing page and the moment before a signed-in user's profile has loaded -- the same
-two-tier fallback theming uses, just without theme's inline `index.html` bootstrap script, since a
-single swapped `<img>` is a far smaller flash than a whole page repainting under the wrong colors.
-`LogoSync` (`src/app/LogoSync.tsx`, mounted in `App.tsx` alongside `ThemeSync`) keeps that cache in
-sync with the loaded profile. `ProfilePage` renders all thirteen as an image-thumbnail grid, the same
-selected/unselected swatch-button styling the theme picker uses. Picking one calls
-`cacheLogo` for the immediate localStorage-backed fallback and `useUpdateProfile({ logo })` --
-which now applies every patch optimistically (`onMutate` merges it into the cached profile before
-the write lands, rolled back on failure) rather than waiting on a round trip, so a picked logo
-updates everywhere it's shown -- the picker's own selected state and the header's `BrandLogo`
-alike -- the instant it's clicked, not once Postgres responds. Theme didn't need this (`applyTheme`
-already mutates `<html>` directly, independent of the query cache), but logo reads the profile
-straight from cache, so without it the header would lag a network round trip behind the picker.
-Each `LOGOS` entry also carries a `quote` -- an in-universe flavor line for that crest -- which
-`BrandLogo`'s `altVariant="quote"` prop swaps in as the landing page logo's alt text (the header's
-own `BrandLogo` keeps the plain "40K Tracker" default, since its `NavLink` wrapper already names
-the app for a screen reader; the landing page's logo has no such wrapper).
+shows it, as the app's one consistent "back to Home" anchor. Each theme's `quote` -- an
+in-universe flavor line -- is what `BrandLogo`'s `altVariant="quote"` prop swaps in as the landing
+page logo's alt text (the header's own `BrandLogo` keeps the plain "40K Tracker" default, since
+its `NavLink` wrapper already names the app for a screen reader; the landing page's logo has no
+such wrapper).
 
 ## Stack
 

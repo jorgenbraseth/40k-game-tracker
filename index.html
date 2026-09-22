@@ -3,22 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // Applies the last-saved theme before first paint, so there's no flash of the default
-      // (grimdark) theme while React and the real profile load. ThemeSync corrects/re-caches
-      // this once the signed-in user's profile loads. Kept in sync by hand with the Theme ids in
-      // src/lib/database.types.ts (grimdark, this list's implicit default, is deliberately left
-      // out below -- setting the attribute for it would be a no-op anyway).
+      // Applies the last-saved theme and resolved light/dark mode before first paint, so there's
+      // no flash of the default (grimdark, dark) while React and the real profile load.
+      // ThemeSync corrects/re-caches both once the signed-in user's profile loads. Kept in sync
+      // by hand with the Theme ids in src/lib/database.types.ts (grimdark, this list's implicit
+      // default, is deliberately left out below -- setting the attribute for it would be a no-op
+      // anyway).
       ;(function () {
         try {
           var theme = localStorage.getItem('40k-theme')
           var THEMES = [
-            'astartes', 'aeldari', 'parchment',
             'votann', 'tyranid', 'tau', 'orks', 'chaos', 'sororitas', 'greyknights',
             'mechanicus', 'thousandsons', 'darkangels', 'worldeaters', 'spacewolves',
           ]
           if (THEMES.indexOf(theme) !== -1) {
             document.documentElement.setAttribute('data-theme', theme)
           }
+
+          var mode = localStorage.getItem('40k-color-mode')
+          var resolved =
+            mode === 'light' || mode === 'dark'
+              ? mode
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+          document.documentElement.setAttribute('data-mode', resolved)
         } catch (e) {}
       })()
     </script>
