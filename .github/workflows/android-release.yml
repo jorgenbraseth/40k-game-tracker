@@ -77,12 +77,17 @@ jobs:
       # yyMMddHH (hour granularity, e.g. 26092215 for 2026-09-22 15:00 UTC) rather than a full
       # timestamp: versionCode is a 32-bit int and Play caps it at 2,100,000,000, which a full
       # yyyyMMddHHmmss (14 digits) blows past outright and even yyMMddHHmm (10 digits) overflows
-      # for any date after ~2021. Eight digits maxes out at 99123123 -- comfortably under the cap
-      # for the life of this app -- and hour granularity is plenty since this workflow only runs
-      # when someone deliberately triggers a real release, never twice in the same hour.
+      # for any date after ~2021. A trailing serial digit (this workflow's own run_number mod 10)
+      # covers the case of re-triggering a release within the same hour -- two runs only collide
+      # if they land exactly 10 apart in this workflow's own run history, which a manual release
+      # process is never going to hit. Nine digits total still maxes out at 991231239, comfortably
+      # under the cap for the life of this app.
       - name: Compute versionCode
         id: version
-        run: echo "code=$(date -u +%y%m%d%H)" >> "$GITHUB_OUTPUT"
+        run: |
+          TIMESTAMP=$(date -u +%y%m%d%H)
+          SERIAL=$(( ${{ github.run_number }} % 10 ))
+          echo "code=${TIMESTAMP}${SERIAL}" >> "$GITHUB_OUTPUT"
 
       - name: Decode signing key
         env:

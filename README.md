@@ -1380,21 +1380,25 @@ signed `.aab`:
 - **`android-release.yml`**, manual-`workflow_dispatch`-only (never runs
   on a merge to `main`, unlike `deploy.yml`) -- takes only `versionName`
   as a run input; `versionCode` is computed from the current UTC time
-  (`yyMMddHH`, e.g. `26092215`) instead, since Play rejects a re-upload
-  with a `versionCode` it's already seen and a timestamp means there's
-  nothing to track or bump by hand between releases (`android/app/build.gradle`'s
-  `defaultConfig` reads both from Gradle `-P` properties when the
-  workflow passes them, falling back to `1`/`"1.0"` for local/debug
-  builds that don't). `versionCode` is a 32-bit int capped by Play at
-  2,100,000,000, which is why it's `yyMMddHH` and not a full
-  `yyyyMMddHHmmss` -- that overflows outright, and even `yyMMddHHmm`
-  overflows for any date after ~2021. The workflow also needs the
-  keystore's contents living in this repo's Actions secrets instead of
-  only on a developer's machine -- a real trust trade-off the
-  workflow's own comments spell out, not a free upgrade. Needs four
-  secrets: `ANDROID_KEYSTORE_BASE64` (the keystore file, base64-encoded
-  -- e.g. `base64 -i upload-keystore.jks` or, on Windows,
-  `certutil -encode` with the header/footer lines stripped),
+  plus a trailing serial digit (`yyMMddHH` + the workflow's own
+  `run_number mod 10`, e.g. `260922201`) instead, since Play rejects a
+  re-upload with a `versionCode` it's already seen and this way there's
+  nothing to track or bump by hand between releases -- the serial digit
+  means re-triggering a release within the same hour (a bad build, a
+  mistake caught right after dispatch) still gets a usable, higher
+  `versionCode` rather than colliding with the one before it
+  (`android/app/build.gradle`'s `defaultConfig` reads both from Gradle
+  `-P` properties when the workflow passes them, falling back to
+  `1`/`"1.0"` for local/debug builds that don't). `versionCode` is a
+  32-bit int capped by Play at 2,100,000,000, which is why it's this
+  9-digit shape and not a full `yyyyMMddHHmmss` -- that overflows
+  outright, and even `yyMMddHHmm` overflows for any date after ~2021.
+  The workflow also needs the keystore's contents living in this repo's
+  Actions secrets instead of only on a developer's machine -- a real
+  trust trade-off the workflow's own comments spell out, not a free
+  upgrade. Needs four secrets: `ANDROID_KEYSTORE_BASE64` (the keystore
+  file, base64-encoded -- e.g. `base64 -i upload-keystore.jks` or, on
+  Windows, `certutil -encode` with the header/footer lines stripped),
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 
 Either way, without `keystore.properties` present at build time,
