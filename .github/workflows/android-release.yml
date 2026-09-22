@@ -17,9 +17,6 @@ on:
         description: Branch, tag, or commit to build
         required: false
         default: ''
-      versionCode:
-        description: 'Play Console versionCode (must be higher than the last uploaded build)'
-        required: true
       versionName:
         description: 'User-visible version name (e.g. 1.1)'
         required: true
@@ -75,6 +72,18 @@ jobs:
       - name: Sync into the native Android project
         run: npx cap sync android
 
+      # Play rejects a re-upload with a versionCode <= one it's already seen, so this derives it
+      # from the current UTC time instead of asking you to track and bump a number by hand.
+      # yyMMddHH (hour granularity, e.g. 26092215 for 2026-09-22 15:00 UTC) rather than a full
+      # timestamp: versionCode is a 32-bit int and Play caps it at 2,100,000,000, which a full
+      # yyyyMMddHHmmss (14 digits) blows past outright and even yyMMddHHmm (10 digits) overflows
+      # for any date after ~2021. Eight digits maxes out at 99123123 -- comfortably under the cap
+      # for the life of this app -- and hour granularity is plenty since this workflow only runs
+      # when someone deliberately triggers a real release, never twice in the same hour.
+      - name: Compute versionCode
+        id: version
+        run: echo "code=$(date -u +%y%m%d%H)" >> "$GITHUB_OUTPUT"
+
       - name: Decode signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -95,7 +104,7 @@ jobs:
 
       - name: Build signed release bundle
         working-directory: android
-        run: ./gradlew bundleRelease -PversionCode=${{ inputs.versionCode }} -PversionName=${{ inputs.versionName }}
+        run: ./gradlew bundleRelease -PversionCode=${{ steps.version.outputs.code }} -PversionName=${{ inputs.versionName }}
 
       - name: Remove signing key and keystore.properties
         # Always, even if the build above failed -- this job's workspace is thrown away either
@@ -106,6 +115,6 @@ jobs:
       - name: Upload signed bundle
         uses: actions/upload-artifact@v4
         with:
-          name: 40k-tracker-release-${{ inputs.versionName }}
+          name: 40k-tracker-release-${{ inputs.versionName }}-${{ steps.version.outputs.code }}
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 90
