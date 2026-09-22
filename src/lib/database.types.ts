@@ -12,11 +12,12 @@ export type PlayerRole = 'attacker' | 'defender'
 export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
 export type SecondaryMode = 'fixed' | 'tactical'
+// The theme *is* the crest now (see 20260922000000_collapse_theme_and_logo.sql) -- one value
+// drives both the color palette (index.css) and the logo (theme.ts's THEMES), so there's no
+// separate `Logo` type any more. 'grimdark' is the default, generic look; the rest are one per
+// faction. Each also has an independent light/dark variant -- see ColorMode.
 export type Theme =
   | 'grimdark'
-  | 'astartes'
-  | 'aeldari'
-  | 'parchment'
   | 'votann'
   | 'tyranid'
   | 'tau'
@@ -29,20 +30,7 @@ export type Theme =
   | 'darkangels'
   | 'worldeaters'
   | 'spacewolves'
-export type Logo =
-  | 'default'
-  | 'votann'
-  | 'tyranid'
-  | 'tau'
-  | 'orks'
-  | 'chaos'
-  | 'sororitas'
-  | 'greyknights'
-  | 'mechanicus'
-  | 'thousandsons'
-  | 'darkangels'
-  | 'worldeaters'
-  | 'spacewolves'
+export type ColorMode = 'light' | 'dark' | 'system'
 
 export interface Database {
   public: {
@@ -163,7 +151,7 @@ export interface Database {
           display_name: string
           avatar_url: string | null
           theme: Theme
-          logo: Logo
+          color_mode: ColorMode
           created_at: string
         }
         Insert: {
@@ -171,7 +159,7 @@ export interface Database {
           display_name: string
           avatar_url?: string | null
           theme?: Theme
-          logo?: Logo
+          color_mode?: ColorMode
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['profiles']['Row']>
