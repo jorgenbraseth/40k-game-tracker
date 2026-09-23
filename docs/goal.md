@@ -540,7 +540,6 @@ What this deliberately is **not**:
 - in-app chat
 - push notifications
 - rematch chains
-- CP/painting scoring
 - offline-first play -- i.e. a persisted local write queue that lets you
   keep entering scores with no connection at all. (Distinct from the
   installable app shell above, which still needs a connection to actually
