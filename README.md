@@ -34,13 +34,13 @@ history, stats and optional ranked ladders.
 
 ## Status
 
-Everything described in the [goal](./docs/goal.md) is live at the URL above, except:
+Everything described in the [goal](./docs/goal.md) is live at the URL
+above, including Google and email/password sign-in, on the web and in the
+Android app. What's still missing:
 
-- **Google sign-in in production** needs its OAuth client set up in the
-  Supabase dashboard. Email/password works today.
-- **Android app:** the scaffolding works on a real device, but it hasn't
-  been published to the store yet (#125). **iOS** hasn't been started
-  (#126).
+- **Android app:** works on a real device, but it hasn't been published
+  to the store yet (#125).
+- **iOS** hasn't been started (#126).
 
 The full details are in [status.md](./docs/status.md#known-caveats).
 

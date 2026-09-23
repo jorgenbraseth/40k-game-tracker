@@ -21,6 +21,12 @@ OAuth client by hand -- see "First thing to do" in
 [`40k-tracker-plan.md`](../40k-tracker-plan.md). Everything else in this
 repo is ready to run once those exist and the secrets below are set.
 
+For Google sign-in, the OAuth client is wired up in the Supabase
+dashboard (Auth → Providers → Google). For the Android app, the
+`com.fortyktracker.app://auth/callback` deep link also has to be listed
+as a Supabase Auth Redirect URL (see `src/lib/nativeAuth.ts`). Both are
+done for the live project.
+
 ## Web: `deploy.yml`
 
 Runs on every push to `main`:
