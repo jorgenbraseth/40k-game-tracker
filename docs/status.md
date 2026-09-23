@@ -7,7 +7,8 @@
 
 Everything in [the goal](./goal.md) is implemented and deployed at the
 live app URL, with the [caveats below](#known-caveats) worth knowing
-before you rely on it.
+before you rely on it. Sign-in (Google and email/password) is verified
+working in production, both on the web and in the Android app.
 
 ## Contents
 
@@ -46,9 +47,6 @@ before you rely on it.
 
 ## Known caveats
 
-- **Google sign-in needs its OAuth client wired up** in the Supabase
-  dashboard (Auth → Providers → Google) before it'll work in production.
-  Email/password sign-in works today without any extra setup.
 - **The Android app-store wrapper (issue #125) is scaffolding, not a
   shipped app yet.**
   - *Done:* `capacitor.config.ts` and the generated `android/` native
