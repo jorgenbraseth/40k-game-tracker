@@ -13,7 +13,7 @@ import { supabase } from './supabase'
  *   2. Google's own redirect back to this scheme is intercepted by the OS before it ever loads as
  *      a page, and handed to the app as an `appUrlOpen` event (`listenForNativeOAuthRedirect`).
  * This scheme has to also be registered as a Supabase Auth "Redirect URL" (same one-time
- * dashboard step the existing Google OAuth client setup already needs -- see README) and matches
+ * dashboard step the existing Google OAuth client setup already needs -- see docs/status.md) and matches
  * the intent-filter added to android/app/src/main/AndroidManifest.xml.
  */
 export const NATIVE_OAUTH_REDIRECT = 'com.fortyktracker.app://auth/callback'

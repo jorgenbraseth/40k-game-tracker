@@ -6,8 +6,8 @@
 -- https://wahapedia.ru/wh40k11ed/the-rules/mission-deck-2026-27/. This
 -- repo never stores GW's rules text (how each mission is actually scored
 -- turn by turn) -- that's their copyrighted material; players read that
--- off their own physical or app copy of the deck. See "Ruleset / mission
--- content" in README.md for how this data is versioned.
+-- off their own physical or app copy of the deck. See
+-- docs/ruleset-content.md for how this data is versioned.
 --
 -- Missions and secondary_objectives are NOT seeded here -- they're
 -- applied by migration 20260221000000_apply_real_reference_data.sql
