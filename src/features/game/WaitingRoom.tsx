@@ -16,6 +16,7 @@ import {
   useStartGame,
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
+import { shareableOrigin } from '@/lib/platform'
 import { useLadders } from '@/lib/queries/ladders'
 import { useFactions, useForceDispositions, useMission, useMissionsForPack } from '@/lib/queries/referenceData'
 import { GameConfigPicker } from './GameConfigPicker'
@@ -92,7 +93,7 @@ export function WaitingRoom({
 
   const copy = async (kind: 'code' | 'link') => {
     const text =
-      kind === 'code' ? detail.game.join_code : `${window.location.origin}/game/join/${detail.game.join_code}`
+      kind === 'code' ? detail.game.join_code : `${shareableOrigin()}/game/join/${detail.game.join_code}`
     try {
       await navigator.clipboard.writeText(text)
       setCopied(kind)

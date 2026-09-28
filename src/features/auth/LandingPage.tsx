@@ -4,7 +4,7 @@ import { BrandLogo } from '@/components/BrandLogo'
 import { Button } from '@/components/Button'
 import { TextField } from '@/components/TextField'
 import { NATIVE_OAUTH_REDIRECT, openNativeOAuth } from '@/lib/nativeAuth'
-import { isNativePlatform } from '@/lib/platform'
+import { isNativePlatform, shareableOrigin } from '@/lib/platform'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from './AuthProvider'
 
@@ -63,7 +63,7 @@ export function LandingPage() {
           password,
           options: {
             data: { full_name: displayName.trim() },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+            emailRedirectTo: `${shareableOrigin()}/auth/callback?next=${encodeURIComponent(next)}`,
           },
         })
         if (signUpError) throw signUpError
