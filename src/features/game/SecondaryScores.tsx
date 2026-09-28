@@ -266,20 +266,21 @@ export function SecondaryScores({
       })}
 
       {editable && notYetDrawn.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 border-t border-veil-strong px-3 pt-2.5">
-          <button
-            type="button"
-            onClick={drawRandom}
-            className="min-h-9 rounded-lg border border-dashed border-veil-loud py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
-          >
-            🎲 Random secondary
-          </button>
+        <div className="flex gap-2 border-t border-veil-strong px-3 pt-2.5">
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="min-h-9 rounded-lg border border-dashed border-veil-loud py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
+            className="min-h-9 flex-1 rounded-lg border border-dashed border-veil-loud py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
           >
             + Select secondary
+          </button>
+          <button
+            type="button"
+            onClick={drawRandom}
+            aria-label="Draw a random secondary"
+            className="min-h-9 flex-none rounded-lg border border-dashed border-veil-loud px-4 py-1.5 text-sm text-paper/50 hover:border-gold hover:text-gold"
+          >
+            Random
           </button>
         </div>
       )}

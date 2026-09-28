@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { GameLockBanner } from '@/components/GameLockBanner'
@@ -83,7 +83,6 @@ export function Scoreboard({
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false)
   const [configSheetOpen, setConfigSheetOpen] = useState(false)
-  const [moreSheetOpen, setMoreSheetOpen] = useState(false)
 
   useWakeLock(detail.game.status === 'active')
 
@@ -220,7 +219,9 @@ export function Scoreboard({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
+      {/* Only rendered when there's actually something to say -- an active game you're playing
+          goes straight to the round header, no empty status row above it. */}
+      {(!isActive || !isParticipant) && (
         <div>
           {detail.game.status !== 'active' && (
             <p className="text-sm text-paper/50">
@@ -232,23 +233,7 @@ export function Scoreboard({
             <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>
           )}
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          {isParticipant && (
-            <span
-              aria-label={opponentOnline ? 'opponent online' : 'opponent offline'}
-              className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${opponentOnline ? 'bg-success' : 'bg-paper/30'}`}
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => setMoreSheetOpen(true)}
-            aria-label="More"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-paper/60 hover:bg-veil-strong hover:text-paper"
-          >
-            ⋯
-          </button>
-        </div>
-      </div>
+      )}
 
       <GameLockBanner detail={detail} userId={user.id} />
 
@@ -269,7 +254,19 @@ export function Scoreboard({
                 index === 0 ? 'order-first' : 'order-last',
               )}
             >
-              <p className="truncate text-xs text-paper/70">{playerLabel(entry, `Seat ${entry.player.seat}`)}</p>
+              <p className="flex items-center justify-center gap-1 text-xs text-paper/70">
+                <span className="truncate">{playerLabel(entry, `Seat ${entry.player.seat}`)}</span>
+                {/* Presence dot on the opponent's own name -- only for a real second account; an
+                    unclaimed seat someone's bookkeeping for has nobody to be online. */}
+                {isParticipant && entry.player.user_id && entry.player.user_id !== user.id && (
+                  <span
+                    role="img"
+                    aria-label={opponentOnline ? 'online' : 'offline'}
+                    title={opponentOnline ? 'Online' : 'Offline'}
+                    className={clsx('h-2 w-2 flex-shrink-0 rounded-full', opponentOnline ? 'bg-success' : 'bg-paper/30')}
+                  />
+                )}
+              </p>
               <p className="text-2xl leading-tight font-bold text-gold">{entry.totalVp}</p>
               <p className="truncate text-[11px] text-paper/40">
                 {entry.primaryTotal}+{entry.secondaryTotal} VP · {remainingCp(detail.commandPoints, entry.player.id)} CP
@@ -315,6 +312,21 @@ export function Scoreboard({
               </p>
             </div>
 
+            {/* No CP on the End step -- nothing's spent after the last round, so what's left over
+                doesn't matter any more. */}
+            {viewRound !== endOfGameRound && (
+              <CommandPointsPanel
+                gameId={detail.game.id}
+                gamePlayerId={entry.player.id}
+                battleRound={viewRound}
+                cpGained={getCommandPoints(entry.player.id)?.cp_gained ?? 0}
+                cpSpent={getCommandPoints(entry.player.id)?.cp_spent ?? 0}
+                remaining={remainingCp(detail.commandPoints, entry.player.id)}
+                userId={user.id}
+                editable={isParticipant}
+              />
+            )}
+
             <PrimaryScorePanel
               gameId={detail.game.id}
               gamePlayerId={entry.player.id}
@@ -328,27 +340,6 @@ export function Scoreboard({
               userId={user.id}
               editable={isParticipant}
             />
-
-            {viewRound === endOfGameRound ? (
-              <p className="flex w-full items-center justify-between gap-2 px-3 text-sm text-paper/60">
-                <span className="text-xs font-medium tracking-wide uppercase">CP</span>
-                <span className="font-semibold text-gold">
-                  {remainingCp(detail.commandPoints, entry.player.id)}
-                  <span className="ml-1 text-xs font-normal text-paper/40">left</span>
-                </span>
-              </p>
-            ) : (
-              <CommandPointsPanel
-                gameId={detail.game.id}
-                gamePlayerId={entry.player.id}
-                battleRound={viewRound}
-                cpGained={getCommandPoints(entry.player.id)?.cp_gained ?? 0}
-                cpSpent={getCommandPoints(entry.player.id)?.cp_spent ?? 0}
-                remaining={remainingCp(detail.commandPoints, entry.player.id)}
-                userId={user.id}
-                editable={isParticipant}
-              />
-            )}
 
             {viewRound === endOfGameRound ? (
               isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) ? (
@@ -399,6 +390,16 @@ export function Scoreboard({
         <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
           {isActive ? 'End game' : 'Change result'}
         </Button>
+      )}
+
+      {me && opponent && (
+        <button
+          type="button"
+          onClick={() => setConfigSheetOpen(true)}
+          className="-mt-1 self-center rounded-lg px-3 py-2 text-sm text-paper/60 underline hover:text-paper"
+        >
+          Game configuration
+        </button>
       )}
 
       <Sheet open={endSheetOpen} onClose={() => setEndSheetOpen(false)} title={isActive ? 'End game' : 'Change result'}>
@@ -479,36 +480,6 @@ export function Scoreboard({
             </Sheet>
           )
         })()}
-
-      <Sheet open={moreSheetOpen} onClose={() => setMoreSheetOpen(false)} title="Game">
-        <div className="flex flex-col gap-1">
-          {me && opponent && (
-            <button
-              type="button"
-              onClick={() => {
-                setMoreSheetOpen(false)
-                setConfigSheetOpen(true)
-              }}
-              className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-veil"
-            >
-              Game configuration
-            </button>
-          )}
-          <Link
-            to={`/game/${detail.game.id}/summary`}
-            onClick={() => setMoreSheetOpen(false)}
-            className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-paper/80 hover:bg-veil"
-          >
-            Summary
-          </Link>
-          {isParticipant && (
-            <p className="flex items-center gap-1.5 px-3 py-2.5 text-sm text-paper/60">
-              <span className={`h-2 w-2 rounded-full ${opponentOnline ? 'bg-success' : 'bg-paper/30'}`} />
-              Opponent {opponentOnline ? 'online' : 'offline'}
-            </p>
-          )}
-        </div>
-      </Sheet>
 
       {me && opponent && (
         <Sheet open={configSheetOpen} onClose={() => setConfigSheetOpen(false)} title="Game configuration">
