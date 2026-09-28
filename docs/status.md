@@ -344,6 +344,15 @@ as before, but the same code can also be shared as a URL
 the moment it's opened. `WaitingRoom` (games) and the Ladders page's
 invite-code section both offer "Copy code"/"Copy link" side by side.
 
+- **Link origin.** Copied links are built from `shareableOrigin()`
+  (`src/lib/platform.ts`): the current origin on web, but always
+  `https://www.40ktracker.com` inside the native app, whose WebView
+  serves the bundled build from `https://localhost`. The signup
+  confirmation email's redirect uses the same helper for the same reason.
+  The native app doesn't register App Links for that domain yet, so an
+  invite link opened on a phone lands in the browser/PWA, not the
+  installed app.
+
 - **Games** needed no schema change -- `join_game_by_code` already
   resolves a game from the code alone (it's globally unique), so
   `/game/join/:code` is purely a new route on the existing

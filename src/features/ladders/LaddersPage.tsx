@@ -8,6 +8,7 @@ import { Select } from '@/components/Select'
 import { Sheet } from '@/components/Sheet'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { shareableOrigin } from '@/lib/platform'
 import {
   RANKING_TYPE_LABELS,
   useArchiveLadder,
@@ -283,7 +284,7 @@ function InviteCodeSection({ ladderId, isCreator }: { ladderId: string; isCreato
   const copy = async (kind: 'code' | 'link') => {
     if (!inviteCode.data) return
     const text =
-      kind === 'code' ? inviteCode.data : `${window.location.origin}/ladders/join/${inviteCode.data}`
+      kind === 'code' ? inviteCode.data : `${shareableOrigin()}/ladders/join/${inviteCode.data}`
     try {
       await navigator.clipboard.writeText(text)
       setCopied(kind)
