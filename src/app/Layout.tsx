@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BrandLogo } from '@/components/BrandLogo'
 import { Sheet } from '@/components/Sheet'
@@ -30,8 +30,24 @@ export function Layout() {
   // on mobile, the hamburger) sit alone against the right edge instead.
   const onHome = useLocation().pathname === '/home'
 
+  // Published as --app-header-height on the page wrapper so a page's own sticky bar (Scoreboard's
+  // round header) can pin itself flush under this one -- measured rather than hardcoded, since
+  // the safe-area inset, the logo's breakpoint size and the nav/hamburger swap all change it.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    const header = headerRef.current
+    if (!root || !header) return
+    const update = () => root.style.setProperty('--app-header-height', `${header.offsetHeight}px`)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(header)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <div className="flex min-h-screen flex-col">
+    <div ref={rootRef} className="flex min-h-screen flex-col">
       <OfflineBanner />
       <UpdatePrompt />
       {/*
@@ -45,7 +61,7 @@ export function Layout() {
         here (not just on the inner div) is load-bearing too -- without it, that safe-area padding
         strip is transparent, so scrolled-past page content shows through behind the status bar.
       */}
-      <header className="sticky top-0 z-40 bg-ink pt-[var(--safe-inset-top)]">
+      <header ref={headerRef} className="sticky top-0 z-40 bg-ink pt-[var(--safe-inset-top)]">
         <div
           className={clsx(
             'mx-auto flex max-w-3xl items-center border-b border-veil-strong bg-ink/95 px-4 py-3 backdrop-blur',

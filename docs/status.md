@@ -137,9 +137,44 @@ zoom-out. Collapsed the same way:
 - those become rows inside a single "⋯" `Sheet` ("Game");
 - the header row keeps just a small colored dot (opponent
   online/offline, participants only) next to the "⋯" button;
-- "Spectating" moved to its own line under the round/status text instead
+- "Spectating" moved to its own line under the status text instead
   (vertical stacking, not another item fighting for width in that row) --
-  `Scores stay editable`/`Layout X` already did the same there.
+  `Scores stay editable` does the same there.
+
+**Round screen layout.** The Scoreboard is trimmed down to just the
+scoring, laid out for a phone:
+
+- **Sticky round header.** The running totals (what used to be a fixed
+  bottom bar) now sit in a header pinned just under the app header
+  (`Layout` publishes its own height as `--app-header-height` for this).
+  Each player's total/VP split/CP sits on either side of a `RoundNav`
+  control ("‹ Round 2 of 5 ›", "End of game" for the End step) -- just
+  previous/next, no jumping straight to an arbitrary round.
+- **Stepping rounds.** "›" from the game's own current round (while it's
+  active) is what advancing the game means, so it also moves
+  `games.current_round` forward. Going back, or forward through rounds
+  already reached, only changes what's on screen (`?round=N`) -- revisiting
+  an earlier round to fix a score never rewinds the game for the other
+  player. There are no separate Advance/Back-to-round buttons any more;
+  the flip side is that an accidental advance can't be undone, only
+  navigated back from.
+- **Per-seat colors.** Each seat's card and its half of the header carry
+  a faint tint so it's clear whose scores are on screen: seat 1 a wash of
+  the theme's own accent (`blood`), seat 2 a plain neutral wash. Keyed to
+  seat, so it doesn't swap when turn order reorders the cards.
+- **Pinned names.** Each card's name bar sticks just under the round
+  header while that card is on screen.
+- **Sections, not nested frames.** Inside a card, Primary VP, CP and
+  Secondary VP are full-width sections split by hairlines; scoring lines
+  and secondaries are edge-to-edge rows rather than individually framed
+  boxes. Already-scored secondaries are faded so what's still left to
+  score stands out. The primary "set total directly" override is a ✎
+  next to the round's Primary VP number.
+- **Less text.** Faction, army, mission, Attacker/Defender and "went
+  first" no longer show on the cards, and neither does the layout line --
+  all of it (plus each seat's "Edit setup") lives in the "⋯" menu's
+  Game configuration sheet, which now lists both players' setup under a
+  "Players" section.
 
 ## Accounts and profile
 
@@ -488,7 +523,7 @@ can claim each value, optional, always editable. Picked via
 `GameConfigPicker` (above), not a per-seat form field.
 
 Once both seats have picked, the live Scoreboard's player grid and the
-fixed bottom totals bar reorder so whoever went first renders first.
+sticky round header's totals reorder so whoever went first renders first.
 Before that (or for older games that never set it) the display falls
 back to seat order, unchanged from before this existed.
 
@@ -579,8 +614,8 @@ end of the game ("End of the Battle" in `mission_objective_lines`)
 rather than in any particular battle round.
 
 - That's the **End of Game** step, one past the last real battle round
-  (`Scoreboard`'s `endOfGameRound`, `total_rounds + 1`; the `Stepper`
-  shows it as an "End" tab).
+  (`Scoreboard`'s `endOfGameRound`, `total_rounds + 1`; the header's
+  `RoundNav` shows it as "End of game").
 - It reuses the exact same `round_scores`/`primary_objective_ticks`
   machinery as a real round, just for end-of-battle-only lines instead of
   round-windowed ones.
@@ -697,7 +732,7 @@ participant or not.
   spectator: same primary-mission and setup info, no join code, no
   editable forms, no Start/Cancel buttons.
 - **`Scoreboard`** reuses its existing markup for everyone, but every
-  control that would write something -- the round-advance buttons, End
+  control that would write something -- advancing the game's round, End
   game/Change result, Edit setup, the painted-bonus checkbox -- is gated
   behind `isParticipant` on top of whatever per-seat check it already
   had. `PrimaryScorePanel`/`SecondaryScores`/`GameConfigPicker` all have
