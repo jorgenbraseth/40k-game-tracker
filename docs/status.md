@@ -128,18 +128,19 @@ The footer also picked up the same `max-w-3xl` centering the header and
 main content already had, so it no longer stretches wider than the rest
 of the page on a wide screen.
 
-**Scoreboard round header.** This had the same problem, worse after
-spectating added a "Spectating" badge and an "opponent online" indicator
-alongside the existing "Game configuration"/"Summary" links -- up to four
-non-wrapping inline items was again enough to force a phone-width
-zoom-out. Collapsed the same way:
+**Scoreboard top row.** There's no top row of links or a "⋯" menu any
+more -- an active game you're playing opens straight onto the round
+header (below). What used to live up there:
 
-- those become rows inside a single "⋯" `Sheet` ("Game");
-- the header row keeps just a small colored dot (opponent
-  online/offline, participants only) next to the "⋯" button;
-- "Spectating" moved to its own line under the status text instead
-  (vertical stacking, not another item fighting for width in that row) --
-  `Scores stay editable` does the same there.
+- **Opponent online/offline** is a small colored dot next to the
+  opponent's own name in the round header (participants only, and only
+  for a claimed seat -- an unclaimed one has nobody to be online).
+- **Game configuration** is a plain link under the End game button.
+- **Summary** has no link from here; it's where ending a game lands
+  you, and History links to it for finished games.
+- **Status text** ("Game complete"/"Game abandoned", "Spectating",
+  "Scores stay editable") still shows above the header, only when it
+  applies.
 
 **Round screen layout.** The Scoreboard is trimmed down to just the
 scoring, laid out for a phone:
@@ -164,17 +165,18 @@ scoring, laid out for a phone:
   seat, so it doesn't swap when turn order reorders the cards.
 - **Pinned names.** Each card's name bar sticks just under the round
   header while that card is on screen.
-- **Sections, not nested frames.** Inside a card, Primary VP, CP and
-  Secondary VP are full-width sections split by hairlines; scoring lines
+- **Sections, not nested frames.** Inside a card, CP (first, right
+  under the name), Primary VP and Secondary VP are full-width sections
+  split by hairlines; scoring lines
   and secondaries are edge-to-edge rows rather than individually framed
   boxes. Already-scored secondaries are faded so what's still left to
   score stands out. The primary "set total directly" override is a ✎
   next to the round's Primary VP number.
 - **Less text.** Faction, army, mission, Attacker/Defender and "went
   first" no longer show on the cards, and neither does the layout line --
-  all of it (plus each seat's "Edit setup") lives in the "⋯" menu's
-  Game configuration sheet, which now lists both players' setup under a
-  "Players" section.
+  all of it (plus each seat's "Edit setup") lives in the Game
+  configuration sheet, which lists both players' setup under a "Players"
+  section.
 
 ## Accounts and profile
 
@@ -454,8 +456,8 @@ together in the shared **`GameConfigPicker`** (`src/features/game/`),
 which appears:
 
 - in its own "Game configuration" card in the waiting room, and
-- behind a "Game configuration" row inside the live Scoreboard's "⋯"
-  menu.
+- behind the "Game configuration" link under the live Scoreboard's End
+  game button.
 
 **Terrain layout.** Once a game's mission is resolved (so the Force
 Disposition pairing is known), the 3 recommended terrain layouts for that
@@ -615,7 +617,9 @@ rather than in any particular battle round.
 
 - That's the **End of Game** step, one past the last real battle round
   (`Scoreboard`'s `endOfGameRound`, `total_rounds + 1`; the header's
-  `RoundNav` shows it as "End of game").
+  `RoundNav` shows it as "End of game"). Each player panel there shows
+  just end-of-battle primary and the painted bonus -- no CP section,
+  since nothing's spent after the last round.
 - It reuses the exact same `round_scores`/`primary_objective_ticks`
   machinery as a real round, just for end-of-battle-only lines instead of
   round-windowed ones.
@@ -651,16 +655,18 @@ Tracked the way Tactical secondaries actually work:
    15VP-per-round/45VP-per-game rule).
 2. The whole cumulative picture, regardless of which round is viewed:
    - **drawn-but-unscored** cards first, badged with which round they
-     were drawn, highlighted when that's the round currently being viewed;
-   - then already **scored** cards, badged with both which round they
-     were drawn *and* which round they were scored in (those can differ).
+     were drawn, badged "Drawn this round" when that's the round currently
+     being viewed;
+   - then already **scored** cards, faded, badged with both which round
+     they were drawn *and* which round they were scored in (those can
+     differ).
 
    Both groups are ordered by draw round, oldest first.
 3. Two side-by-side buttons:
-   - **"🎲 Random secondary"** -- draws uniformly at random from whatever's
-     left in that role's deck, immediately, no extra tap;
    - **"+ Select secondary"** -- opens a picker to draw a specific card by
-     name.
+     name;
+   - **"Random"** -- draws uniformly at random from whatever's left in
+     that role's deck, immediately, no extra tap.
 
 ### Command Points
 
