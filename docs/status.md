@@ -149,8 +149,10 @@ scoring, laid out for a phone:
   bottom bar) now sit in a header pinned just under the app header
   (`Layout` publishes its own height as `--app-header-height` for this).
   Each player's total/VP split/CP sits on either side of a `RoundNav`
-  control ("‹ Round 2 of 5 ›", "End of game" for the End step) -- just
-  previous/next, no jumping straight to an arbitrary round.
+  control -- just previous/next, no jumping straight to an arbitrary
+  round. It's two rows ("Round 2" on top; "‹ of 5 ›" underneath, "End" /
+  "of game" for the End step) so it stays narrow enough for the totals
+  either side to show their VP split and CP untruncated on a phone.
 - **Stepping rounds.** "›" from the game's own current round (while it's
   active) is what advancing the game means, so it also moves
   `games.current_round` forward. Going back, or forward through rounds
