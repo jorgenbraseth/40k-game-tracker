@@ -40,7 +40,7 @@ export function CommandPointsPanel({
     'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-veil-strong text-lg text-paper active:scale-95 disabled:opacity-30'
 
   return (
-    <div className="flex w-full flex-col gap-1.5">
+    <div className="flex w-full flex-col gap-1.5 px-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium tracking-wide text-paper/60 uppercase">CP</span>
         <span className="text-sm font-bold text-gold">
@@ -49,7 +49,7 @@ export function CommandPointsPanel({
         </span>
       </div>
 
-      <div className="flex items-center justify-center gap-1.5 rounded-lg border border-veil-strong bg-veil px-1.5 py-1.5">
+      <div className="flex items-center justify-center gap-1.5">
         <div className="flex flex-1 items-center justify-center gap-1">
           <span className="text-[11px] text-paper/60">Gained</span>
           <div className="flex flex-shrink-0 items-center gap-1">

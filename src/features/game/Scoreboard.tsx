@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
@@ -6,8 +6,9 @@ import { GameLockBanner } from '@/components/GameLockBanner'
 import { Sheet } from '@/components/Sheet'
 import { Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
-import { Stepper } from '@/components/Stepper'
+import { RoundNav } from '@/components/RoundNav'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { clsx } from '@/lib/clsx'
 import type { GameDetail } from '@/lib/queries/games'
 import {
   isGameLocked,
@@ -86,6 +87,19 @@ export function Scoreboard({
 
   useWakeLock(detail.game.status === 'active')
 
+  // Publishes the sticky round header's height as --round-header-height on the Scoreboard's root,
+  // so each player card's name bar can pin itself flush underneath it. A callback ref rather than
+  // an effect, since the header only mounts once mission data has loaded (see the spinner below).
+  const roundHeaderRef = useCallback((node: HTMLDivElement | null) => {
+    const root = node?.parentElement
+    if (!node || !root) return
+    const update = () => root.style.setProperty('--round-header-height', `${node.offsetHeight}px`)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
   if (!user) return null
   if (
     p1Mission.isLoading ||
@@ -134,8 +148,6 @@ export function Scoreboard({
 
   const isActive = detail.game.status === 'active'
   const locked = isGameLocked(detail.players, detail.verifications)
-  const isLastRound = viewRound === endOfGameRound
-  const isViewingCurrent = viewRound === detail.game.current_round
 
   // Once both players have settled the "who takes the first turn" roll-off,
   // show the one who went first -- "top of round" -- first on screen.
@@ -165,17 +177,27 @@ export function Scoreboard({
   const getCommandPoints = (gamePlayerId: string) =>
     detail.commandPoints.find((cp) => cp.game_player_id === gamePlayerId && cp.battle_round === viewRound)
 
-  const advanceRound = () => {
-    const next = Math.min(endOfGameRound, detail.game.current_round + 1)
-    setCurrentRound.mutate(next)
+  // The header's previous/next is the only round control. Stepping *past* the game's own
+  // current round (while it's still being played) is what advancing the game means, so that also
+  // moves games.current_round forward -- the round both players' devices open on. Going back, or
+  // forward through rounds already reached, only changes what this viewer is looking at: revisiting
+  // an earlier round to fix a score shouldn't rewind the game for the other player.
+  const changeRound = (round: number) => {
+    const next = Math.max(1, Math.min(endOfGameRound, round))
+    if (isParticipant && isActive && next > detail.game.current_round) setCurrentRound.mutate(next)
     setViewRound(next)
   }
 
-  const goBackRound = () => {
-    const prev = Math.max(1, detail.game.current_round - 1)
-    setCurrentRound.mutate(prev)
-    setViewRound(prev)
-  }
+  // Each seat gets its own faint tint -- on its card and its half of the sticky header -- so it's
+  // obvious whose scores are on screen even once the card's name has scrolled out of view. Keyed
+  // to seat, not screen position, so it doesn't swap when turn order reorders the cards. Seat 1
+  // takes the theme's own accent (blood); seat 2 stays a plain neutral wash rather than the
+  // theme's steel, which in the blue-accented themes sits too close to blood to tell apart.
+  const seatBg = (seat: number) => (seat === 1 ? 'bg-blood/20' : 'bg-paper/5')
+  const seatTint = (seat: number) => clsx(seatBg(seat), seat === 1 ? 'border-blood/60' : 'border-paper/20')
+
+  const canEditSetup = (entry: GameDetail['players'][number]) =>
+    isParticipant && (entry.player.user_id === user.id || !entry.player.user_id)
 
   const suggestedOutcome: 'seat_1' | 'seat_2' | 'draw' = (() => {
     if (!p1 || !p2) return 'draw'
@@ -197,27 +219,17 @@ export function Scoreboard({
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-28">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-paper/50">
-            {detail.game.status === 'complete'
-              ? 'Game complete'
-              : detail.game.status === 'abandoned'
-                ? 'Game abandoned'
-                : detail.game.current_round === endOfGameRound
-                  ? 'End of game'
-                  : `Round ${detail.game.current_round} of ${detail.game.total_rounds}`}
-          </p>
+          {detail.game.status !== 'active' && (
+            <p className="text-sm text-paper/50">
+              {detail.game.status === 'complete' ? 'Game complete' : 'Game abandoned'}
+            </p>
+          )}
           {!isParticipant && <p className="text-xs text-paper/40">Spectating -- nothing here is yours to change.</p>}
           {!isActive && !locked && (
             <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>
-          )}
-          {detail.game.layout_variant && (
-            <p className="text-xs text-paper/40">
-              Layout {detail.game.layout_variant}
-              {isParticipant && ' · change it from Game configuration in the ⋯ menu'}
-            </p>
           )}
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -240,46 +252,67 @@ export function Scoreboard({
 
       <GameLockBanner detail={detail} userId={user.id} />
 
-      <Stepper
-        total={endOfGameRound}
-        current={viewRound}
-        onChange={setViewRound}
-        labels={{ [endOfGameRound]: 'End' }}
-      />
+      {/* Running totals and the round control, pinned under the app header -- always visible
+          without scrolling, per the design brief, and doubling as a colour key for the cards below.
+          top-[var(--app-header-height)] is published by Layout. */}
+      <div
+        ref={roundHeaderRef}
+        className="sticky top-[var(--app-header-height,0px)] z-30 -mx-4 bg-ink px-4 py-2"
+      >
+        <div className="flex items-stretch gap-2">
+          {orderedPlayers.map((entry, index) => (
+            <div
+              key={entry.player.id}
+              className={clsx(
+                'min-w-0 flex-1 rounded-xl border px-2 py-1 text-center',
+                seatTint(entry.player.seat),
+                index === 0 ? 'order-first' : 'order-last',
+              )}
+            >
+              <p className="truncate text-xs text-paper/70">{playerLabel(entry, `Seat ${entry.player.seat}`)}</p>
+              <p className="text-2xl leading-tight font-bold text-gold">{entry.totalVp}</p>
+              <p className="truncate text-[11px] text-paper/40">
+                {entry.primaryTotal}+{entry.secondaryTotal} VP · {remainingCp(detail.commandPoints, entry.player.id)} CP
+              </p>
+            </div>
+          ))}
+          <div className="flex flex-shrink-0 items-center">
+            <RoundNav
+              round={viewRound}
+              last={endOfGameRound}
+              label={viewRound === endOfGameRound ? 'End' : `Round ${viewRound}`}
+              sublabel={viewRound === endOfGameRound ? 'of game' : `of ${detail.game.total_rounds}`}
+              onChange={changeRound}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {orderedPlayers.map((entry) => (
-          <div key={entry.player.id} className="flex flex-col items-center gap-2 rounded-2xl border border-veil-strong bg-veil p-3">
-            <div className="text-center">
-              <p className="font-semibold text-paper">
+          // One frame per player, its contents stacked as full-width sections split by hairlines
+          // rather than frames within the frame -- on a phone every nested border and its padding
+          // eats width the checklists need.
+          <div
+            key={entry.player.id}
+            className={clsx(
+              'flex flex-col rounded-2xl border pb-3 [&>*+*]:pt-2.5 [&>*+*+*]:border-t [&>*+*+*]:border-veil-strong [&>*:not(:first-child,:last-child)]:pb-2.5',
+              seatTint(entry.player.seat),
+            )}
+          >
+            {/* Pins just under the sticky round header while this card is on screen, so whose card
+                it is never scrolls out of view. bg-ink under the (translucent) tint keeps the
+                scrolled content from showing through. */}
+            <div className="sticky top-[calc(var(--app-header-height,0px)+var(--round-header-height,0px))] z-20 rounded-t-2xl border-b border-veil-strong bg-ink">
+              <p
+                className={clsx(
+                  'rounded-t-2xl px-3 py-2 text-center font-semibold text-paper',
+                  seatBg(entry.player.seat),
+                )}
+              >
                 <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
                 {entry.player.user_id === user.id && <span className="ml-1 text-xs text-gold">(you)</span>}
-                {!entry.player.user_id && <span className="ml-1 text-xs text-paper/40">(not joined)</span>}
               </p>
-              <p className="text-xs text-paper/50">
-                {entry.factionName ?? 'No faction'}
-                {entry.player.army_name ? ` · ${entry.player.army_name}` : ''}
-                {(entry.player.role || entry.player.turn_order) && (
-                  <span className="capitalize">
-                    {' · '}
-                    {entry.player.role}
-                    {entry.player.role && entry.player.turn_order ? ' · ' : ''}
-                    {entry.player.turn_order && `went ${entry.player.turn_order}`}
-                  </span>
-                )}
-              </p>
-              {missionByPlayerId.get(entry.player.id)?.name && (
-                <p className="text-xs text-paper/60">{missionByPlayerId.get(entry.player.id)?.name}</p>
-              )}
-              {isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) && (
-                <button
-                  type="button"
-                  onClick={() => setEditingPlayerId(entry.player.id)}
-                  className="text-[11px] text-paper/40 underline hover:text-paper"
-                >
-                  Edit setup
-                </button>
-              )}
             </div>
 
             <PrimaryScorePanel
@@ -297,7 +330,7 @@ export function Scoreboard({
             />
 
             {viewRound === endOfGameRound ? (
-              <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm text-paper/60">
+              <p className="flex w-full items-center justify-between gap-2 px-3 text-sm text-paper/60">
                 <span className="text-xs font-medium tracking-wide uppercase">CP</span>
                 <span className="font-semibold text-gold">
                   {remainingCp(detail.commandPoints, entry.player.id)}
@@ -319,7 +352,7 @@ export function Scoreboard({
 
             {viewRound === endOfGameRound ? (
               isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) ? (
-                <label className="flex w-full items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm">
+                <label className="flex w-full items-center justify-between gap-2 px-3 text-sm">
                   <span className="text-paper/80">
                     Painted <span className="text-paper/40">(+10VP)</span>
                   </span>
@@ -336,7 +369,7 @@ export function Scoreboard({
                 // painted_bonus is a game_players column, so only the seat's own account (or an
                 // unclaimed seat, above) can write it -- unlike round/secondary scores, which any
                 // participant can enter for either side (see round_scores' RLS comment).
-                <p className="flex w-full items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm text-paper/60">
+                <p className="flex w-full items-center justify-between gap-2 px-3 text-sm text-paper/60">
                   <span>
                     Painted <span className="text-paper/40">(+10VP)</span>
                   </span>
@@ -363,50 +396,10 @@ export function Scoreboard({
       </div>
 
       {isParticipant && (
-        <div className="flex flex-col gap-2">
-          {isActive && isViewingCurrent && (detail.game.current_round > 1 || !isLastRound) && (
-            <div className="flex gap-2">
-              {detail.game.current_round > 1 && (
-                <Button variant="secondary" className="flex-1" onClick={goBackRound}>
-                  Back to round {detail.game.current_round - 1}
-                </Button>
-              )}
-              {!isLastRound && (
-                <Button variant="secondary" className="flex-1" onClick={advanceRound}>
-                  {detail.game.current_round + 1 === endOfGameRound
-                    ? 'Advance to End of Game'
-                    : `Advance to round ${detail.game.current_round + 1}`}
-                </Button>
-              )}
-            </div>
-          )}
-          <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
-            {isActive ? 'End game' : 'Change result'}
-          </Button>
-        </div>
+        <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
+          {isActive ? 'End game' : 'Change result'}
+        </Button>
       )}
-
-      {/* Running totals -- always visible without scrolling, per the design brief. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-veil-strong bg-ink/95 px-4 pt-2 pb-[calc(0.5rem+var(--safe-inset-bottom))] backdrop-blur">
-        <div className="mx-auto max-w-3xl">
-          <p className="text-center text-[10px] font-medium tracking-wide text-paper/40 uppercase">
-            {viewRound === endOfGameRound ? 'End of game' : `Round ${viewRound} of ${detail.game.total_rounds}`}
-          </p>
-          <div className="mt-1 flex items-center justify-between gap-4">
-            {orderedPlayers.map((entry) => (
-              <div key={entry.player.id} className="min-w-0 flex-1 text-center">
-                <p className="truncate text-xs text-paper/50">
-                  <PlayerNameLink userId={playerUserId(entry)} name={playerLabel(entry, `Seat ${entry.player.seat}`)} />
-                </p>
-                <p className="text-2xl font-bold text-gold">{entry.totalVp}</p>
-                <p className="truncate text-[11px] text-paper/40">
-                  {entry.primaryTotal}+{entry.secondaryTotal} VP · {remainingCp(detail.commandPoints, entry.player.id)} CP
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
       <Sheet open={endSheetOpen} onClose={() => setEndSheetOpen(false)} title={isActive ? 'End game' : 'Change result'}>
         <div className="flex flex-col gap-3">
@@ -536,6 +529,46 @@ export function Scoreboard({
               setTurnOrder.mutate(turnOrder === 'first' ? me.player.id : turnOrder === 'second' ? opponent.player.id : null)
             }
           />
+
+          {/* Each seat's own setup -- what used to sit under each name on the round screen itself,
+              moved here so that screen can stay down to just the scoring. */}
+          <div className="mt-4 flex flex-col gap-2">
+            <p className="text-sm font-medium text-paper/80">Players</p>
+            {orderedPlayers.map((entry) => (
+              <div
+                key={entry.player.id}
+                className={clsx('flex items-center gap-3 rounded-xl border px-3 py-2', seatTint(entry.player.seat))}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-paper">
+                    {playerLabel(entry, `Seat ${entry.player.seat}`)}
+                    {entry.player.user_id === user.id && <span className="ml-1 text-xs text-gold">(you)</span>}
+                    {!entry.player.user_id && <span className="ml-1 text-xs text-paper/40">(not joined)</span>}
+                  </p>
+                  <p className="truncate text-xs text-paper/50">
+                    {[entry.factionName ?? 'No faction', entry.player.army_name, entry.forceDispositionName]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                  {missionByPlayerId.get(entry.player.id)?.name && (
+                    <p className="truncate text-xs text-paper/50">{missionByPlayerId.get(entry.player.id)?.name}</p>
+                  )}
+                </div>
+                {canEditSetup(entry) && (
+                  <Button
+                    variant="secondary"
+                    className="flex-shrink-0"
+                    onClick={() => {
+                      setConfigSheetOpen(false)
+                      setEditingPlayerId(entry.player.id)
+                    }}
+                  >
+                    Edit setup
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
         </Sheet>
       )}
     </div>

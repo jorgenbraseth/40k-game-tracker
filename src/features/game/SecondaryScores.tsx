@@ -173,8 +173,8 @@ export function SecondaryScores({
   }
 
   return (
-    <div className="flex w-full flex-col gap-1.5">
-      <div className="flex items-center justify-between">
+    <div className="flex w-full flex-col">
+      <div className="mb-1.5 flex items-center justify-between px-3">
         <span className="text-xs font-medium tracking-wide text-paper/60 uppercase">Secondary VP</span>
         <span className="text-sm font-bold text-gold">
           {roundTotal}
@@ -183,19 +183,13 @@ export function SecondaryScores({
       </div>
 
       {availableToScore.length > 0 && (
-        <p className="text-[11px] font-semibold tracking-wide text-paper/40 uppercase">Drawn</p>
+        <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-wide text-paper/40 uppercase">Drawn</p>
       )}
       {availableToScore.map((d) => {
         const objective = available.find((a) => a.id === d.secondary_objective_id)
         const drawnThisRound = d.battle_round === round
         return (
-          <div
-            key={d.id}
-            className={clsx(
-              'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm',
-              drawnThisRound ? 'bg-gold/10 ring-1 ring-gold/30' : 'bg-veil',
-            )}
-          >
+          <div key={d.id} className="flex items-center justify-between border-t border-veil-strong px-3 py-2 text-sm">
             <button
               type="button"
               onClick={() => editable && setScoringObjectiveId(d.secondary_objective_id)}
@@ -227,13 +221,20 @@ export function SecondaryScores({
       })}
 
       {myScores.length > 0 && (
-        <p className="mt-1 text-[11px] font-semibold tracking-wide text-paper/40 uppercase">Scored</p>
+        <p className="border-t border-veil-strong px-3 pt-2.5 pb-1.5 text-[11px] font-semibold tracking-wide text-paper/40 uppercase">
+          Scored
+        </p>
       )}
       {myScores.map((s) => {
         const objective = available.find((a) => a.id === s.secondary_objective_id)
         const drawnRound = drawnRoundBySecondaryId.get(s.secondary_objective_id)
         return (
-          <div key={s.id} className="flex items-center justify-between rounded-lg bg-veil px-2.5 py-1.5 text-sm">
+          // Already-scored cards are done with -- faded (content only, so the row divider keeps
+          // its normal weight) so they don't compete with what's still left to score this round.
+          <div
+            key={s.id}
+            className="flex items-center justify-between border-t border-veil-strong px-3 py-2 text-sm [&>*]:opacity-55 [&>*]:transition-opacity hover:[&>*]:opacity-100"
+          >
             <button
               type="button"
               onClick={() => editable && setScoringObjectiveId(s.secondary_objective_id)}
@@ -265,7 +266,7 @@ export function SecondaryScores({
       })}
 
       {editable && notYetDrawn.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 border-t border-veil-strong px-3 pt-2.5">
           <button
             type="button"
             onClick={drawRandom}

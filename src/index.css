@@ -18,7 +18,7 @@
  *   blood/blood-dark  primary action fill / its hover
  *   gold           pervasive highlight accent (scores, selection, links) --
  *                  checked against that theme+mode's own ink, since bg-gold
- *                  fills sit under text-ink, not text-onfill (Stepper.tsx,
+ *                  fills sit under text-ink, not text-onfill (ObjectiveChecklist.tsx,
  *                  UpdatePrompt.tsx) -- so, unlike blood/steel/danger below,
  *                  it's genuinely different between a theme's dark and light
  *                  variant, not shared.

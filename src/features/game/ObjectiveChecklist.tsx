@@ -26,6 +26,7 @@ export function ObjectiveChecklist({
   onChangeCount,
   editable = true,
   compact = false,
+  flush = false,
 }: {
   lines: ChecklistLine[]
   counts: Map<string, number>
@@ -36,6 +37,10 @@ export function ObjectiveChecklist({
   /** Slightly smaller condition/detail text -- used for Primary VP, which otherwise runs the
    * player card long; tap targets stay the same size either way. */
   compact?: boolean
+  /** Edge-to-edge rows split by hairlines instead of individually framed boxes -- for use as a
+   * section of a Scoreboard player card, where a frame per line inside the card's own frame costs
+   * too much width on a phone. The parent supplies no horizontal padding; rows bring their own. */
+  flush?: boolean
 }) {
   const withHeaders = lines.map((line, i) => ({
     line,
@@ -43,7 +48,7 @@ export function ObjectiveChecklist({
   }))
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={clsx('flex flex-col', !flush && 'gap-2')}>
       {withHeaders.map(({ line, showWindowHeader }) => {
         const count = counts.get(line.id) ?? 0
         const achieved = count > 0
@@ -51,15 +56,22 @@ export function ObjectiveChecklist({
         return (
           <Fragment key={line.id}>
             {showWindowHeader && (
-              <p className="mt-0.5 text-xs font-semibold tracking-wide text-paper/50 uppercase first:mt-0">
+              <p
+                className={clsx(
+                  'text-xs font-semibold tracking-wide text-paper/50 uppercase',
+                  flush ? 'px-3 pt-1 pb-1.5' : 'mt-0.5 first:mt-0',
+                )}
+              >
                 {line.window_label}
               </p>
             )}
             <div
               className={clsx(
-                'flex items-center gap-2.5 rounded-lg border px-2.5 py-2',
-                achieved ? 'border-gold/40 bg-gold/10' : 'border-veil-strong bg-veil',
-                line.is_cumulative_bonus && 'ml-3',
+                'flex items-center gap-2.5',
+                flush
+                  ? clsx('border-t border-veil-strong px-3 py-2', achieved && 'bg-gold/10')
+                  : clsx('rounded-lg border px-2.5 py-2', achieved ? 'border-gold/40 bg-gold/10' : 'border-veil-strong bg-veil'),
+                line.is_cumulative_bonus && (flush ? 'pl-6' : 'ml-3'),
               )}
             >
               <div className="min-w-0 flex-1">
