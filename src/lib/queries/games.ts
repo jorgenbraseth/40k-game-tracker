@@ -1,15 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Database } from '@/lib/database.types'
-import { isGameLocked, needsVerification } from '@/lib/gameLock'
 import { resolveMissionId } from '@/lib/missionResolution'
 import { referenceKeys } from '@/lib/queries/referenceData'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
-
-// Re-exported so every existing call site can keep importing these from '@/lib/queries/games' --
-// see gameLock.ts's own doc comment for why the actual logic lives there instead (importable from
-// a unit test without pulling in supabase.ts).
-export { isGameLocked, needsVerification }
 
 type MissionPairingRow = Database['public']['Tables']['missions']['Row']
 
@@ -26,6 +20,12 @@ export interface GameDetail {
    * ladders at once, so this lives as its own array rather than a single nullable column on
    * `game` the way games.ladder_id used to work. */
   ladderIds: string[]
+  /** Name and admin (creator) of each ladder in ladderIds -- for labelling contests and
+   * invalidations, and for knowing whether the viewer is the admin who resolves them. */
+  ladders: Array<{ id: string; name: string; createdBy: string | null }>
+  /** Display names by user id for everyone fetched above -- seats, contesters, and admins who
+   * invalidated this game. */
+  profileNames: Record<string, string>
   players: Array<{
     player: GamePlayerRow
     profile: { display_name: string; avatar_url: string | null } | null
@@ -51,17 +51,13 @@ export interface GameDetail {
   secondaryDraws: Database['public']['Tables']['secondary_draws']['Row'][]
   primaryTicks: Database['public']['Tables']['primary_objective_ticks']['Row'][]
   secondaryTicks: Database['public']['Tables']['secondary_objective_ticks']['Row'][]
-  /** One row per seat that's confirmed the result (issue #46, widened by #72 to cover a claimed
-   * seat's own occupant too) -- see needsVerification() for what "still needs it" means, and
-   * isGameLocked() for what "every seat has" means. */
-  verifications: Database['public']['Tables']['game_player_verifications']['Row'][]
-  /** The one currently-pending request to unlock this game, if any (issue #72) -- at most one at
-   * a time (game_unlock_requests' own partial unique index enforces that server-side). Doesn't
-   * include already-resolved requests; there's no history UI for those yet. */
-  pendingUnlockRequest: Database['public']['Tables']['game_unlock_requests']['Row'] | null
-  /** created_by of every ladder this game is tagged to (parallel to ladderIds) -- who may approve
-   * an unlock request as a dispute-resolution override, per is_ladder_admin_for_game(). */
-  ladderAdminIds: string[]
+  /** Still-open contests on this game, one per ladder contested (see
+   * 20260928000000_game_contests.sql). RLS only returns these to the game's own players and the
+   * contested ladder's admin -- everyone else always sees an empty list. */
+  pendingContests: Database['public']['Tables']['game_contests']['Row'][]
+  /** Ladders whose admin removed this game from their standings, with the reason. Public, same
+   * as the ladder's standings themselves. */
+  invalidations: Database['public']['Tables']['ladder_game_invalidations']['Row'][]
 }
 
 export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
@@ -74,10 +70,10 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     totalsRes,
     primaryTicksRes,
     secondaryTicksRes,
-    verificationsRes,
     commandPointsRes,
     gameLaddersRes,
-    unlockRequestRes,
+    contestsRes,
+    invalidationsRes,
   ] = await Promise.all([
     supabase.from('games').select('*').eq('id', gameId).single(),
     supabase.from('game_players').select('*').eq('game_id', gameId).order('seat'),
@@ -87,10 +83,10 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     supabase.from('game_totals').select('*').eq('game_id', gameId),
     supabase.from('primary_objective_ticks').select('*').eq('game_id', gameId),
     supabase.from('secondary_objective_ticks').select('*').eq('game_id', gameId),
-    supabase.from('game_player_verifications').select('*').eq('game_id', gameId),
     supabase.from('command_points').select('*').eq('game_id', gameId),
     supabase.from('game_ladders').select('ladder_id').eq('game_id', gameId),
-    supabase.from('game_unlock_requests').select('*').eq('game_id', gameId).eq('status', 'pending').maybeSingle(),
+    supabase.from('game_contests').select('*').eq('game_id', gameId).eq('status', 'pending').order('created_at'),
+    supabase.from('ladder_game_invalidations').select('*').eq('game_id', gameId),
   ])
 
   if (gameRes.error) throw gameRes.error
@@ -101,10 +97,10 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   if (totalsRes.error) throw totalsRes.error
   if (primaryTicksRes.error) throw primaryTicksRes.error
   if (secondaryTicksRes.error) throw secondaryTicksRes.error
-  if (verificationsRes.error) throw verificationsRes.error
   if (commandPointsRes.error) throw commandPointsRes.error
   if (gameLaddersRes.error) throw gameLaddersRes.error
-  if (unlockRequestRes.error) throw unlockRequestRes.error
+  if (contestsRes.error) throw contestsRes.error
+  if (invalidationsRes.error) throw invalidationsRes.error
 
   // A seat nobody has joined yet has user_id = null (the bookkeeper can
   // fill it in themselves, on behalf of a player who never needs to sign
@@ -113,9 +109,13 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   // standings (represents_user_id).
   const userIds = [
     ...new Set(
-      playersRes.data
-        .flatMap((p) => [p.user_id, p.represents_user_id])
-        .filter((id): id is string => Boolean(id)),
+      [
+        ...playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]),
+        // Whoever raised a contest is always one of the seats above, but the admin who
+        // invalidated a game usually isn't -- both get named in the contest panel.
+        ...contestsRes.data.map((c) => c.contested_by),
+        ...invalidationsRes.data.map((i) => i.invalidated_by),
+      ].filter((id): id is string => Boolean(id)),
     ),
   ]
   const factionIds = playersRes.data.map((p) => p.faction_id).filter((id): id is string => Boolean(id))
@@ -135,10 +135,13 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     forceDispositionIds.length
       ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
       : Promise.resolve({ data: [], error: null }),
-    // Only who may approve an unlock request as a dispute-resolution override -- cheap enough to
-    // always fetch alongside everything else rather than only when a request is actually pending.
-    ladderIds.length
-      ? supabase.from('ladders').select('created_by').in('id', ladderIds)
+    // Invalidated ladders are included even if the game's since been untagged from one -- the
+    // invalidation row outlives the tag (see ladder_game_invalidations' own comment).
+    ladderIds.length || invalidationsRes.data.length
+      ? supabase
+          .from('ladders')
+          .select('id, name, created_by')
+          .in('id', [...new Set([...ladderIds, ...invalidationsRes.data.map((i) => i.ladder_id)])])
       : Promise.resolve({ data: [], error: null }),
   ])
   if (profilesRes.error) throw profilesRes.error
@@ -154,6 +157,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
   return {
     game: gameRes.data,
     ladderIds,
+    ladders: (laddersRes.data ?? []).map((l) => ({ id: l.id, name: l.name, createdBy: l.created_by })),
+    profileNames: Object.fromEntries((profilesRes.data ?? []).map((p) => [p.id, p.display_name])),
     players: playersRes.data.map((player) => {
       const totals = totalsByPlayerId.get(player.id)
       const profile = player.user_id ? profileById.get(player.user_id) : undefined
@@ -178,9 +183,8 @@ export async function fetchGameDetail(gameId: string): Promise<GameDetail> {
     secondaryDraws: secondaryDrawsRes.data,
     primaryTicks: primaryTicksRes.data,
     secondaryTicks: secondaryTicksRes.data,
-    verifications: verificationsRes.data,
-    pendingUnlockRequest: unlockRequestRes.data,
-    ladderAdminIds: [...new Set(laddersRes.data?.map((l) => l.created_by).filter((id): id is string => Boolean(id)))],
+    pendingContests: contestsRes.data,
+    invalidations: invalidationsRes.data,
   }
 }
 
@@ -427,9 +431,8 @@ export function useCreateGame() {
  * respect the existing 15VP/row cap under the hood (see log_completed_game() in
  * 20260403000000_log_completed_game.sql for why there's no cleaner primitive), and the game is
  * flagged `is_retroactive` so SummaryPage knows to skip its "round by round" table rather than
- * render that chunking misleadingly. The caller's own seat is auto-verified (they typed the result
- * in themselves); an opponent attributed to a real ladder member still goes through the normal
- * solo-entry confirmation flow.
+ * render that chunking misleadingly. The result counts as-is; if it's a ladder game, either player
+ * can contest it later like any other (see useContestGame).
  */
 export function useLogCompletedGame() {
   return useMutation({
@@ -771,115 +774,44 @@ export function useSetPaintedBonus(gameId: string) {
 }
 
 /**
- * Confirming a seat's result is correct -- either its own occupant confirming their own claimed
- * seat, or the represented player confirming a solo-entered result is theirs (issue #46). Insert
- * -only, no "unverify": RLS only lets `verified_by` insert this for a seat they actually own
- * (user_id or represents_user_id match) on a finished game -- see
- * 20260315000000_seat_verification.sql for why this is its own table rather than a column on
- * game_players, and 20260402000000_verified_game_lock.sql for the second policy that added the
- * claimed-seat case. Once every seat in a game is verified this way it locks (isGameLocked/
- * is_game_fully_verified) -- the only way back out is the unlock request flow below.
+ * Contest a ladder game's recorded result (see 20260928000000_game_contests.sql) -- results count
+ * as-is by default, this is the "something's wrong here" escape hatch. Any seat holder (claimed,
+ * or the ladder member an unclaimed seat was attributed to) may raise it at any point; it opens
+ * one contest per ladder the game is on, each resolved by that ladder's own admin.
  */
-export function useVerifySeat(gameId: string) {
+export function useContestGame(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; userId: string }) => {
-      const { error } = await supabase.from('game_player_verifications').insert({
-        game_player_id: input.gamePlayerId,
-        game_id: gameId,
-        verified_by: input.userId,
-      })
+    mutationFn: async (reason: string) => {
+      const { error } = await supabase.rpc('contest_game', { p_game_id: gameId, p_reason: reason })
       if (error) throw error
     },
-    onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
-      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
-      if (previous && !previous.verifications.some((v) => v.game_player_id === input.gamePlayerId)) {
-        queryClient.setQueryData(gameKeys.detail(gameId), {
-          ...previous,
-          verifications: [
-            ...previous.verifications,
-            {
-              game_player_id: input.gamePlayerId,
-              game_id: gameId,
-              verified_by: input.userId,
-              verified_at: new Date().toISOString(),
-            },
-          ],
-        })
-      }
-      return { previous }
-    },
-    onError: (_error, _input, context) => {
-      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
-      showToast("Couldn't verify this result. Try again.")
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onError: () => showToast("Couldn't contest this game. Try again."),
+    onSettled: () => invalidateContestQueries(queryClient, gameId),
   })
 }
 
-/**
- * Propose unlocking a fully-verified game (issue #72) -- the RPC itself re-checks participancy,
- * that the game's actually locked, and that nothing's already pending, so this is a thin wrapper.
- * No optimistic update: a request needs its `id` back from the server before Approve/Reject/Cancel
- * have anything to act on, and this is rare enough that the round-trip cost doesn't matter.
- */
-export function useRequestGameUnlock(gameId: string) {
+/** The contester takes it back -- withdraws every open contest they raised on this game. */
+export function useWithdrawGameContest(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc('request_game_unlock', { p_game_id: gameId })
+      const { error } = await supabase.rpc('withdraw_game_contest', { p_game_id: gameId })
       if (error) throw error
     },
-    onError: () => showToast("Couldn't request an unlock. Try again."),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onError: () => showToast("Couldn't withdraw the contest. Try again."),
+    onSettled: () => invalidateContestQueries(queryClient, gameId),
   })
 }
 
-/**
- * Approving is what actually unlocks the game -- the RPC deletes both seats' verification rows as
- * part of the same transaction, so is_game_fully_verified drops back to false immediately (see
- * 20260402000000_verified_game_lock.sql's own comment on why approval alone does this rather than
- * tracking a separate "unlocked" state). Callable by the other participant or a ladder admin for a
- * ladder this game is tagged to -- the RPC is what actually enforces that; the UI just doesn't
- * offer the button to someone who plainly isn't either.
- */
-export function useApproveGameUnlockRequest(gameId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (requestId: string) => {
-      const { error } = await supabase.rpc('approve_game_unlock_request', { p_request_id: requestId })
-      if (error) throw error
-    },
-    onError: () => showToast("Couldn't approve that request. Try again."),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
-  })
-}
-
-export function useRejectGameUnlockRequest(gameId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (requestId: string) => {
-      const { error } = await supabase.rpc('reject_game_unlock_request', { p_request_id: requestId })
-      if (error) throw error
-    },
-    onError: () => showToast("Couldn't reject that request. Try again."),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
-  })
-}
-
-/** Lets the requester stand down their own still-pending request (e.g. they realize they didn't
- * need it after all) without waiting on the other side to reject it. */
-export function useCancelGameUnlockRequest(gameId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (requestId: string) => {
-      const { error } = await supabase.rpc('cancel_game_unlock_request', { p_request_id: requestId })
-      if (error) throw error
-    },
-    onError: () => showToast("Couldn't cancel that request. Try again."),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
-  })
+/** A contest or invalidation touches the game itself, history rows, and the ladder's standings,
+ * game log and contest list -- refresh all of them. */
+export function invalidateContestQueries(queryClient: ReturnType<typeof useQueryClient>, gameId?: string) {
+  if (gameId) queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) })
+  queryClient.invalidateQueries({ queryKey: ['history'] })
+  queryClient.invalidateQueries({ queryKey: ['ladder-standings'] })
+  queryClient.invalidateQueries({ queryKey: ['ladder-games'] })
+  queryClient.invalidateQueries({ queryKey: ['ladder-contests'] })
 }
 
 export function useUpsertRoundScore(gameId: string) {

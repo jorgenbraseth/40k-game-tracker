@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { computeEloRatings, ELO_STARTING_RATING, type EloGame } from '@/lib/elo'
 import { computeGlicko2Ratings, GLICKO2_STARTING_RATING } from '@/lib/glicko2'
+import { invalidateContestQueries } from '@/lib/queries/games'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
 
@@ -61,6 +62,22 @@ export interface LadderGameRow {
   seat1: LadderGameSeat
   seat2: LadderGameSeat
   outcome: 'seat_1' | 'seat_2' | 'draw'
+  /** Set when this ladder's admin removed the game from its standings -- the game still appears
+   * in the log (struck out, with the reason), it just doesn't count. */
+  invalidation: { reason: string; invalidatedAt: string } | null
+}
+
+/** An open contest on one of this ladder's games, as the ladder's admin sees it. */
+export interface LadderContestRow {
+  contestId: string
+  gameId: string
+  reason: string
+  contestedAt: string
+  contestedByName: string
+  seat1: LadderGameSeat
+  seat2: LadderGameSeat
+  status: string
+  outcome: 'seat_1' | 'seat_2' | 'draw' | null
 }
 
 export const ladderKeys = {
@@ -69,6 +86,7 @@ export const ladderKeys = {
   games: (ladderId: string) => ['ladder-games', ladderId] as const,
   members: (ladderId: string) => ['ladder-members', ladderId] as const,
   inviteCode: (ladderId: string) => ['ladder-invite-code', ladderId] as const,
+  contests: (ladderId: string) => ['ladder-contests', ladderId] as const,
 }
 
 /** Every ladder, with membership counts and whether the current user is in it -- powers the
@@ -318,21 +336,28 @@ export function useLadderMembers(ladderId: string | undefined) {
  * instant standings are re-queried, no separate recalculation step needed. A game only feeds the
  * rating replay when *both* seats resolve to a stable identity -- there's no rating to exchange
  * points with an unattributed opponent -- but it still counts toward the descriptive W/D/L/VP
- * columns for whichever side does. */
+ * columns for whichever side does.
+ *
+ * A game this ladder's admin has invalidated (ladder_game_invalidations, see
+ * 20260928000000_game_contests.sql) is left out entirely -- no W/D/L, VP or rating change. A
+ * merely *contested* game still counts until the admin decides. */
 export async function fetchLadderStandings(ladderId: string): Promise<LadderStandingRow[]> {
-  const [ladderRes, membersRes, tagsRes] = await Promise.all([
+  const [ladderRes, membersRes, tagsRes, invalidationsRes] = await Promise.all([
     supabase.from('ladders').select('ranking_type').eq('id', ladderId).single(),
     supabase.from('ladder_members').select('user_id').eq('ladder_id', ladderId),
     supabase.from('game_ladders').select('game_id').eq('ladder_id', ladderId),
+    supabase.from('ladder_game_invalidations').select('game_id').eq('ladder_id', ladderId),
   ])
   if (ladderRes.error) throw ladderRes.error
   if (membersRes.error) throw membersRes.error
   if (tagsRes.error) throw tagsRes.error
+  if (invalidationsRes.error) throw invalidationsRes.error
 
   const rankingType = ladderRes.data.ranking_type
   const startingRating = rankingType === 'glicko2' ? GLICKO2_STARTING_RATING : ELO_STARTING_RATING
 
-  const gameIdsFromTags = tagsRes.data.map((t) => t.game_id)
+  const invalidatedGameIds = new Set(invalidationsRes.data.map((i) => i.game_id))
+  const gameIdsFromTags = tagsRes.data.map((t) => t.game_id).filter((id) => !invalidatedGameIds.has(id))
   const { data: games, error: gamesError } =
     gameIdsFromTags.length === 0
       ? { data: [], error: null }
@@ -459,12 +484,15 @@ export function useLadderStandings(ladderId: string | undefined) {
  * fetchLadderStandings, since the games list is opt-in (collapsed until asked for) while
  * standings load whenever a ladder row is expanded. */
 export async function fetchLadderGames(ladderId: string): Promise<LadderGameRow[]> {
-  const { data: tags, error: tagsError } = await supabase
-    .from('game_ladders')
-    .select('game_id')
-    .eq('ladder_id', ladderId)
-  if (tagsError) throw tagsError
+  const [tagsRes, invalidationsRes] = await Promise.all([
+    supabase.from('game_ladders').select('game_id').eq('ladder_id', ladderId),
+    supabase.from('ladder_game_invalidations').select('*').eq('ladder_id', ladderId),
+  ])
+  if (tagsRes.error) throw tagsRes.error
+  if (invalidationsRes.error) throw invalidationsRes.error
+  const tags = tagsRes.data
   if (tags.length === 0) return []
+  const invalidationByGameId = new Map(invalidationsRes.data.map((i) => [i.game_id, i]))
 
   const { data: games, error: gamesError } = await supabase
     .from('games')
@@ -521,12 +549,14 @@ export async function fetchLadderGames(ladderId: string): Promise<LadderGameRow[
     .filter((g): g is typeof g & { outcome: NonNullable<(typeof g)['outcome']> } => Boolean(g.outcome))
     .map((g) => {
       const [p1, p2] = playersByGameId.get(g.id) ?? []
+      const invalidation = invalidationByGameId.get(g.id)
       return {
         gameId: g.id,
         endedAt: g.ended_at ?? g.created_at,
         outcome: g.outcome,
         seat1: seatFor(p1),
         seat2: seatFor(p2),
+        invalidation: invalidation ? { reason: invalidation.reason, invalidatedAt: invalidation.invalidated_at } : null,
       }
     })
 }
@@ -536,5 +566,130 @@ export function useLadderGames(ladderId: string | undefined) {
     queryKey: ladderKeys.games(ladderId ?? ''),
     queryFn: () => fetchLadderGames(ladderId as string),
     enabled: Boolean(ladderId),
+  })
+}
+
+/** Open contests on this ladder's games -- only its admin can read these (RLS), so the caller
+ * passes `undefined` for anyone else rather than fetching an always-empty list. Includes games in
+ * any status, since a game can be contested at any point, not just once it's finished. */
+export async function fetchLadderContests(ladderId: string): Promise<LadderContestRow[]> {
+  const { data: contests, error } = await supabase
+    .from('game_contests')
+    .select('*')
+    .eq('ladder_id', ladderId)
+    .eq('status', 'pending')
+    .order('created_at')
+  if (error) throw error
+  if (contests.length === 0) return []
+
+  const gameIds = [...new Set(contests.map((c) => c.game_id))]
+  const [gamesRes, playersRes, totalsRes] = await Promise.all([
+    supabase.from('games').select('id, status, outcome').in('id', gameIds),
+    supabase.from('game_players').select('*').in('game_id', gameIds).order('seat'),
+    supabase.from('game_totals').select('*').in('game_id', gameIds),
+  ])
+  if (gamesRes.error) throw gamesRes.error
+  if (playersRes.error) throw playersRes.error
+  if (totalsRes.error) throw totalsRes.error
+
+  const profileIds = [
+    ...new Set(
+      [...contests.map((c) => c.contested_by), ...playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id])].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ),
+  ]
+  const profilesRes = profileIds.length
+    ? await supabase.from('profiles').select('id, display_name, avatar_url').in('id', profileIds)
+    : { data: [], error: null }
+  if (profilesRes.error) throw profilesRes.error
+  const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+  const avatarByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.avatar_url]))
+  const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
+  const gameById = new Map(gamesRes.data.map((g) => [g.id, g]))
+
+  const seatFor = (p: (typeof playersRes.data)[number] | undefined): LadderGameSeat => {
+    if (!p) return { userId: null, displayName: 'No opponent', avatarUrl: null, vp: 0 }
+    const userId = p.user_id ?? p.represents_user_id
+    return {
+      userId,
+      displayName: userId ? (nameByUserId.get(userId) ?? 'Unknown player') : p.army_name || 'Unnamed player',
+      avatarUrl: userId ? (avatarByUserId.get(userId) ?? null) : null,
+      vp: totalByPlayerId.get(p.id) ?? 0,
+    }
+  }
+
+  return contests.map((c) => {
+    const players = playersRes.data.filter((p) => p.game_id === c.game_id)
+    const game = gameById.get(c.game_id)
+    return {
+      contestId: c.id,
+      gameId: c.game_id,
+      reason: c.reason,
+      contestedAt: c.created_at,
+      contestedByName: nameByUserId.get(c.contested_by) ?? 'Unknown player',
+      seat1: seatFor(players.find((p) => p.seat === 1)),
+      seat2: seatFor(players.find((p) => p.seat === 2)),
+      status: game?.status ?? 'unknown',
+      outcome: game?.outcome ?? null,
+    }
+  })
+}
+
+export function useLadderContests(ladderId: string | undefined) {
+  return useQuery({
+    queryKey: ladderKeys.contests(ladderId ?? ''),
+    queryFn: () => fetchLadderContests(ladderId as string),
+    enabled: Boolean(ladderId),
+  })
+}
+
+/** The admin looked at a contest and the result stands -- optional note back to the players. */
+export function useDismissGameContest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { contestId: string; note: string }) => {
+      const { error } = await supabase.rpc('dismiss_game_contest', {
+        p_contest_id: input.contestId,
+        p_note: input.note || null,
+      })
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't dismiss the contest. Try again."),
+    onSettled: () => invalidateContestQueries(queryClient),
+  })
+}
+
+/** Removes a game from this ladder's standings, with a required reason. Closes any open contest
+ * about it on this ladder as upheld. */
+export function useInvalidateLadderGame() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { gameId: string; ladderId: string; reason: string }) => {
+      const { error } = await supabase.rpc('invalidate_ladder_game', {
+        p_game_id: input.gameId,
+        p_ladder_id: input.ladderId,
+        p_reason: input.reason,
+      })
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't invalidate the game. Try again."),
+    onSettled: (_data, _error, input) => invalidateContestQueries(queryClient, input.gameId),
+  })
+}
+
+/** Undoes an invalidation -- the game counts toward the ladder again. */
+export function useReinstateLadderGame() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { gameId: string; ladderId: string }) => {
+      const { error } = await supabase.rpc('reinstate_ladder_game', {
+        p_game_id: input.gameId,
+        p_ladder_id: input.ladderId,
+      })
+      if (error) throw error
+    },
+    onError: () => showToast("Couldn't reinstate the game. Try again."),
+    onSettled: (_data, _error, input) => invalidateContestQueries(queryClient, input.gameId),
   })
 }

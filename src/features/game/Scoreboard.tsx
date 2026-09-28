@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
-import { GameLockBanner } from '@/components/GameLockBanner'
 import { Sheet } from '@/components/Sheet'
 import { Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
@@ -11,7 +10,6 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { clsx } from '@/lib/clsx'
 import type { GameDetail } from '@/lib/queries/games'
 import {
-  isGameLocked,
   playerLabel,
   playerUserId,
   remainingCp,
@@ -146,7 +144,6 @@ export function Scoreboard({
   }
 
   const isActive = detail.game.status === 'active'
-  const locked = isGameLocked(detail.players, detail.verifications)
 
   // Once both players have settled the "who takes the first turn" roll-off,
   // show the one who went first -- "top of round" -- first on screen.
@@ -229,13 +226,11 @@ export function Scoreboard({
             </p>
           )}
           {!isParticipant && <p className="text-xs text-paper/40">Spectating -- nothing here is yours to change.</p>}
-          {!isActive && !locked && (
+          {!isActive && (
             <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>
           )}
         </div>
       )}
-
-      <GameLockBanner detail={detail} userId={user.id} />
 
       {/* Running totals and the round control, pinned under the app header -- always visible
           without scrolling, per the design brief, and doubling as a colour key for the cards below.

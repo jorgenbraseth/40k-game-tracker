@@ -24,11 +24,11 @@ function today(): string {
  * chunked round_scores rows under the hood rather than a cleaner direct-write column.
  *
  * The logger is always seat 1 (matches every other creation path in this app -- the creator is
- * always seat 1) and is auto-verified server-side, since they're the one typing the result in.
+ * always seat 1).
  * The opponent (seat 2) can be a free-text name with no account, same as a live game's solo-entry
  * bookkeeper flow, or attributed to a real ladder member (only offered once a ladder's tagged and
  * has members, same "first tagged ladder" simplification WaitingRoom's own PlayerSetupFields
- * already makes) so their result counts toward their own standings once they confirm it.
+ * already makes) so their result counts toward their own standings.
  */
 export function LogGamePage() {
   const navigate = useNavigate()
@@ -195,8 +195,8 @@ export function LogGamePage() {
                 ))}
               </Select>
               <p className="mt-1.5 text-xs text-paper/50">
-                Pick them here so their result counts in standings too -- they'll get a chance to
-                confirm it's right.
+                Pick them here so their result counts in standings too -- if it looks wrong to them,
+                they can contest it.
               </p>
             </div>
           )}

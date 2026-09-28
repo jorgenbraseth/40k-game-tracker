@@ -18,15 +18,14 @@ interface PresenceMeta {
  * can show an "opponent connected" indicator. Each change event just
  * invalidates the game query rather than patching cache by hand -- simpler
  * and self-healing if an event is missed. Every table GameDetail is built
- * from needs its own subscription here -- draws, ticks, verifications, and
- * unlock requests are each their own table, not folded into
+ * from needs its own subscription here -- draws, ticks, contests and
+ * invalidations are each their own table, not folded into
  * round_scores/secondary_scores, so a write to just one of them (e.g.
  * drawing a secondary, with no accompanying score write) wouldn't
  * otherwise trigger a live refetch on the other client until some later
- * action happened to touch a watched table. game_unlock_requests in
- * particular needs this live -- the other player should see a pending
- * unlock request (or its approval/rejection) without having to leave and
- * re-open the game.
+ * action happened to touch a watched table. game_contests in particular
+ * needs this live -- the other player should see that their result has
+ * been contested (or resolved) without having to leave and re-open the game.
  */
 export function useGameChannel(gameId: string | undefined, me: PresenceMeta | null) {
   const queryClient = useQueryClient()
@@ -72,7 +71,7 @@ export function useGameChannel(gameId: string | undefined, me: PresenceMeta | nu
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'game_player_verifications', filter: `game_id=eq.${gameId}` },
+        { event: '*', schema: 'public', table: 'game_contests', filter: `game_id=eq.${gameId}` },
         invalidate,
       )
       .on(
@@ -82,7 +81,7 @@ export function useGameChannel(gameId: string | undefined, me: PresenceMeta | nu
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'game_unlock_requests', filter: `game_id=eq.${gameId}` },
+        { event: '*', schema: 'public', table: 'ladder_game_invalidations', filter: `game_id=eq.${gameId}` },
         invalidate,
       )
       .on('presence', { event: 'sync' }, () => {

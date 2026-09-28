@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { Select } from '@/components/Select'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useDeleteGame, useVerifySeat } from '@/lib/queries/games'
+import { useDeleteGame } from '@/lib/queries/games'
 import { type AllGamesRow, useAllCompletedGames } from '@/lib/queries/history'
 import { useFactions, useForceDispositions } from '@/lib/queries/referenceData'
 
@@ -182,15 +181,16 @@ export function HistoryPage() {
  * beneath it (and, since `PlayerNameLink` renders its own `<a>`, it stays outside the summary
  * `Link` below rather than nested inside it).
  *
- * Cancel and Verify are the one exception -- gated on the viewer actually holding a seat (their
- * own account, or a ladder member they solo-entered on behalf of), since those aren't a framing
- * choice, they're real actions only a participant can take at all (RLS backs this up server-side
- * regardless, so this is just not offering a button that would fail).
+ * Cancel is the one exception -- gated on the viewer actually holding a seat (their own account,
+ * or a ladder member they solo-entered on behalf of), since it isn't a framing choice, it's a
+ * real action only a participant can take at all (RLS backs this up server-side regardless, so
+ * this is just not offering a button that would fail). Contesting lives on the game's summary,
+ * one tap away, rather than on the row.
  *
  * The whole row navigates to the game's summary on click/Enter (not just the meta/VP line) --
  * same `role="link"`/`navigate` pattern as `LaddersPage`'s `GamesList` row, rather than an `<a>`,
  * since `PlayerNameLink` inside already renders its own `<a>` and nesting anchors isn't valid
- * HTML. The trash and Verify buttons stop propagation so they don't also trigger the navigation.
+ * HTML. The trash button stops propagation so it doesn't also trigger the navigation.
  */
 function HistoryGameRow({
   game,
@@ -201,15 +201,11 @@ function HistoryGameRow({
   userId: string | undefined
   onCancel: () => void
 }) {
-  const verifySeat = useVerifySeat(game.gameId)
   const navigate = useNavigate()
   const endedAt = new Date(game.endedAt).toLocaleDateString()
 
   const mySeat =
     userId && game.seat1.userId === userId ? game.seat1 : userId && game.seat2.userId === userId ? game.seat2 : null
-  const unverifiedOtherSeat = [game.seat1, game.seat2].find(
-    (s) => s.needsVerification && s.gamePlayerId !== mySeat?.gamePlayerId,
-  )
   const goToSummary = () => navigate(`/game/${game.gameId}/summary`)
 
   return (
@@ -232,7 +228,7 @@ function HistoryGameRow({
             {game.seat2.factionName ?? 'No faction'}
           </span>
         </p>
-        {mySeat && !game.isLocked && (
+        {mySeat && (
           <button
             type="button"
             aria-label="Cancel game"
@@ -270,32 +266,12 @@ function HistoryGameRow({
           {game.pointsLimit} pts · {endedAt}
           {game.ladderName ? ` · ${game.ladderName}` : ''}
           {game.status === 'abandoned' ? ' · Abandoned' : ''}
-          {game.isLocked ? ' · Locked' : ''}
+          {game.isInvalidated ? ' · Invalidated' : game.isContested ? ' · Contested' : ''}
         </p>
         <span className="flex-shrink-0 text-sm text-paper/50">
           {game.seat1.totalVp}-{game.seat2.totalVp}
         </span>
       </div>
-      {mySeat?.needsVerification && userId && (
-        <div className="flex items-center justify-between gap-2 border-t border-veil-strong px-4 py-2">
-          <p className="text-[11px] text-paper/40">Entered on your behalf -- does this look right?</p>
-          <Button
-            variant="secondary"
-            disabled={verifySeat.isPending}
-            onClick={(e) => {
-              e.stopPropagation()
-              verifySeat.mutate({ gamePlayerId: mySeat.gamePlayerId, userId })
-            }}
-          >
-            {verifySeat.isPending ? 'Verifying…' : 'Verify'}
-          </Button>
-        </div>
-      )}
-      {!mySeat?.needsVerification && unverifiedOtherSeat && (
-        <p className="border-t border-veil-strong px-4 py-2 text-[11px] text-paper/40">
-          Unverified -- awaiting {unverifiedOtherSeat.displayName}'s confirmation
-        </p>
-      )}
     </li>
   )
 }

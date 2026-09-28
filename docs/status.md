@@ -37,7 +37,7 @@ working in production, both on the web and in the Android app.
   - [`game_totals` and the fan-out bug](#game_totals-and-the-fan-out-bug)
 - [Post-game summary](#post-game-summary)
 - [Spectating](#spectating)
-- [Verification and locking](#verification-and-locking)
+- [Contesting and invalidating ladder games](#contesting-and-invalidating-ladder-games)
 - [History and player stats](#history-and-player-stats)
 - [Ladders](#ladders)
 - [URL-addressable view state](#url-addressable-view-state)
@@ -436,13 +436,13 @@ whole live Scoreboard.
   record, so `games.is_retroactive` flags it, and `SummaryPage` skips its
   round-by-round table for a game with that flag rather than render the
   split misleadingly.
-- **Seats and verification.** The logger is always seat 1 (same as every
-  other creation path) and is **auto-verified** immediately -- they typed
-  the result in themselves, there's no separate confirmation moment to
-  ask them for. The opponent seat reuses the exact same solo-entry
-  attribution as a live bookkept game (`represents_user_id` to a real
-  ladder member who can later confirm or dispute it, or a free-text name
-  with no account at all) and goes through the normal verification flow.
+- **Seats.** The logger is always seat 1 (same as every other creation
+  path). The opponent seat reuses the exact same solo-entry attribution as
+  a live bookkept game (`represents_user_id` to a real ladder member, or a
+  free-text name with no account at all). The result counts straight
+  away; an attributed ladder member who disagrees can contest it like any
+  other ladder game. (`log_completed_game()` still writes a verification
+  row for the logger's seat -- harmless, see below.)
 - **UI.** `src/features/lobby/LogGamePage.tsx` is the one form for all of
   this, reachable from the New game lobby alongside "Start a game"/"Join
   a game".
@@ -754,89 +754,82 @@ participant or not.
 - **`SummaryPage`** needed no changes -- its controls were already gated
   on the viewer actually being a seat.
 
-## Verification and locking
+## Contesting and invalidating ladder games
 
-### Verifying a seat (issue #46, extended by #72)
+Results are trusted by default; a player in a ladder game can contest it
+and the ladder's admin (its creator) can invalidate it. All of it lives
+in `20260928000000_game_contests.sql`. This **replaced** the earlier
+"verify, then lock" model (issues #46/#72), which people forgot to use
+and which made every unconfirmed game look suspect.
 
-Implemented via a dedicated **`game_player_verifications` table**
-(`20260315000000_seat_verification.sql`), not a column on `game_players`.
+### Contests
 
-- **Why a separate table:** Postgres RLS ORs multiple permissive policies
-  together per-row, not per-column. A `verified_at`/`verified_by` column
-  on `game_players` would end up writable by the bookkeeper too (via the
-  existing broader "players can update their own seat, or claim/fill an
-  unclaimed one" policy), defeating the point. The table's own INSERT
-  policies are the sole gatekeeper instead.
-- **Who can insert:**
-  - originally just the represented account, for a seat still unclaimed
-    (`user_id is null`) and attributed to them, on a game that's actually
-    finished;
-  - issue #72 (`20260402000000_verified_game_lock.sql`) added a second
-    policy letting a claimed seat's own occupant confirm their own result
-    the same way -- so "verified" now has a real meaning for a normal
-    two-real-account game, not just a solo-entered one.
-- **Shared predicate.** `needsVerification()` (`src/lib/gameLock.ts`,
-  re-exported from `src/lib/queries/games.ts`) answers "does this seat
-  still need it": owned (either way), finished, no verification row yet.
-  It's split into its own module so it's importable from a unit test
-  without pulling in `supabase.ts`, which throws if the Supabase env vars
-  aren't set -- as they deliberately aren't for the plain `npm run test`
-  CI step.
-- **UI.** Used by `SummaryPage` (a "Verify this result" button on a seat
-  the viewer owns, or a read-only "awaiting confirmation" pill for the
-  other seat) and `HistoryPage` (the same button/pill inline per row, via
-  `useVerifySeat`).
-- Verifying a single seat never blocks or changes anything else --
-  Elo/standings/stats already count the game either way. It only records
-  that whoever's behind that seat looked at it and confirmed it's right.
-- **No backfill.** Games solo-entered before this shipped simply show as
-  unverified like any other qualifying game, rather than fabricating a
-  confirmation that was never actually given.
+- **`game_contests`** -- one row per (game, ladder) contested, with the
+  contester, their reason (required, ≤1000 chars) and a status:
+  `pending` → `dismissed` / `withdrawn` / `upheld`. A partial unique index
+  allows one open contest per game per ladder.
+- **Who can contest** (`contest_game` RPC): a seat holder --
+  `is_game_seat_holder()`, i.e. `user_id` *or* `represents_user_id` is
+  the caller -- in a game tagged to at least one ladder. Any game status,
+  any time. It opens a contest on every tagged ladder that doesn't already
+  have one open or an invalidation.
+- **Who can read contests (RLS):** the game's seat holders (so the
+  opponent sees it too) and the contested ladder's admin. Nobody else --
+  a contest is an open question, not a verdict.
+- **Withdraw** (`withdraw_game_contest`): the contester closes their own
+  open contests on a game.
+- **Dismiss** (`dismiss_game_contest`): the ladder admin; optional note.
+- A contested game **still counts** in standings until it's invalidated.
 
-### Locking a fully verified game (issue #72)
+### Invalidations
 
-Once *every* seat has verified (`isGameLocked()` client-side, mirroring
-`is_game_fully_verified()` server-side), the game locks.
+- **`ladder_game_invalidations`** -- (game, ladder) → admin, reason
+  (required), timestamp. Readable by any signed-in user, like the
+  standings themselves.
+- **Its own table, not columns on `game_ladders`:** `set_game_ladders()`
+  replaces a game's tags by delete-then-insert, which would wipe an
+  invalidation stored on the tag (and let a participant clear one by
+  untagging and re-tagging).
+- **`invalidate_ladder_game`** (admin only) inserts the row and closes
+  any open contest on that ladder as `upheld`, with the reason as its
+  note. **`reinstate_ladder_game`** (admin only) deletes it again.
+- **Effect:** `fetchLadderStandings` skips invalidated games entirely (no
+  W/D/L, VP or rating change). `fetchLadderGames` still lists them, with
+  the reason. History and stats are unaffected -- the game still
+  happened.
 
-- **The real security boundary.** Every write policy that lets a
-  participant change a finished game's recorded result gets an added
-  `not is_game_fully_verified(game_id)` clause
-  (`20260402000000_verified_game_lock.sql`). That covers round/secondary
-  scores, primary/secondary objective ticks, secondary draws, Command
-  Points, `game_players` (faction/Force Disposition/army/painted
-  bonus/etc.), and `games` itself (update and delete). The clause is
-  always true, and so a no-op, until a game actually finishes and both
-  sides confirm it. Nothing about the lock lives only in the client.
-- **Not gated (documented scope trim):** retagging a game's ladders and
-  the End of Game layout-variant pick. Neither changes the recorded result
-  itself, so locking them didn't seem worth the added surface for this
-  pass.
+### UI
 
-### Unlocking
+- **`GameContestPanel`** (`src/components/`), on `SummaryPage`: shows any
+  invalidation (with reason and admin), any open contest you can see, a
+  "Withdraw my contest" button for the contester, and "Contest this
+  result" (opens a `ReasonSheet`) for a seat holder while some ladder can
+  still be contested. The admin gets a pointer to the Ladders page.
+- **`LaddersPage`**: the admin's ladder row shows "N contested" even when
+  collapsed; expanded, a `ContestedGames` block lists each open contest
+  with **Invalidate** (required comment) and **Dismiss** (optional note).
+  The game log shows invalidated games struck through with the reason,
+  and a **Reinstate** link for the admin.
+- **`HistoryPage`** tags rows "· Contested" / "· Invalidated".
+- Realtime: `useGameChannel` subscribes to `game_contests` and
+  `ladder_game_invalidations`, so the other player sees a contest land
+  live.
 
-Propose/approve, not a diff-level edit request.
+### What happened to verification and locking
 
-- A **`game_unlock_requests`** table holds a participant's request -- one
-  pending row per game at a time, enforced by a partial unique index.
-- Either the *other* participant, or a creator of any ladder the game's
-  tagged to (`is_ladder_admin_for_game()`, the dispute-resolution
-  override), approves or rejects it.
-- All via security-definer RPCs -- `request_game_unlock` /
-  `approve_game_unlock_request` / `reject_game_unlock_request` /
-  `cancel_game_unlock_request`, all in `src/lib/queries/games.ts`.
-- **Approval's only effect is deleting both seats' verification rows.**
-  That's the entire "unlock": it makes `is_game_fully_verified` false
-  again, and every gated policy drops back to its ordinary participant
-  check. There's no separate "unlocked until when" state anywhere.
-
-### Lock UI
-
-- `GameLockBanner` (`src/components/GameLockBanner.tsx`) is the one UI
-  surface for all of this, shown in both `Scoreboard` (where an edit would
-  otherwise just silently fail to save) and `SummaryPage` (where the
-  confirm-result action itself lives).
-- `HistoryPage` hides its per-row delete button once a row is locked,
-  rather than offering an action that would fail.
+- **Nothing locks any more.** `is_game_fully_verified()` was re-declared
+  (same signature) to always return `false`, which lifts the lock from
+  every write policy that referenced it without re-declaring them.
+- **Kept for released-app compatibility** (see `CLAUDE.md`):
+  `game_player_verifications`, `game_unlock_requests` and their RPCs
+  (`request_game_unlock`, `approve_…`, `reject_…`, `cancel_…`,
+  `is_ladder_admin_for_game`) still exist but nothing in the app reads or
+  writes them. Dropping them is a later "contract" migration.
+- **Known gap:** a native build from before this change would still show
+  the old verify/lock UI and would count invalidated games in standings
+  (it doesn't know about `ladder_game_invalidations`). No native build has
+  been published yet (#125), so in practice this only affects local
+  debug APKs.
 
 ## History and player stats
 
@@ -890,11 +883,12 @@ History shows every finished game from everyone, via
   with the two players' names as a smaller, dimmer line underneath --
   History is a browse-all-games view, so which factions played is the
   primary thing being scanned for.
-- **Cancel and Verify** are shown only when the viewer actually holds one
-  of the game's two seats (their own account, or someone they
-  solo-entered on behalf of). Not a framing choice -- just not offering an
-  action that would fail server-side anyway (both are participant-gated
-  via RLS).
+- **Cancel** is shown only when the viewer actually holds one of the
+  game's two seats (their own account, or someone they solo-entered on
+  behalf of). Not a framing choice -- just not offering an action that
+  would fail server-side anyway (it's participant-gated via RLS).
+- **Contested / Invalidated** tags on a row -- see [Contesting and
+  invalidating ladder games](#contesting-and-invalidating-ladder-games).
 - **Filters.** "My games only", Ladder, Faction, and Force Disposition
   are all filters over that one full set (Faction/Force Disposition match
   either seat, so "every game anyone's played as Necrons" works). Like
@@ -1023,6 +1017,9 @@ ladder -- not just the viewer's own, same visibility as standings -- most
 recent first, each linking to that game's summary. Collapsed by default,
 nested one level deeper than the ladder row itself, so opening a ladder
 to see its standings doesn't also dump its whole history onto the screen.
+Invalidated games stay in the list, struck through with the admin's
+reason (and a Reinstate link for the admin) -- see [Contesting and
+invalidating ladder games](#contesting-and-invalidating-ladder-games).
 
 ## URL-addressable view state
 

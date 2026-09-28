@@ -23,8 +23,6 @@ function row(overrides: Partial<CompletedGameRow>): CompletedGameRow {
     result: 'win',
     ladderId: null,
     ladderName: null,
-    needsMyVerification: false,
-    opponentUnverified: false,
     ...overrides,
   }
 }

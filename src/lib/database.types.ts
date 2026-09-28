@@ -330,6 +330,35 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['secondary_draws']['Row']>
         Relationships: []
       }
+      game_contests: {
+        Row: {
+          id: string
+          game_id: string
+          ladder_id: string
+          contested_by: string
+          reason: string
+          status: 'pending' | 'dismissed' | 'withdrawn' | 'upheld'
+          created_at: string
+          resolved_at: string | null
+          resolved_by: string | null
+          resolution_note: string | null
+        }
+        Insert: Partial<Database['public']['Tables']['game_contests']['Row']>
+        Update: Partial<Database['public']['Tables']['game_contests']['Row']>
+        Relationships: []
+      }
+      ladder_game_invalidations: {
+        Row: {
+          game_id: string
+          ladder_id: string
+          invalidated_by: string
+          reason: string
+          invalidated_at: string
+        }
+        Insert: Partial<Database['public']['Tables']['ladder_game_invalidations']['Row']>
+        Update: Partial<Database['public']['Tables']['ladder_game_invalidations']['Row']>
+        Relationships: []
+      }
       game_player_verifications: {
         Row: {
           game_player_id: string
@@ -563,6 +592,34 @@ export interface Database {
       is_game_fully_verified: {
         Args: { p_game_id: string }
         Returns: boolean
+      }
+      is_game_seat_holder: {
+        Args: { p_game_id: string }
+        Returns: boolean
+      }
+      is_ladder_admin: {
+        Args: { p_ladder_id: string }
+        Returns: boolean
+      }
+      contest_game: {
+        Args: { p_game_id: string; p_reason: string }
+        Returns: undefined
+      }
+      withdraw_game_contest: {
+        Args: { p_game_id: string }
+        Returns: undefined
+      }
+      dismiss_game_contest: {
+        Args: { p_contest_id: string; p_note?: string | null }
+        Returns: undefined
+      }
+      invalidate_ladder_game: {
+        Args: { p_game_id: string; p_ladder_id: string; p_reason: string }
+        Returns: undefined
+      }
+      reinstate_ladder_game: {
+        Args: { p_game_id: string; p_ladder_id: string }
+        Returns: undefined
       }
       is_ladder_admin_for_game: {
         Args: { p_game_id: string }
