@@ -14,9 +14,18 @@ interface RoundNavProps {
  * arbitrary round, which keeps it small enough to sit in Scoreboard's sticky header. */
 export function RoundNav({ round, last, label, sublabel, onChange }: RoundNavProps) {
   const arrow =
-    'flex h-11 w-9 flex-shrink-0 items-center justify-center rounded-lg text-2xl leading-none text-paper/70 hover:bg-veil-strong hover:text-paper disabled:pointer-events-none disabled:opacity-20'
+    'flex h-9 w-8 items-center justify-center rounded-lg text-2xl leading-none text-paper/70 hover:bg-veil-strong hover:text-paper disabled:pointer-events-none disabled:opacity-20'
+  // Two rows rather than one: the label gets the full width of row 1, and the arrows flank the
+  // "of N" sublabel underneath -- so the control is only as wide as its label, leaving the
+  // players' totals on either side room to show their VP split and CP untruncated.
   return (
-    <div className="flex items-center justify-center gap-0.5" role="group" aria-label="Battle round">
+    <div className="grid grid-cols-[auto_auto_auto] items-center justify-center" role="group" aria-label="Battle round">
+      <p
+        className="col-span-3 text-center text-sm leading-tight font-semibold whitespace-nowrap text-paper"
+        aria-live="polite"
+      >
+        {label}
+      </p>
       <button
         type="button"
         aria-label="Previous round"
@@ -26,10 +35,7 @@ export function RoundNav({ round, last, label, sublabel, onChange }: RoundNavPro
       >
         ‹
       </button>
-      <div className="min-w-14 text-center" aria-live="polite">
-        <p className="text-sm leading-tight font-semibold whitespace-nowrap text-paper">{label}</p>
-        {sublabel && <p className="text-[10px] leading-tight text-paper/40">{sublabel}</p>}
-      </div>
+      <p className="min-w-6 text-center text-[10px] leading-tight whitespace-nowrap text-paper/40">{sublabel}</p>
       <button
         type="button"
         aria-label="Next round"
