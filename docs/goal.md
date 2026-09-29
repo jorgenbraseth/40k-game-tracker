@@ -46,7 +46,10 @@ round -- not to police how you got there.
   declared winner -- stays editable for the life of the game, including
   after it's marked complete or abandoned. Fat-fingered a tap, picked the
   wrong secondary, realized your army name was wrong three rounds in? Fix
-  it in place, no reset required. Nothing ever locks.
+  it in place, no reset required. Nothing ever locks -- but a finished
+  game opens **read-only** so just looking at it can't change it (Edit,
+  then Save -- see [Finishing, ending early, or cancelling a
+  game](#finishing-ending-early-or-cancelling-a-game)).
 - **Results are trusted by default.** Nobody has to confirm a result for
   it to count. If a ladder result is wrong, a player
   [contests it](#contesting-a-ladder-result) and the ladder's admin
@@ -362,6 +365,16 @@ The round-by-round table's combined per-round number can be expanded
 ("Show secondaries") into which specific secondary objective(s) each
 player scored that round and for how much -- collapsed by default, same
 as every other optional detail panel in this app.
+
+**Editing a finished game.** Once a game is complete or abandoned,
+opening it shows everything read-only. To change anything -- a score, a
+secondary, someone's setup, the declared result -- a player taps
+**Edit**, makes their changes, then taps **Save**. **Cancel** throws the
+changes away. Until Save, nothing reaches the other player or the
+standings. Leaving the game with unsaved changes asks first. "Edit scores
+/ result" on the game's summary opens straight into edit mode. A game
+still being played has no Edit step: the live scoreboard saves every tap
+as it happens.
 
 **Ending early.** A game can be ended early -- conceded, or the opponent
 had to leave -- from any round, not just the last one.

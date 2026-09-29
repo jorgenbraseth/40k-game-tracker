@@ -24,7 +24,9 @@ history, stats and optional ranked ladders.
   covers Tactical/Fixed secondaries, Command Points, the End of Game step
   and the painted bonus.
 - **Always editable, trusted by default.** Every value can be fixed at
-  any time, and a result counts without anyone confirming it. A player
+  any time. A finished game opens read-only until you tap Edit, and
+  changes only go through when you tap Save. A result counts without
+  anyone confirming it. A player
   can contest a wrong ladder result; the ladder's admin can then
   invalidate it.
 - **Live sync and spectating.** Scores update for everyone watching.

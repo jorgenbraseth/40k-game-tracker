@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Database } from '@/lib/database.types'
 import { resolveMissionId } from '@/lib/missionResolution'
+import { isDrafting, useGameDraft, writeOrQueue } from '@/lib/queries/gameDraft'
 import { referenceKeys } from '@/lib/queries/referenceData'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
@@ -207,6 +208,12 @@ function patchPlayerField(detail: GameDetail, gamePlayerId: string, patch: Parti
   }
 }
 
+/** A mutation's post-write refetch -- skipped while an edit-mode draft is open, since the write
+ * hasn't actually happened yet and a refetch would wipe the optimistic edit (see gameDraft.ts). */
+function settleGame(queryClient: ReturnType<typeof useQueryClient>, gameId: string) {
+  if (!isDrafting(gameId)) queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) })
+}
+
 function patchGame(detail: GameDetail, patch: Partial<GameRow>): GameDetail {
   return { ...detail, game: { ...detail.game, ...patch } }
 }
@@ -394,11 +401,16 @@ export function playerUserId(entry: GameDetail['players'][number] | undefined): 
 }
 
 export function useGame(gameId: string | undefined) {
+  // While an edit-mode draft is open the cache holds unsaved edits -- a refetch would silently
+  // throw them away, so every automatic one is off until Save/Cancel (see gameDraft.ts).
+  const { drafting } = useGameDraft(gameId)
   return useQuery({
     queryKey: gameKeys.detail(gameId ?? ''),
     queryFn: () => fetchGameDetail(gameId as string),
     enabled: Boolean(gameId),
-    staleTime: 0,
+    staleTime: drafting ? Infinity : 0,
+    refetchOnWindowFocus: !drafting,
+    refetchOnReconnect: !drafting,
   })
 }
 
@@ -502,7 +514,7 @@ export function useJoinGame() {
 export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow[] = []) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       gamePlayerId: string
       factionId?: string | null
       armyName?: string | null
@@ -510,26 +522,27 @@ export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow
       forceDispositionId?: string | null
       representsUserId?: string | null
       secondaryMode?: Database['public']['Tables']['game_players']['Row']['secondary_mode']
-    }) => {
-      const patch: Database['public']['Tables']['game_players']['Update'] = {}
-      if ('factionId' in input) patch.faction_id = input.factionId
-      if ('armyName' in input) patch.army_name = input.armyName
-      if ('armyListUrl' in input) patch.army_list_url = input.armyListUrl
-      if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
-      if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
-      if ('secondaryMode' in input) patch.secondary_mode = input.secondaryMode
+    }) =>
+      writeOrQueue(gameId, async () => {
+        const patch: Database['public']['Tables']['game_players']['Update'] = {}
+        if ('factionId' in input) patch.faction_id = input.factionId
+        if ('armyName' in input) patch.army_name = input.armyName
+        if ('armyListUrl' in input) patch.army_list_url = input.armyListUrl
+        if ('forceDispositionId' in input) patch.force_disposition_id = input.forceDispositionId
+        if ('representsUserId' in input) patch.represents_user_id = input.representsUserId
+        if ('secondaryMode' in input) patch.secondary_mode = input.secondaryMode
 
-      const { error } = await supabase.from('game_players').update(patch).eq('id', input.gamePlayerId)
-      if (error) throw error
+        const { error } = await supabase.from('game_players').update(patch).eq('id', input.gamePlayerId)
+        if (error) throw error
 
-      // Both players' Force Dispositions might now be set, or a player
-      // corrected a wrong pick -- resolve_game_mission always recomputes
-      // both seats' missions from the current picks, so this is always
-      // safe to call, whether it's the first resolution or a correction.
-      if ('forceDispositionId' in input) {
-        await supabase.rpc('resolve_game_mission', { p_game_id: gameId })
-      }
-    },
+        // Both players' Force Dispositions might now be set, or a player
+        // corrected a wrong pick -- resolve_game_mission always recomputes
+        // both seats' missions from the current picks, so this is always
+        // safe to call, whether it's the first resolution or a correction.
+        if ('forceDispositionId' in input) {
+          await supabase.rpc('resolve_game_mission', { p_game_id: gameId })
+        }
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -572,7 +585,7 @@ export function useUpdatePlayerSetup(gameId: string, missions: MissionPairingRow
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save your setup. Try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
@@ -608,10 +621,11 @@ function patchTurnOrder(detail: GameDetail, firstGamePlayerId: string | null): G
 export function useSetRole(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (attackerGamePlayerId: string | null) => {
-      const { error } = await supabase.rpc('set_role', { p_game_id: gameId, p_attacker_game_player_id: attackerGamePlayerId })
-      if (error) throw error
-    },
+    mutationFn: (attackerGamePlayerId: string | null) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.rpc('set_role', { p_game_id: gameId, p_attacker_game_player_id: attackerGamePlayerId })
+        if (error) throw error
+      }),
     onMutate: async (attackerGamePlayerId) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -622,17 +636,18 @@ export function useSetRole(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't update the role. Try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
 export function useSetTurnOrder(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (firstGamePlayerId: string | null) => {
-      const { error } = await supabase.rpc('set_turn_order', { p_game_id: gameId, p_first_game_player_id: firstGamePlayerId })
-      if (error) throw error
-    },
+    mutationFn: (firstGamePlayerId: string | null) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.rpc('set_turn_order', { p_game_id: gameId, p_first_game_player_id: firstGamePlayerId })
+        if (error) throw error
+      }),
     onMutate: async (firstGamePlayerId) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -643,7 +658,7 @@ export function useSetTurnOrder(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't update turn order. Try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
@@ -684,10 +699,11 @@ export function useSetCurrentRound(gameId: string) {
 export function useSetLayoutVariant(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (layoutVariant: Database['public']['Tables']['games']['Row']['layout_variant']) => {
-      const { error } = await supabase.from('games').update({ layout_variant: layoutVariant }).eq('id', gameId)
-      if (error) throw error
-    },
+    mutationFn: (layoutVariant: Database['public']['Tables']['games']['Row']['layout_variant']) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('games').update({ layout_variant: layoutVariant }).eq('id', gameId)
+        if (error) throw error
+      }),
     onMutate: async (layoutVariant) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -698,7 +714,7 @@ export function useSetLayoutVariant(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't set the layout. Try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
@@ -710,10 +726,11 @@ export function useSetLayoutVariant(gameId: string) {
 export function useSetGameLadders(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { ladderIds: string[] }) => {
-      const { error } = await supabase.rpc('set_game_ladders', { p_game_id: gameId, p_ladder_ids: input.ladderIds })
-      if (error) throw error
-    },
+    mutationFn: (input: { ladderIds: string[] }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.rpc('set_game_ladders', { p_game_id: gameId, p_ladder_ids: input.ladderIds })
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -729,7 +746,7 @@ export function useSetGameLadders(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't change the ladders. Try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
@@ -741,13 +758,14 @@ export function useSetGameLadders(gameId: string) {
 export function useSetPaintedBonus(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; paintedBonus: boolean }) => {
-      const { error } = await supabase
-        .from('game_players')
-        .update({ painted_bonus: input.paintedBonus })
-        .eq('id', input.gamePlayerId)
-      if (error) throw error
-    },
+    mutationFn: (input: { gamePlayerId: string; paintedBonus: boolean }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase
+          .from('game_players')
+          .update({ painted_bonus: input.paintedBonus })
+          .eq('id', input.gamePlayerId)
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -769,7 +787,7 @@ export function useSetPaintedBonus(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save the painted bonus. Try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
@@ -807,7 +825,7 @@ export function useWithdrawGameContest(gameId: string) {
 /** A contest or invalidation touches the game itself, history rows, and the ladder's standings,
  * game log and contest list -- refresh all of them. */
 export function invalidateContestQueries(queryClient: ReturnType<typeof useQueryClient>, gameId?: string) {
-  if (gameId) queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) })
+  if (gameId) settleGame(queryClient, gameId)
   queryClient.invalidateQueries({ queryKey: ['history'] })
   queryClient.invalidateQueries({ queryKey: ['ladder-standings'] })
   queryClient.invalidateQueries({ queryKey: ['ladder-games'] })
@@ -817,20 +835,21 @@ export function invalidateContestQueries(queryClient: ReturnType<typeof useQuery
 export function useUpsertRoundScore(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; battleRound: number; primaryVp: number; userId: string }) => {
-      const { error } = await supabase.from('round_scores').upsert(
-        {
-          game_id: gameId,
-          game_player_id: input.gamePlayerId,
-          battle_round: input.battleRound,
-          primary_vp: input.primaryVp,
-          updated_by: input.userId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'game_player_id,battle_round' },
-      )
-      if (error) throw error
-    },
+    mutationFn: (input: { gamePlayerId: string; battleRound: number; primaryVp: number; userId: string }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('round_scores').upsert(
+          {
+            game_id: gameId,
+            game_player_id: input.gamePlayerId,
+            battle_round: input.battleRound,
+            primary_vp: input.primaryVp,
+            updated_by: input.userId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'game_player_id,battle_round' },
+        )
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -841,34 +860,35 @@ export function useUpsertRoundScore(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save that score. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
 export function useUpsertCommandPoints(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       gamePlayerId: string
       battleRound: number
       cpGained: number
       cpSpent: number
       userId: string
-    }) => {
-      const { error } = await supabase.from('command_points').upsert(
-        {
-          game_id: gameId,
-          game_player_id: input.gamePlayerId,
-          battle_round: input.battleRound,
-          cp_gained: input.cpGained,
-          cp_spent: input.cpSpent,
-          updated_by: input.userId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'game_player_id,battle_round' },
-      )
-      if (error) throw error
-    },
+    }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('command_points').upsert(
+          {
+            game_id: gameId,
+            game_player_id: input.gamePlayerId,
+            battle_round: input.battleRound,
+            cp_gained: input.cpGained,
+            cp_spent: input.cpSpent,
+            updated_by: input.userId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'game_player_id,battle_round' },
+        )
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -879,34 +899,35 @@ export function useUpsertCommandPoints(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save Command Points. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
 export function useUpsertSecondaryScore(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       gamePlayerId: string
       battleRound: number
       secondaryObjectiveId: string
       vpScored: number
       userId: string
-    }) => {
-      const { error } = await supabase.from('secondary_scores').upsert(
-        {
-          game_id: gameId,
-          game_player_id: input.gamePlayerId,
-          battle_round: input.battleRound,
-          secondary_objective_id: input.secondaryObjectiveId,
-          vp_scored: input.vpScored,
-          updated_by: input.userId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'game_player_id,battle_round,secondary_objective_id' },
-      )
-      if (error) throw error
-    },
+    }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('secondary_scores').upsert(
+          {
+            game_id: gameId,
+            game_player_id: input.gamePlayerId,
+            battle_round: input.battleRound,
+            secondary_objective_id: input.secondaryObjectiveId,
+            vp_scored: input.vpScored,
+            updated_by: input.userId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'game_player_id,battle_round,secondary_objective_id' },
+        )
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -917,22 +938,23 @@ export function useUpsertSecondaryScore(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save that secondary. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
 export function useRemoveSecondaryScore(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; battleRound: number; secondaryObjectiveId: string }) => {
-      const { error } = await supabase
-        .from('secondary_scores')
-        .delete()
-        .eq('game_player_id', input.gamePlayerId)
-        .eq('battle_round', input.battleRound)
-        .eq('secondary_objective_id', input.secondaryObjectiveId)
-      if (error) throw error
-    },
+    mutationFn: (input: { gamePlayerId: string; battleRound: number; secondaryObjectiveId: string }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase
+          .from('secondary_scores')
+          .delete()
+          .eq('game_player_id', input.gamePlayerId)
+          .eq('battle_round', input.battleRound)
+          .eq('secondary_objective_id', input.secondaryObjectiveId)
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -943,28 +965,29 @@ export function useRemoveSecondaryScore(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't remove that secondary. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
 export function useDrawSecondary(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       gamePlayerId: string
       battleRound: number
       secondaryObjectiveId: string
       userId: string
-    }) => {
-      const { error } = await supabase.from('secondary_draws').insert({
-        game_id: gameId,
-        game_player_id: input.gamePlayerId,
-        secondary_objective_id: input.secondaryObjectiveId,
-        battle_round: input.battleRound,
-        drawn_by: input.userId,
-      })
-      if (error) throw error
-    },
+    }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('secondary_draws').insert({
+          game_id: gameId,
+          game_player_id: input.gamePlayerId,
+          secondary_objective_id: input.secondaryObjectiveId,
+          battle_round: input.battleRound,
+          drawn_by: input.userId,
+        })
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -975,21 +998,22 @@ export function useDrawSecondary(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't draw that secondary. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
 export function useUndrawSecondary(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { gamePlayerId: string; secondaryObjectiveId: string }) => {
-      const { error } = await supabase
-        .from('secondary_draws')
-        .delete()
-        .eq('game_player_id', input.gamePlayerId)
-        .eq('secondary_objective_id', input.secondaryObjectiveId)
-      if (error) throw error
-    },
+    mutationFn: (input: { gamePlayerId: string; secondaryObjectiveId: string }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase
+          .from('secondary_draws')
+          .delete()
+          .eq('game_player_id', input.gamePlayerId)
+          .eq('secondary_objective_id', input.secondaryObjectiveId)
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -1000,7 +1024,7 @@ export function useUndrawSecondary(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't undo that draw. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
@@ -1080,27 +1104,28 @@ function patchSecondaryTick(
 export function useUpsertPrimaryObjectiveTick(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       gamePlayerId: string
       battleRound: number
       missionObjectiveLineId: string
       count: number
       userId: string
-    }) => {
-      const { error } = await supabase.from('primary_objective_ticks').upsert(
-        {
-          game_id: gameId,
-          game_player_id: input.gamePlayerId,
-          battle_round: input.battleRound,
-          mission_objective_line_id: input.missionObjectiveLineId,
-          count: input.count,
-          updated_by: input.userId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'game_player_id,battle_round,mission_objective_line_id' },
-      )
-      if (error) throw error
-    },
+    }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('primary_objective_ticks').upsert(
+          {
+            game_id: gameId,
+            game_player_id: input.gamePlayerId,
+            battle_round: input.battleRound,
+            mission_objective_line_id: input.missionObjectiveLineId,
+            count: input.count,
+            updated_by: input.userId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'game_player_id,battle_round,mission_objective_line_id' },
+        )
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -1111,7 +1136,7 @@ export function useUpsertPrimaryObjectiveTick(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save that. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
@@ -1119,27 +1144,28 @@ export function useUpsertPrimaryObjectiveTick(gameId: string) {
 export function useUpsertSecondaryObjectiveTick(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       gamePlayerId: string
       battleRound: number
       secondaryObjectiveLineId: string
       count: number
       userId: string
-    }) => {
-      const { error } = await supabase.from('secondary_objective_ticks').upsert(
-        {
-          game_id: gameId,
-          game_player_id: input.gamePlayerId,
-          battle_round: input.battleRound,
-          secondary_objective_line_id: input.secondaryObjectiveLineId,
-          count: input.count,
-          updated_by: input.userId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'game_player_id,battle_round,secondary_objective_line_id' },
-      )
-      if (error) throw error
-    },
+    }) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('secondary_objective_ticks').upsert(
+          {
+            game_id: gameId,
+            game_player_id: input.gamePlayerId,
+            battle_round: input.battleRound,
+            secondary_objective_line_id: input.secondaryObjectiveLineId,
+            count: input.count,
+            updated_by: input.userId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'game_player_id,battle_round,secondary_objective_line_id' },
+        )
+        if (error) throw error
+      }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
       const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
@@ -1150,37 +1176,76 @@ export function useUpsertSecondaryObjectiveTick(gameId: string) {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't save that. Check your connection and try again.")
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
+/**
+ * Declaring (or changing) the result. A game that already ended keeps its original ended_at, so
+ * correcting the result later doesn't move the game to the top of everyone's history. Patched
+ * into the cache optimistically too, which is what lets "Change result" sit in an edit-mode draft
+ * (see gameDraft.ts) alongside every other correction until Save.
+ */
 export function useFinishGame(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (outcome: 'seat_1' | 'seat_2' | 'draw') => {
-      const { error } = await supabase
-        .from('games')
-        .update({ status: 'complete', ended_at: new Date().toISOString(), outcome })
-        .eq('id', gameId)
-      if (error) throw error
+    mutationFn: (outcome: 'seat_1' | 'seat_2' | 'draw') => {
+      const endedAt =
+        queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))?.game.ended_at ?? new Date().toISOString()
+      return writeOrQueue(gameId, async () => {
+        const { error } = await supabase
+          .from('games')
+          .update({ status: 'complete', ended_at: endedAt, outcome })
+          .eq('id', gameId)
+        if (error) throw error
+      })
     },
-    onError: () => showToast("Couldn't save the result. Try again."),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onMutate: async (outcome) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) {
+        queryClient.setQueryData(
+          gameKeys.detail(gameId),
+          patchGame(previous, { status: 'complete', outcome, ended_at: previous.game.ended_at ?? new Date().toISOString() }),
+        )
+      }
+      return { previous }
+    },
+    onError: (_error, _outcome, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't save the result. Try again.")
+    },
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 
 export function useAbandonGame(gameId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from('games')
-        .update({ status: 'abandoned', ended_at: new Date().toISOString() })
-        .eq('id', gameId)
-      if (error) throw error
+    mutationFn: () => {
+      const endedAt =
+        queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))?.game.ended_at ?? new Date().toISOString()
+      return writeOrQueue(gameId, async () => {
+        const { error } = await supabase.from('games').update({ status: 'abandoned', ended_at: endedAt }).eq('id', gameId)
+        if (error) throw error
+      })
     },
-    onError: () => showToast("Couldn't end the game. Try again."),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) {
+        queryClient.setQueryData(
+          gameKeys.detail(gameId),
+          patchGame(previous, { status: 'abandoned', ended_at: previous.game.ended_at ?? new Date().toISOString() }),
+        )
+      }
+      return { previous }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast("Couldn't end the game. Try again.")
+    },
+    onSettled: () => settleGame(queryClient, gameId),
   })
 }
 

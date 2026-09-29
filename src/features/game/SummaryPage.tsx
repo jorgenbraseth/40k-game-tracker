@@ -224,13 +224,15 @@ export function SummaryPage() {
 
       {me && (
         <>
-          <Link to={`/game/${game.id}`}>
+          {/* Opens the scoreboard straight into edit mode -- this button already is the explicit
+              "I want to change something" step (see gameDraft.ts). */}
+          <Link to={`/game/${game.id}`} state={{ edit: true }}>
             <Button variant="secondary" fullWidth>
               Edit scores / result
             </Button>
           </Link>
           <p className="-mt-3 text-center text-xs text-paper/40">
-            Nothing here is final -- go back any time to fix a score, a secondary, or the declared result.
+            Nothing here is final -- fix a score, a secondary or the declared result any time, then tap Save.
           </p>
         </>
       )}

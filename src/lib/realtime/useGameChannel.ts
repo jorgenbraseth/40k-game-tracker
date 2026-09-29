@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { isDrafting } from '@/lib/queries/gameDraft'
 import { gameKeys } from '@/lib/queries/games'
 import { supabase } from '@/lib/supabase'
 
@@ -34,7 +35,11 @@ export function useGameChannel(gameId: string | undefined, me: PresenceMeta | nu
   useEffect(() => {
     if (!gameId || !me) return
 
-    const invalidate = () => queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) })
+    // Skipped while this viewer has an edit-mode draft open -- refetching would wipe their unsaved
+    // edits (see gameDraft.ts). Save/Cancel refetches afterwards anyway.
+    const invalidate = () => {
+      if (!isDrafting(gameId)) queryClient.invalidateQueries({ queryKey: gameKeys.detail(gameId) })
+    }
 
     const channel = supabase
       .channel(`game:${gameId}`)

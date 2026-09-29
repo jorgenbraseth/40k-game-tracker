@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useState } from 'react'
+import { useBlocker, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { Sheet } from '@/components/Sheet'
@@ -8,6 +9,14 @@ import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { RoundNav } from '@/components/RoundNav'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { clsx } from '@/lib/clsx'
+import {
+  commitDraft,
+  discardDraft,
+  hasPendingChanges,
+  isDrafting,
+  startDraft,
+  useGameDraft,
+} from '@/lib/queries/gameDraft'
 import type { GameDetail } from '@/lib/queries/games'
 import {
   playerLabel,
@@ -25,6 +34,7 @@ import {
   useUpdatePlayerSetup,
 } from '@/lib/queries/games'
 import { useLadders } from '@/lib/queries/ladders'
+import { showToast } from '@/lib/toast'
 import {
   useFactions,
   useForceDispositions,
@@ -83,6 +93,72 @@ export function Scoreboard({
   const [configSheetOpen, setConfigSheetOpen] = useState(false)
 
   useWakeLock(detail.game.status === 'active')
+
+  // Edit mode for a finished game (see gameDraft.ts): read-only until Edit is tapped, then every
+  // change is held back until Save (or dropped by Cancel). A game still being played is always
+  // editable live, no Edit step -- that's the whole point of the live scoreboard.
+  const gameId = detail.game.id
+  const queryClient = useQueryClient()
+  const location = useLocation()
+  const { drafting, pendingChanges } = useGameDraft(gameId)
+  const [saving, setSaving] = useState(false)
+  const [discardSheetOpen, setDiscardSheetOpen] = useState(false)
+  const isFinished = detail.game.status === 'complete' || detail.game.status === 'abandoned'
+
+  const refreshAfterEdit = () => {
+    queryClient.invalidateQueries({ queryKey: ['game', gameId] })
+    queryClient.invalidateQueries({ queryKey: ['history'] })
+    queryClient.invalidateQueries({ queryKey: ['ladder-standings'] })
+    queryClient.invalidateQueries({ queryKey: ['ladder-games'] })
+  }
+  const saveEdits = async () => {
+    setSaving(true)
+    try {
+      await commitDraft(gameId)
+      refreshAfterEdit()
+    } catch {
+      showToast("Couldn't save all your changes. Check your connection and try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+  const discardEdits = () => {
+    discardDraft(gameId)
+    setDiscardSheetOpen(false)
+    queryClient.invalidateQueries({ queryKey: ['game', gameId] })
+  }
+
+  // "Edit scores / result" on the summary lands here already in edit mode. The flag is cleared
+  // from history state straight away so a reload after saving doesn't reopen the editor.
+  const startEditingFromLink = Boolean((location.state as { edit?: boolean } | null)?.edit)
+  useEffect(() => {
+    if (!startEditingFromLink) return
+    if (isParticipant && isFinished) startDraft(gameId)
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+  }, [startEditingFromLink, isParticipant, isFinished, gameId, navigate, location.pathname, location.search])
+
+  // Leaving the game drops an open draft -- its queued writes must never fire later from some
+  // other screen. Unsaved changes get a confirm first (in-app navigation below, a reload/tab close
+  // via beforeunload); changing rounds is just a ?round= change on the same page, so it's allowed.
+  useEffect(
+    () => () => {
+      if (isDrafting(gameId)) {
+        discardDraft(gameId)
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] })
+      }
+    },
+    [gameId, queryClient],
+  )
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasPendingChanges(gameId) && currentLocation.pathname !== nextLocation.pathname,
+  )
+  useEffect(() => {
+    if (pendingChanges === 0) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [pendingChanges])
 
   // Publishes the sticky round header's height as --round-header-height on the Scoreboard's root,
   // so each player card's name bar can pin itself flush underneath it. A callback ref rather than
@@ -144,6 +220,7 @@ export function Scoreboard({
   }
 
   const isActive = detail.game.status === 'active'
+  const canEdit = isParticipant && (isActive || drafting)
 
   // Once both players have settled the "who takes the first turn" roll-off,
   // show the one who went first -- "top of round" -- first on screen.
@@ -193,7 +270,7 @@ export function Scoreboard({
   const seatTint = (seat: number) => clsx(seatBg(seat), seat === 1 ? 'border-blood/60' : 'border-paper/20')
 
   const canEditSetup = (entry: GameDetail['players'][number]) =>
-    isParticipant && (entry.player.user_id === user.id || !entry.player.user_id)
+    canEdit && (entry.player.user_id === user.id || !entry.player.user_id)
 
   const suggestedOutcome: 'seat_1' | 'seat_2' | 'draw' = (() => {
     if (!p1 || !p2) return 'draw'
@@ -202,17 +279,42 @@ export function Scoreboard({
     return 'draw'
   })()
 
+  // Inside an edit-mode draft the new result is just one more unsaved change -- stay on the
+  // scoreboard so it can be saved with the rest.
   const endGame = async (outcome: 'seat_1' | 'seat_2' | 'draw') => {
     await finishGame.mutateAsync(outcome)
     setEndSheetOpen(false)
-    navigate(`/game/${detail.game.id}/summary`)
+    if (!drafting) navigate(`/game/${detail.game.id}/summary`)
   }
 
   const abandon = async () => {
     await abandonGame.mutateAsync()
     setEndSheetOpen(false)
-    navigate(`/game/${detail.game.id}/summary`)
+    if (!drafting) navigate(`/game/${detail.game.id}/summary`)
   }
+
+  const editBar = drafting ? (
+    <div className="flex items-center gap-2 rounded-xl border border-gold/40 bg-gold/10 px-3 py-2">
+      <p className="min-w-0 flex-1 text-sm text-paper/80">
+        <span className="font-medium text-gold">Editing</span>
+        <span className="text-paper/50">
+          {' '}
+          · {pendingChanges === 0 ? 'no changes yet' : `${pendingChanges} unsaved change${pendingChanges === 1 ? '' : 's'}`}
+        </span>
+      </p>
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={saving}
+        onClick={() => (pendingChanges > 0 ? setDiscardSheetOpen(true) : discardEdits())}
+      >
+        Cancel
+      </Button>
+      <Button type="button" disabled={saving || pendingChanges === 0} onClick={saveEdits}>
+        {saving ? 'Saving…' : 'Save'}
+      </Button>
+    </div>
+  ) : null
 
   return (
     <div className="flex flex-col gap-4">
@@ -226,11 +328,20 @@ export function Scoreboard({
             </p>
           )}
           {!isParticipant && <p className="text-xs text-paper/40">Spectating -- nothing here is yours to change.</p>}
-          {!isActive && (
-            <p className="text-xs text-paper/40">Scores stay editable -- fix anything, any time.</p>
-          )}
         </div>
       )}
+
+      {!isActive && isParticipant && !drafting && (
+        <div className="flex items-center gap-3 rounded-xl border border-veil-strong bg-veil px-3 py-2">
+          <p className="min-w-0 flex-1 text-xs text-paper/50">
+            This game is finished. Tap Edit to fix a score, the setup or the result.
+          </p>
+          <Button type="button" variant="secondary" onClick={() => startDraft(gameId)}>
+            Edit
+          </Button>
+        </div>
+      )}
+      {editBar}
 
       {/* Running totals and the round control, pinned under the app header -- always visible
           without scrolling, per the design brief, and doubling as a colour key for the cards below.
@@ -318,7 +429,7 @@ export function Scoreboard({
                 cpSpent={getCommandPoints(entry.player.id)?.cp_spent ?? 0}
                 remaining={remainingCp(detail.commandPoints, entry.player.id)}
                 userId={user.id}
-                editable={isParticipant}
+                editable={canEdit}
               />
             )}
 
@@ -333,11 +444,11 @@ export function Scoreboard({
               lines={linesByPlayerId.get(entry.player.id) ?? []}
               ticks={detail.primaryTicks}
               userId={user.id}
-              editable={isParticipant}
+              editable={canEdit}
             />
 
             {viewRound === endOfGameRound ? (
-              isParticipant && (entry.player.user_id === user.id || !entry.player.user_id) ? (
+              canEdit && (entry.player.user_id === user.id || !entry.player.user_id) ? (
                 <label className="flex w-full items-center justify-between gap-2 px-3 text-sm">
                   <span className="text-paper/80">
                     Painted <span className="text-paper/40">(+10VP)</span>
@@ -373,7 +484,7 @@ export function Scoreboard({
                 lines={secondaryLines.data ?? []}
                 ticks={detail.secondaryTicks}
                 userId={user.id}
-                editable={isParticipant}
+                editable={canEdit}
                 playerMode={entry.player.secondary_mode}
               />
             )}
@@ -381,11 +492,13 @@ export function Scoreboard({
         ))}
       </div>
 
-      {isParticipant && (
+      {canEdit && (
         <Button variant="danger" onClick={() => setEndSheetOpen(true)}>
           {isActive ? 'End game' : 'Change result'}
         </Button>
       )}
+
+      {editBar}
 
       {me && opponent && (
         <button
@@ -423,7 +536,9 @@ export function Scoreboard({
             Abandon game (no result / opponent had to leave)
           </Button>
           <p className="text-center text-xs text-paper/40">
-            You can come back and change this later -- nothing here is final.
+            {drafting
+              ? 'Saved together with your other changes when you tap Save.'
+              : 'You can come back and change this later -- nothing here is final.'}
           </p>
           <button
             type="button"
@@ -439,11 +554,30 @@ export function Scoreboard({
       </Sheet>
 
       <ConfirmSheet
+        open={discardSheetOpen}
+        onClose={() => setDiscardSheetOpen(false)}
+        onConfirm={discardEdits}
+        title="Discard your changes?"
+        message="Nothing you changed since tapping Edit will be saved."
+        confirmLabel="Discard changes"
+      />
+
+      <ConfirmSheet
+        open={blocker.state === 'blocked'}
+        onClose={() => blocker.reset?.()}
+        onConfirm={() => blocker.proceed?.()}
+        title="Leave without saving?"
+        message="You have unsaved changes to this game. Leaving now discards them."
+        confirmLabel="Discard and leave"
+      />
+
+      <ConfirmSheet
         open={cancelSheetOpen}
         onClose={() => setCancelSheetOpen(false)}
         onConfirm={async () => {
           try {
             await deleteGame.mutateAsync(detail.game.id)
+            discardDraft(gameId)
             navigate('/home')
           } catch {
             // error already surfaced via toast in useDeleteGame; keep the sheet open to retry
@@ -481,7 +615,7 @@ export function Scoreboard({
           <GameConfigPicker
             me={me}
             opponent={opponent}
-            disabled={!isParticipant}
+            disabled={!canEdit}
             layoutMission={p1Mission.data ?? p2Mission.data}
             layoutVariant={detail.game.layout_variant}
             onSetLayoutVariant={(variant) => setLayoutVariant.mutate(variant)}

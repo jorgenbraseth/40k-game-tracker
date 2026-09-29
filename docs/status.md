@@ -36,6 +36,7 @@ working in production, both on the web and in the Android app.
   - [Command Points](#command-points)
   - [`game_totals` and the fan-out bug](#game_totals-and-the-fan-out-bug)
 - [Post-game summary](#post-game-summary)
+- [Editing a finished game](#editing-a-finished-game)
 - [Spectating](#spectating)
 - [Contesting and invalidating ladder games](#contesting-and-invalidating-ladder-games)
 - [History and player stats](#history-and-player-stats)
@@ -722,6 +723,48 @@ just the score.
   same 3 image paths for a shared Force Disposition pairing -- the same
   reasoning `GameConfigPicker`'s `layoutMission` prop relies on). No new
   query needed; it's already-fetched reference data.
+
+## Editing a finished game
+
+A finished (complete or abandoned) game opens read-only on the
+Scoreboard; a player taps **Edit**, changes things, then **Save** or
+**Cancel**. Live games are unaffected -- every tap still saves straight
+away.
+
+- **How it works: a client-side draft** (`src/lib/queries/gameDraft.ts`).
+  Every game mutation hook in `games.ts` already patched the query cache
+  optimistically before writing. While a draft is open, the hooks still
+  patch the cache but pass their database write to `writeOrQueue`, which
+  queues it instead of running it. The screen shows the edited game;
+  nothing has reached the server.
+- **Save** replays the queued writes in the order they were made, then
+  refetches the game, history and ladder standings. If a write fails, it
+  and everything after it stay queued and edit mode stays open, so Save
+  can just be retried.
+- **Cancel** drops the queue and refetches, discarding the optimistic
+  edits (with a confirm if there were any).
+- **No refetch over a draft.** While drafting, the hooks' post-write
+  invalidation (`settleGame`), the realtime channel's invalidation, and
+  `useGame`'s focus/reconnect/stale refetches are all switched off.
+- **Leaving.** In-app navigation away with unsaved changes asks first
+  (`useBlocker`; round changes are only a `?round=` change, so they're
+  allowed). Reload/tab close gets the browser's own `beforeunload`
+  prompt. Unmounting the Scoreboard discards any open draft, so queued
+  writes never fire from another screen.
+- **Entry points.** The Edit button on the Scoreboard, or "Edit scores /
+  result" on `SummaryPage`, which links with `state: { edit: true }` and
+  lands already in edit mode. Edit mode is local, not a URL param -- it's
+  unsubmitted draft input, which `CLAUDE.md` excludes from URL state.
+- **Change result** is part of the draft too. `useFinishGame` /
+  `useAbandonGame` now patch the cache optimistically and keep a game's
+  existing `ended_at`, so correcting a result later doesn't move the game
+  to the top of History.
+- **Caveats.** The other player's edits made while you're drafting
+  aren't shown until you Save or Cancel, and Save writes your values over
+  theirs (the same last-write-wins as live editing). This is a UI guard,
+  not a server-side lock -- RLS still lets a participant write to a
+  finished game directly, as before. Cancelling the whole game (delete)
+  still happens immediately, behind its own confirm.
 
 ## Spectating
 
