@@ -299,7 +299,7 @@ export function Scoreboard({
         <span className="font-medium text-gold">Editing</span>
         <span className="text-paper/50">
           {' '}
-          · {pendingChanges === 0 ? 'no changes yet' : `${pendingChanges} unsaved change${pendingChanges === 1 ? '' : 's'}`}
+          · {pendingChanges === 0 ? 'no changes yet' : 'unsaved changes'}
         </span>
       </p>
       <Button
