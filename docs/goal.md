@@ -26,7 +26,7 @@ There is no separate "solo mode" -- every game works the same way:
 - [Playing: scoring round by round](#playing-scoring-round-by-round)
 - [Spectating](#spectating)
 - [Finishing, ending early, or cancelling a game](#finishing-ending-early-or-cancelling-a-game)
-- [Verifying and locking a result](#verifying-and-locking-a-result)
+- [Contesting a ladder result](#contesting-a-ladder-result)
 - [History and stats](#history-and-stats)
 - [Ladders](#ladders)
 - [Phone-first, installable, and native apps](#phone-first-installable-and-native-apps)
@@ -46,9 +46,14 @@ round -- not to police how you got there.
   declared winner -- stays editable for the life of the game, including
   after it's marked complete or abandoned. Fat-fingered a tap, picked the
   wrong secondary, realized your army name was wrong three rounds in? Fix
-  it in place, no reset required. (The one exception is a game both
-  players have verified -- see [Verifying and locking a
-  result](#verifying-and-locking-a-result).)
+  it in place, no reset required. Nothing ever locks -- but a finished
+  game opens **read-only** so just looking at it can't change it (Edit,
+  then Save -- see [Finishing, ending early, or cancelling a
+  game](#finishing-ending-early-or-cancelling-a-game)).
+- **Results are trusted by default.** Nobody has to confirm a result for
+  it to count. If a ladder result is wrong, a player
+  [contests it](#contesting-a-ladder-result) and the ladder's admin
+  decides.
 - **Not a rules engine.** Nothing is auto-granted or auto-played for you
   (e.g. the "+1 CP per round" isn't automatic).
 - **It understands the ruleset.** The app knows the actual current
@@ -361,6 +366,16 @@ The round-by-round table's combined per-round number can be expanded
 player scored that round and for how much -- collapsed by default, same
 as every other optional detail panel in this app.
 
+**Editing a finished game.** Once a game is complete or abandoned,
+opening it shows everything read-only. To change anything -- a score, a
+secondary, someone's setup, the declared result -- a player taps
+**Edit**, makes their changes, then taps **Save**. **Cancel** throws the
+changes away. Until Save, nothing reaches the other player or the
+standings. Leaving the game with unsaved changes asks first. "Edit scores
+/ result" on the game's summary opens straight into edit mode. A game
+still being played has no Edit step: the live scoreboard saves every tap
+as it happens.
+
 **Ending early.** A game can be ended early -- conceded, or the opponent
 had to leave -- from any round, not just the last one.
 
@@ -371,34 +386,39 @@ shouldn't exist at all (created by mistake, a test, wrong code entered).
 Gated behind an explicit confirmation so a stray tap can't wipe a real
 game.
 
-## Verifying and locking a result
+## Contesting a ladder result
 
-**Verifying.** When a game finishes, each seat can confirm the result is
-correct with a one-tap **"Verify this result"**, offered wherever that
-game shows up for them (its own summary, their history list). "Each
-seat" means its own real occupant, or -- for a solo-entered seat nobody's
-joined yet -- the ladder member it was attributed to.
+A recorded result **counts as-is** -- there's no "verify" step for anyone
+to forget, and no game looks provisional just because nobody got round to
+confirming it. Contesting is the exception path for a result that's
+actually wrong.
 
-A single seat's confirmation is **informational, not a gate**: standings
-and stats already count the game either way. If a score's wrong before
-both sides have confirmed, it's fixed the same way every other value in
-this app is, by editing it directly.
+**Who can contest.** Only a player in a **ladder game** -- someone holding
+one of its seats, either their own or a solo-entered seat attributed to
+them. A game that isn't on any ladder has nothing to contest: its players
+just fix it directly, like every other value.
 
-**Locking.** Once **both** seats have confirmed, the game locks: neither
-player can unilaterally edit or delete it any more. This is a real trust
-boundary, enforced server-side, not just hidden buttons.
+**When.** At any point -- during the game or any time after it -- from
+the game's summary. The player says what's wrong in a short comment.
 
-**Unlocking** needs the other player's sign-off:
+**What happens next.**
 
-1. One player requests permission to edit.
-2. The other approves or rejects it.
-3. Approving just clears both confirmations, dropping the game back to
-   its normal, editable state -- which it leaves again the next time both
-   sides re-confirm.
+- The game keeps counting while it's contested; a contest is a question,
+  not a verdict.
+- Both players see that it's contested, by whom, and why.
+- The **ladder's admin** (its creator) sees every open contest on their
+  ladder, flagged on the Ladders page, and either:
+  - **Dismisses** it -- the result stands (optionally with a note back to
+    the players), or
+  - **Invalidates** the game, with a required comment on why. It drops out
+    of that ladder's standings, but stays in both players' history and in
+    the ladder's game log, marked invalidated with the admin's comment.
+- The player who contested can **withdraw** it themselves while it's
+  still open.
+- An admin can **reinstate** an invalidated game if it was a mistake.
 
-If the other player won't respond, a creator of any ladder the game's
-tagged to can step in and approve the request themselves, as a
-dispute-resolution override.
+A game on several ladders is contested on all of them at once, but each
+ladder's admin decides for their own ladder only.
 
 ## History and stats
 
@@ -507,6 +527,12 @@ why TrueSkill/Massey-Colley weren't a fit).
 - Every game that went into its standings -- everyone's, not just yours
   -- collapsed until asked for, so a look at the numbers doesn't come
   with a wall of game rows by default.
+- Games the admin invalidated are still listed, struck through, with the
+  admin's comment -- they just don't count.
+- **For the admin only:** open contests on the ladder's games, with
+  Invalidate / Dismiss, and a "N contested" flag on the ladder row so
+  they're noticed without opening it. See [Contesting a ladder
+  result](#contesting-a-ladder-result).
 - History can also be filtered down to a single ladder's games.
 
 ## Phone-first, installable, and native apps

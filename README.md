@@ -23,8 +23,12 @@ history, stats and optional ranked ladders.
   conditions, with the 15VP-per-round / 45VP-per-game caps applied. Also
   covers Tactical/Fixed secondaries, Command Points, the End of Game step
   and the painted bonus.
-- **Always editable.** Every value can be fixed at any time, until both
-  players verify the result and lock it.
+- **Always editable, trusted by default.** Every value can be fixed at
+  any time. A finished game opens read-only until you tap Edit, and
+  changes only go through when you tap Save. A result counts without
+  anyone confirming it. A player
+  can contest a wrong ladder result; the ladder's admin can then
+  invalidate it.
 - **Live sync and spectating.** Scores update for everyone watching.
 - **History, stats and ladders.** Win/loss by faction, Force Disposition
   and opponent. Ladders are invite-only and ranked by Elo or Glicko-2.

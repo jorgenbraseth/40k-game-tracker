@@ -4,23 +4,30 @@ import { Button } from '@/components/Button'
 import { ConfirmSheet } from '@/components/ConfirmSheet'
 import { EmptyState, ErrorBanner, Spinner } from '@/components/Feedback'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
+import { ReasonSheet } from '@/components/ReasonSheet'
 import { Select } from '@/components/Select'
 import { Sheet } from '@/components/Sheet'
 import { TextField } from '@/components/TextField'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { clsx } from '@/lib/clsx'
 import {
   RANKING_TYPE_LABELS,
   useArchiveLadder,
   useCreateLadder,
   useDeleteLadder,
   useJoinLadderByCode,
+  useDismissGameContest,
+  useInvalidateLadderGame,
+  useLadderContests,
   useLadderGames,
   useLadderInviteCode,
   useLadders,
   useLadderStandings,
   useLeaveLadder,
   useRegenerateLadderInviteCode,
+  useReinstateLadderGame,
   useSetLadderRankingType,
+  type LadderContestRow,
   type LadderRankingType,
   type LadderSummary,
 } from '@/lib/queries/ladders'
@@ -108,10 +115,11 @@ function StandingsTable({ ladderId, rankingType }: { ladderId: string; rankingTy
  * `/players/:userId`), and nesting a link inside a link isn't valid HTML, so `stopPropagation` on
  * those (see PlayerNameLink) keeps the two clicks from fighting each other.
  */
-function GamesList({ ladderId }: { ladderId: string }) {
+function GamesList({ ladderId, isAdmin }: { ladderId: string; isAdmin: boolean }) {
   const [expanded, setExpanded] = useState(false)
   const navigate = useNavigate()
   const games = useLadderGames(expanded ? ladderId : undefined)
+  const reinstate = useReinstateLadderGame()
 
   return (
     <div className="mt-3 border-t border-veil-strong pt-3">
@@ -141,32 +149,133 @@ function GamesList({ ladderId }: { ladderId: string }) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') navigate(`/game/${g.gameId}/summary`)
                   }}
-                  className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm hover:bg-veil-strong"
+                  className="cursor-pointer rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm hover:bg-veil-strong"
                 >
-                  <span className="min-w-0 truncate">
-                    <PlayerNameLink
-                      userId={g.seat1.userId}
-                      name={g.seat1.displayName}
-                      avatarUrl={g.seat1.avatarUrl}
-                      className={g.outcome === 'seat_1' ? 'font-semibold text-paper' : 'text-paper/70'}
-                    />
-                    <span className="text-paper/40"> vs </span>
-                    <PlayerNameLink
-                      userId={g.seat2.userId}
-                      name={g.seat2.displayName}
-                      avatarUrl={g.seat2.avatarUrl}
-                      className={g.outcome === 'seat_2' ? 'font-semibold text-paper' : 'text-paper/70'}
-                    />
-                  </span>
-                  <span className="flex-shrink-0 text-xs text-paper/50">
-                    {g.seat1.vp}-{g.seat2.vp} · {new Date(g.endedAt).toLocaleDateString()}
-                  </span>
+                  <div
+                    className={clsx(
+                      'flex items-center justify-between gap-2',
+                      g.invalidation && 'line-through opacity-60',
+                    )}
+                  >
+                    <span className="min-w-0 truncate">
+                      <PlayerNameLink
+                        userId={g.seat1.userId}
+                        name={g.seat1.displayName}
+                        avatarUrl={g.seat1.avatarUrl}
+                        className={g.outcome === 'seat_1' ? 'font-semibold text-paper' : 'text-paper/70'}
+                      />
+                      <span className="text-paper/40"> vs </span>
+                      <PlayerNameLink
+                        userId={g.seat2.userId}
+                        name={g.seat2.displayName}
+                        avatarUrl={g.seat2.avatarUrl}
+                        className={g.outcome === 'seat_2' ? 'font-semibold text-paper' : 'text-paper/70'}
+                      />
+                    </span>
+                    <span className="flex-shrink-0 text-xs text-paper/50">
+                      {g.seat1.vp}-{g.seat2.vp} · {new Date(g.endedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {g.invalidation && (
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <p className="min-w-0 text-xs text-danger">Invalidated -- “{g.invalidation.reason}”</p>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          disabled={reinstate.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            reinstate.mutate({ gameId: g.gameId, ladderId })
+                          }}
+                          className="flex-shrink-0 text-xs text-paper/50 underline hover:text-paper disabled:opacity-50"
+                        >
+                          Reinstate
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The ladder admin's inbox: every open contest on this ladder's games (see
+ * 20260928000000_game_contests.sql). Only the admin ever sees this -- RLS returns no contests to
+ * anyone else. For each one the admin can dismiss it (the result stands, optional note) or
+ * invalidate the game (it drops out of this ladder's standings, with a required reason). Either
+ * way the players see the outcome on the game's summary.
+ */
+function ContestedGames({ ladderId, contests }: { ladderId: string; contests: LadderContestRow[] }) {
+  const navigate = useNavigate()
+  const dismiss = useDismissGameContest()
+  const invalidate = useInvalidateLadderGame()
+  const [dismissing, setDismissing] = useState<LadderContestRow | null>(null)
+  const [invalidating, setInvalidating] = useState<LadderContestRow | null>(null)
+
+  return (
+    <div className="mb-4 flex flex-col gap-2 rounded-xl border border-gold/30 bg-gold/10 p-3">
+      <p className="text-xs font-semibold tracking-wide text-gold uppercase">Contested games · {contests.length}</p>
+      <ul className="flex flex-col gap-2">
+        {contests.map((c) => (
+          <li key={c.contestId} className="rounded-lg border border-veil-strong bg-veil px-3 py-2 text-sm">
+            <button
+              type="button"
+              onClick={() => navigate(`/game/${c.gameId}/summary`)}
+              className="flex w-full items-center justify-between gap-2 text-left"
+            >
+              <span className="min-w-0 truncate text-paper">
+                {c.seat1.displayName} <span className="text-paper/40">vs</span> {c.seat2.displayName}
+              </span>
+              <span className="flex-shrink-0 text-xs text-paper/50">
+                {c.status === 'complete' || c.status === 'abandoned' ? `${c.seat1.vp}-${c.seat2.vp}` : 'In progress'}
+              </span>
+            </button>
+            <p className="mt-1 text-xs text-paper/70">
+              <span className="text-paper/50">{c.contestedByName}:</span> “{c.reason}”
+            </p>
+            <p className="mt-0.5 text-[11px] text-paper/40">{new Date(c.contestedAt).toLocaleDateString()}</p>
+            <div className="mt-2 flex gap-2">
+              <Button type="button" variant="danger" className="flex-1 text-sm" onClick={() => setInvalidating(c)}>
+                Invalidate
+              </Button>
+              <Button type="button" variant="secondary" className="flex-1 text-sm" onClick={() => setDismissing(c)}>
+                Dismiss
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <ReasonSheet
+        open={invalidating !== null}
+        onClose={() => setInvalidating(null)}
+        onSubmit={(reason) =>
+          invalidate.mutateAsync({ gameId: (invalidating as LadderContestRow).gameId, ladderId, reason })
+        }
+        title="Invalidate this game?"
+        message="It stays in both players' history but stops counting toward this ladder's standings. The players will see your comment. You can reinstate it later from the game list."
+        label="Why is it invalid?"
+        submitLabel="Invalidate"
+        danger
+        pending={invalidate.isPending}
+      />
+      <ReasonSheet
+        open={dismissing !== null}
+        onClose={() => setDismissing(null)}
+        onSubmit={(note) => dismiss.mutateAsync({ contestId: (dismissing as LadderContestRow).contestId, note })}
+        title="Dismiss this contest?"
+        message="The result stands and keeps counting toward the standings."
+        label="Note to the players (optional)"
+        submitLabel="Dismiss"
+        required={false}
+        pending={dismiss.isPending}
+      />
     </div>
   )
 }
@@ -181,6 +290,9 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
   const deleteLadder = useDeleteLadder()
   const isCreator = ladder.createdBy === userId
   const isArchived = Boolean(ladder.archivedAt)
+  // Fetched even while the row is collapsed, so the admin sees "N contested" without opening it.
+  const contests = useLadderContests(isCreator ? ladder.id : undefined)
+  const openContestCount = contests.data?.length ?? 0
 
   const onJoin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -204,6 +316,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
           <p className="text-xs text-paper/50">
             {ladder.memberCount} member{ladder.memberCount === 1 ? '' : 's'}
             {ladder.isMember ? ' · you’re in' : ''}
+            {openContestCount > 0 && <span className="text-gold"> · {openContestCount} contested</span>}
           </p>
         </button>
         {!isCreator && (
@@ -218,8 +331,11 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
       </div>
       {expanded && (
         <div className="mt-3 border-t border-veil-strong pt-3">
+          {isCreator && openContestCount > 0 && (
+            <ContestedGames ladderId={ladder.id} contests={contests.data ?? []} />
+          )}
           <StandingsTable ladderId={ladder.id} rankingType={ladder.rankingType} />
-          <GamesList ladderId={ladder.id} />
+          <GamesList ladderId={ladder.id} isAdmin={isCreator} />
           {(ladder.isMember || isCreator) && (
             <LadderSettings ladder={ladder} isCreator={isCreator} onRequestDelete={() => setDeleteSheetOpen(true)} />
           )}

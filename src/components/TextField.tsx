@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react'
+import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import { useId } from 'react'
 import { clsx } from '@/lib/clsx'
 
@@ -32,6 +32,33 @@ export function TextField({ label, error, id, className, ...props }: TextFieldPr
           {error}
         </p>
       )}
+    </div>
+  )
+}
+
+interface TextAreaFieldProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string
+}
+
+/** Multi-line sibling of TextField, same label/styling -- for free-text reasons and comments. */
+export function TextAreaField({ label, id, className, ...props }: TextAreaFieldProps) {
+  const generatedId = useId()
+  const fieldId = id ?? generatedId
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={fieldId} className="text-sm font-medium text-paper/80">
+        {label}
+      </label>
+      <textarea
+        id={fieldId}
+        rows={3}
+        className={clsx(
+          'min-h-11 rounded-lg border border-veil-strong bg-veil px-3 py-2.5 text-paper placeholder:text-paper/40 focus:border-gold focus:outline-none',
+          className,
+        )}
+        {...props}
+      />
     </div>
   )
 }

@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { isGameLocked, needsVerification } from '@/lib/queries/games'
 import { supabase } from '@/lib/supabase'
 
 export interface CompletedGameRow {
@@ -25,12 +24,6 @@ export interface CompletedGameRow {
   result: 'win' | 'loss' | 'draw' | 'abandoned'
   ladderId: string | null
   ladderName: string | null
-  /** True when this game was solo-entered on the viewer's behalf and the viewer hasn't confirmed
-   * it yet (issue #46) -- HistoryPage offers a "Verify" action right on the row for this. */
-  needsMyVerification: boolean
-  /** True when the *opponent's* seat is the one still awaiting their confirmation -- informational
-   * only, the viewer can't act on someone else's verification. */
-  opponentUnverified: boolean
 }
 
 export interface HistoryGameSeat {
@@ -47,7 +40,6 @@ export interface HistoryGameSeat {
   armyName: string | null
   missionName: string
   totalVp: number
-  needsVerification: boolean
 }
 
 export interface AllGamesRow {
@@ -61,11 +53,12 @@ export interface AllGamesRow {
   status: 'complete' | 'abandoned'
   ladderId: string | null
   ladderName: string | null
-  /** True once both seats have confirmed this result -- locked (issue #72), so History no longer
-   * offers Cancel for it; editing/deleting it needs the unlock-request flow on Scoreboard/Summary
-   * instead. Mirrors isGameLocked()/is_game_fully_verified() -- see those for what "confirmed"
-   * means for each kind of seat. */
-  isLocked: boolean
+  /** Someone holding a seat has an open contest on this game (20260928000000_game_contests.sql).
+   * RLS only shows contests to the game's players and the contested ladder's admin, so this is
+   * always false for anyone else. */
+  isContested: boolean
+  /** A ladder admin removed this game from at least one ladder's standings. */
+  isInvalidated: boolean
 }
 
 export const historyKeys = {
@@ -100,16 +93,14 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
 
   const completeGameIds = games.map((g) => g.id)
 
-  const [playersRes, totalsRes, gameLaddersRes, verificationsRes] = await Promise.all([
+  const [playersRes, totalsRes, gameLaddersRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', completeGameIds),
     supabase.from('game_totals').select('*').in('game_id', completeGameIds),
     supabase.from('game_ladders').select('game_id, ladder_id').in('game_id', completeGameIds),
-    supabase.from('game_player_verifications').select('*').in('game_id', completeGameIds),
   ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
   if (gameLaddersRes.error) throw gameLaddersRes.error
-  if (verificationsRes.error) throw verificationsRes.error
 
   // A game can be tagged to more than one ladder now (issue #75), but this row still only ever
   // shows one -- the filter/display here hasn't grown a multi-value UI yet, so this just takes the
@@ -216,10 +207,6 @@ export async function fetchCompletedGames(userId: string): Promise<CompletedGame
         const ladderId = ladderIdByGameId.get(game.id)
         return ladderId ? (ladderById.get(ladderId) ?? 'Unknown ladder') : null
       })(),
-      needsMyVerification: needsVerification({ player: me }, game.status, verificationsRes.data),
-      opponentUnverified: opponent
-        ? needsVerification({ player: opponent }, game.status, verificationsRes.data)
-        : false,
     })
   }
 
@@ -253,16 +240,20 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
 
   const gameIds = games.map((g) => g.id)
 
-  const [playersRes, totalsRes, gameLaddersRes, verificationsRes] = await Promise.all([
+  const [playersRes, totalsRes, gameLaddersRes, contestsRes, invalidationsRes] = await Promise.all([
     supabase.from('game_players').select('*').in('game_id', gameIds).order('seat'),
     supabase.from('game_totals').select('*').in('game_id', gameIds),
     supabase.from('game_ladders').select('game_id, ladder_id').in('game_id', gameIds),
-    supabase.from('game_player_verifications').select('*').in('game_id', gameIds),
+    supabase.from('game_contests').select('game_id').in('game_id', gameIds).eq('status', 'pending'),
+    supabase.from('ladder_game_invalidations').select('game_id').in('game_id', gameIds),
   ])
   if (playersRes.error) throw playersRes.error
   if (totalsRes.error) throw totalsRes.error
   if (gameLaddersRes.error) throw gameLaddersRes.error
-  if (verificationsRes.error) throw verificationsRes.error
+  if (contestsRes.error) throw contestsRes.error
+  if (invalidationsRes.error) throw invalidationsRes.error
+  const contestedGameIds = new Set(contestsRes.data.map((c) => c.game_id))
+  const invalidatedGameIds = new Set(invalidationsRes.data.map((i) => i.game_id))
 
   // Same "only the first tag per game" simplification as fetchCompletedGames -- see its own
   // comment for why (issue #75 lets a game carry more than one, but neither row shape has grown a
@@ -320,7 +311,7 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
     playersByGameId.set(p.game_id, list)
   }
 
-  const seatFor = (p: (typeof playersRes.data)[number], gameStatus: 'complete' | 'abandoned'): HistoryGameSeat => {
+  const seatFor = (p: (typeof playersRes.data)[number]): HistoryGameSeat => {
     const userId = p.user_id ?? p.represents_user_id
     return {
       gamePlayerId: p.id,
@@ -334,7 +325,6 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
       armyName: p.army_name,
       missionName: (p.mission_id && missionById.get(p.mission_id)) || 'Unknown mission',
       totalVp: totalByPlayerId.get(p.id) ?? 0,
-      needsVerification: needsVerification({ player: p }, gameStatus, verificationsRes.data),
     }
   }
 
@@ -348,8 +338,8 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
       gameId: game.id,
       endedAt: game.ended_at ?? game.created_at,
       pointsLimit: game.points_limit,
-      seat1: seatFor(p1, game.status as 'complete' | 'abandoned'),
-      seat2: seatFor(p2, game.status as 'complete' | 'abandoned'),
+      seat1: seatFor(p1),
+      seat2: seatFor(p2),
       outcome: game.outcome,
       status: game.status as 'complete' | 'abandoned',
       ladderId: ladderIdByGameId.get(game.id) ?? null,
@@ -357,7 +347,8 @@ export async function fetchAllCompletedGames(): Promise<AllGamesRow[]> {
         const ladderId = ladderIdByGameId.get(game.id)
         return ladderId ? (ladderById.get(ladderId) ?? 'Unknown ladder') : null
       })(),
-      isLocked: isGameLocked([{ player: p1 }, { player: p2 }], verificationsRes.data),
+      isContested: contestedGameIds.has(game.id),
+      isInvalidated: invalidatedGameIds.has(game.id),
     })
   }
 

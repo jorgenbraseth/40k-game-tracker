@@ -2,11 +2,11 @@ import { Fragment, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
-import { GameLockBanner } from '@/components/GameLockBanner'
+import { GameContestPanel } from '@/components/GameContestPanel'
 import { PlayerNameLink } from '@/components/PlayerNameLink'
 import { ResultIcon, type GameResultKind } from '@/components/ResultIcon'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { needsVerification, playerLabel, playerUserId, remainingCp, useGame, useVerifySeat } from '@/lib/queries/games'
+import { playerLabel, playerUserId, remainingCp, useGame } from '@/lib/queries/games'
 import { isSafeExternalUrl } from '@/lib/isSafeExternalUrl'
 import { useMission, useSecondaryObjectives } from '@/lib/queries/referenceData'
 
@@ -14,7 +14,6 @@ export function SummaryPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { data, isLoading, isError, refetch } = useGame(id)
-  const verifySeat = useVerifySeat(id ?? '')
   const [p1, p2] = data?.players ?? []
   const p1Mission = useMission(p1?.player.mission_id ?? undefined)
   const p2Mission = useMission(p2?.player.mission_id ?? undefined)
@@ -98,13 +97,10 @@ export function SummaryPage() {
         </div>
       )}
 
-      <GameLockBanner detail={data} userId={user?.id} />
+      <GameContestPanel detail={data} userId={user?.id} />
 
       <div className="grid grid-cols-2 gap-4">
         {players.map((entry) => {
-          const unverified = needsVerification(entry, game.status, data.verifications)
-          const iOwnThisSeat = unverified && user?.id === (entry.player.user_id ?? entry.player.represents_user_id)
-          const isRepresented = Boolean(entry.player.represents_user_id) && !entry.player.user_id
           return (
             <div key={entry.player.id} className="rounded-2xl border border-veil-strong bg-veil p-4 text-center">
               <p className="font-medium text-paper">
@@ -132,27 +128,6 @@ export function SummaryPage() {
                   {remainingCp(data.commandPoints, entry.player.id)} CP remaining
                 </p>
               )}
-              {unverified &&
-                (iOwnThisSeat ? (
-                  <div className="mt-3 flex flex-col gap-1.5">
-                    <Button
-                      variant="secondary"
-                      disabled={verifySeat.isPending}
-                      onClick={() => verifySeat.mutate({ gamePlayerId: entry.player.id, userId: user.id })}
-                    >
-                      {verifySeat.isPending ? 'Verifying…' : 'Verify this result'}
-                    </Button>
-                    <p className="text-[11px] text-paper/40">
-                      {isRepresented
-                        ? "Entered on your behalf -- doesn't look right? Ask them to fix it directly."
-                        : "Confirms this result is correct. Once both players confirm, it's locked."}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="mt-2 rounded-full bg-veil-strong px-2 py-0.5 text-[11px] font-medium text-paper/50">
-                    Unverified -- awaiting {playerLabel(entry, 'their')}'s confirmation
-                  </p>
-                ))}
             </div>
           )
         })}
@@ -249,13 +224,15 @@ export function SummaryPage() {
 
       {me && (
         <>
-          <Link to={`/game/${game.id}`}>
+          {/* Opens the scoreboard straight into edit mode -- this button already is the explicit
+              "I want to change something" step (see gameDraft.ts). */}
+          <Link to={`/game/${game.id}`} state={{ edit: true }}>
             <Button variant="secondary" fullWidth>
               Edit scores / result
             </Button>
           </Link>
           <p className="-mt-3 text-center text-xs text-paper/40">
-            Nothing here is final -- go back any time to fix a score, a secondary, or the declared result.
+            Nothing here is final -- fix a score, a secondary or the declared result any time, then tap Save.
           </p>
         </>
       )}
