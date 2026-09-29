@@ -81,7 +81,7 @@ export function WaitingRoom({
     : !bothFactionsSet
       ? 'Both players need to pick a faction'
       : !layoutChosen
-        ? 'Pick a terrain layout below'
+        ? 'Select a terrain layout'
         : !bothRolesAssigned
           ? 'Both players need to claim Attacker or Defender'
           : !bothTurnOrderSet
