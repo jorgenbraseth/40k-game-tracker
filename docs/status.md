@@ -261,11 +261,14 @@ for each existing profile:
 of `profiles_theme_check` to include `'necrons'`, with its own palette in
 `index.css` and crest (`logo-necrons.webp`) in `THEMES`.
 
-**Chaos Night** followed as a fifteenth
-(`20261002010000_profile_theme_chaosnight.sql`, same additive shape). Unlike
-the existing brass-accented Chaos/World Eaters themes, its highlight
-(`gold` role) is ember red too, so red dominates; `danger` shifts to a
-magenta crimson to stay distinguishable from the crimson `blood` fill.
+**Chaos Knight** followed as a fifteenth
+(`20261002010000_profile_theme_chaosnight.sql`, same additive shape --
+first added under the misspelled id `'chaosnight'`, then renamed to
+`'chaosknight'` by `20261002020000_rename_theme_chaosnight_to_chaosknight.sql`
+before any native build could ship with it). Unlike the existing
+brass-accented Chaos/World Eaters themes, its highlight (`gold` role) is
+ember red too, so red dominates; `danger` shifts to a magenta crimson to
+stay distinguishable from the crimson `blood` fill.
 
 This narrows and drops a column outright rather than
 expand-then-contract -- see the migration's own `-- breaking-change-ok:`

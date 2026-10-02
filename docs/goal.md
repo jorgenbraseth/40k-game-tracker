@@ -88,7 +88,7 @@ round -- not to police how you got there.
   - the original **grimdark** look (the app's original crest included), or
   - fourteen **faction** themes -- Votann, Tyranid, T'au, Orks, Chaos,
     Sororitas, Grey Knights, Mechanicus, Thousand Sons, Dark Angels, World
-    Eaters, Space Wolves, Necrons, Chaos Night -- each grounded in that faction's real palette
+    Eaters, Space Wolves, Necrons, Chaos Knight -- each grounded in that faction's real palette
     and iconography rather than a generic recolor.
 
   Picking a theme picks its **crest** too -- the header logo and the

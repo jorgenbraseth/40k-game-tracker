@@ -31,7 +31,7 @@ export type Theme =
   | 'worldeaters'
   | 'spacewolves'
   | 'necrons'
-  | 'chaosnight'
+  | 'chaosknight'
 export type ColorMode = 'light' | 'dark' | 'system'
 
 export interface Database {
