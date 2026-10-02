@@ -7,7 +7,7 @@
  * only the values behind them do. `grimdark` in `[data-mode='dark']` (the
  * original look) is the default and needs no [data-theme] selector; every
  * other theme x mode combination is picked by setting data-theme (which of
- * the 13 faction-paired looks) and data-mode ('dark' or 'light', resolved
+ * the 14 faction-paired looks) and data-mode ('dark' or 'light', resolved
  * from the user's light/dark/system preference -- see ThemeSync) on <html>.
  * Every theme ships both a dark and a light palette, so picking a theme and
  * picking a mode are two fully independent choices.
@@ -76,7 +76,7 @@
 }
 
 /* Native browser chrome (scrollbars, form controls) follows the resolved mode, independent of
-   which of the 13 themes is picked -- both dark-mode and light-mode themes want the matching
+   which of the 14 themes is picked -- both dark-mode and light-mode themes want the matching
    native rendering, not whatever their color-scheme happened to be as a single-mode theme before
    dark/light became a separate choice. */
 [data-mode='dark'] {
@@ -480,6 +480,37 @@
   --color-danger: #a3321f;
   --color-danger-dark: #782517;
   --color-success: #2f7a5c;
+}
+
+/* Necrons */
+[data-theme='necrons'][data-mode='dark'] {
+  --color-ink: #0a0f0c;
+  --color-paper: #e4ece6;
+  --color-blood: #1d7339;
+  --color-blood-dark: #13512a;
+  --color-gold: #6fe04d;
+  --color-steel: #4e5a54;
+  --color-veil: #111915;
+  --color-veil-strong: #1a241f;
+  --color-veil-loud: #26332c;
+  --color-danger: #a3321f;
+  --color-danger-dark: #782517;
+  --color-success: #4fd1b0;
+}
+
+[data-theme='necrons'][data-mode='light'] {
+  --color-ink: #eef2ee;
+  --color-paper: #16231b;
+  --color-blood: #1d7339;
+  --color-blood-dark: #13512a;
+  --color-gold: #2f6e18;
+  --color-steel: #4e5a54;
+  --color-veil: #e2e9e3;
+  --color-veil-strong: #d3ddd5;
+  --color-veil-loud: #bccabf;
+  --color-danger: #a3321f;
+  --color-danger-dark: #782517;
+  --color-success: #16735f;
 }
 html,
 body,
