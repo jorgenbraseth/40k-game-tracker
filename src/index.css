@@ -7,7 +7,7 @@
  * only the values behind them do. `grimdark` in `[data-mode='dark']` (the
  * original look) is the default and needs no [data-theme] selector; every
  * other theme x mode combination is picked by setting data-theme (which of
- * the 14 faction-paired looks) and data-mode ('dark' or 'light', resolved
+ * the 15 faction-paired looks) and data-mode ('dark' or 'light', resolved
  * from the user's light/dark/system preference -- see ThemeSync) on <html>.
  * Every theme ships both a dark and a light palette, so picking a theme and
  * picking a mode are two fully independent choices.
@@ -76,7 +76,7 @@
 }
 
 /* Native browser chrome (scrollbars, form controls) follows the resolved mode, independent of
-   which of the 14 themes is picked -- both dark-mode and light-mode themes want the matching
+   which of the 15 themes is picked -- both dark-mode and light-mode themes want the matching
    native rendering, not whatever their color-scheme happened to be as a single-mode theme before
    dark/light became a separate choice. */
 [data-mode='dark'] {
@@ -511,6 +511,39 @@
   --color-danger: #a3321f;
   --color-danger-dark: #782517;
   --color-success: #16735f;
+}
+
+/* Chaos Night -- red is the accent everywhere: crimson fills, ember-red highlights (gold role),
+   red-tinted blacks. danger shifts toward a magenta crimson so destructive actions still read
+   as distinct from the primary blood fill. */
+[data-theme='chaosnight'][data-mode='dark'] {
+  --color-ink: #0c0505;
+  --color-paper: #f4e4e0;
+  --color-blood: #c8161d;
+  --color-blood-dark: #8c0f14;
+  --color-gold: #ff4d3d;
+  --color-steel: #4a3b3a;
+  --color-veil: #170a0a;
+  --color-veil-strong: #251010;
+  --color-veil-loud: #3a1818;
+  --color-danger: #8f1d4a;
+  --color-danger-dark: #6a1537;
+  --color-success: #3fb46a;
+}
+
+[data-theme='chaosnight'][data-mode='light'] {
+  --color-ink: #f6eeec;
+  --color-paper: #2a0d0d;
+  --color-blood: #c8161d;
+  --color-blood-dark: #8c0f14;
+  --color-gold: #b0141b;
+  --color-steel: #4a3b3a;
+  --color-veil: #f0e0dd;
+  --color-veil-strong: #e6cdc8;
+  --color-veil-loud: #d8b3ac;
+  --color-danger: #8f1d4a;
+  --color-danger-dark: #6a1537;
+  --color-success: #2a7a45;
 }
 html,
 body,
