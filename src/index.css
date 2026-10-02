@@ -513,10 +513,10 @@
   --color-success: #16735f;
 }
 
-/* Chaos Night -- red is the accent everywhere: crimson fills, ember-red highlights (gold role),
+/* Chaos Knight -- red is the accent everywhere: crimson fills, ember-red highlights (gold role),
    red-tinted blacks. danger shifts toward a magenta crimson so destructive actions still read
    as distinct from the primary blood fill. */
-[data-theme='chaosnight'][data-mode='dark'] {
+[data-theme='chaosknight'][data-mode='dark'] {
   --color-ink: #0c0505;
   --color-paper: #f4e4e0;
   --color-blood: #c8161d;
@@ -531,7 +531,7 @@
   --color-success: #3fb46a;
 }
 
-[data-theme='chaosnight'][data-mode='light'] {
+[data-theme='chaosknight'][data-mode='light'] {
   --color-ink: #f6eeec;
   --color-paper: #2a0d0d;
   --color-blood: #c8161d;
