@@ -256,6 +256,11 @@ for each existing profile:
    `'sororitas'`, `'greyknights'`, `'mechanicus'`, `'thousandsons'`,
    `'darkangels'`, `'worldeaters'`, `'spacewolves'`.
 
+**Necrons** was added afterwards as a fourteenth theme
+(`20261002000000_profile_theme_necrons.sql`) -- a purely additive widening
+of `profiles_theme_check` to include `'necrons'`, with its own palette in
+`index.css` and crest (`logo-necrons.webp`) in `THEMES`.
+
 This narrows and drops a column outright rather than
 expand-then-contract -- see the migration's own `-- breaking-change-ok:`
 comment: no native app has a real store release yet, only
@@ -264,7 +269,7 @@ the old two-column shape.
 
 **`src/lib/theme.ts`'s `THEMES` table is the single source of truth per
 theme** -- id, label, description, the crest's own `src`/intrinsic
-`width`/`height` (the thirteen don't share one aspect ratio) and
+`width`/`height` (the fourteen don't share one aspect ratio) and
 in-universe `quote`, *and* two color-preview swatch sets (see below).
 It replaces what used to be a separate `logo.ts`.
 
@@ -273,11 +278,11 @@ It replaces what used to be a separate `logo.ts`.
 defaulting new profiles to `'system'`, added by the same migration) picks
 *how bright* it renders.
 
-- Every one of the thirteen themes ships both a light and a dark palette
+- Every one of the fourteen themes ships both a light and a dark palette
   in `src/index.css` (not just one fixed mode each, as the original
   sixteen-theme version did).
 - Selection is a compound `[data-theme='x'][data-mode='y']` attribute
-  selector per combination -- 25 explicit blocks: 13 × 2, minus
+  selector per combination -- 27 explicit blocks: 14 × 2, minus
   grimdark-dark, which needs none of its own since it's still the base
   `@theme` values, rather than the single `[data-theme='...']` the earlier version
   used.
@@ -321,7 +326,7 @@ defaulting new profiles to `'system'`, added by the same migration) picks
 
 **The picker** (`ProfilePage`).
 
-- The thirteen themes render as one combined swatch grid. Each button
+- The fourteen themes render as one combined swatch grid. Each button
   shows that theme's crest thumbnail plus three small ink/blood/gold
   preview dots, both sourced from `theme.ts`'s own copy of those values
   (the picker has to show themes that aren't active, so it can't just

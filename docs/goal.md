@@ -84,11 +84,11 @@ round -- not to police how you got there.
 - **Theme.** A purely cosmetic, per-account choice that applies
   everywhere the signed-in player looks, on every device they sign into,
   with no effect on anyone else's game or on how anything scores.
-  Thirteen options:
+  Fourteen options:
   - the original **grimdark** look (the app's original crest included), or
-  - twelve **faction** themes -- Votann, Tyranid, T'au, Orks, Chaos,
+  - thirteen **faction** themes -- Votann, Tyranid, T'au, Orks, Chaos,
     Sororitas, Grey Knights, Mechanicus, Thousand Sons, Dark Angels, World
-    Eaters, Space Wolves -- each grounded in that faction's real palette
+    Eaters, Space Wolves, Necrons -- each grounded in that faction's real palette
     and iconography rather than a generic recolor.
 
   Picking a theme picks its **crest** too -- the header logo and the
@@ -98,7 +98,7 @@ round -- not to police how you got there.
   renders: **Light**, **Dark**, or **System** (follows the device's
   OS-level preference, and keeps following it live if that changes while
   the app's open). Every theme ships both a light and a dark palette, so
-  all thirteen work either way -- faction and Light/Dark are two fully
+  all fourteen work either way -- faction and Light/Dark are two fully
   independent choices.
 
 ## Home
