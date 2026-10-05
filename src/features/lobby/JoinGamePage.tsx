@@ -3,12 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/Button'
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { TextField } from '@/components/TextField'
-import { useJoinGame } from '@/lib/queries/games'
+import { useFindGameByCode, useJoinGame } from '@/lib/queries/games'
 
 export function JoinGamePage() {
   const navigate = useNavigate()
   const { code: codeParam } = useParams<{ code?: string }>()
   const joinGame = useJoinGame()
+  const findGame = useFindGameByCode()
   const [code, setCode] = useState('')
   const attemptedCode = useRef<string | null>(null)
 
@@ -38,6 +39,7 @@ export function JoinGamePage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    findGame.reset()
     try {
       const gameId = await joinGame.mutateAsync({ code })
       navigate(`/game/${gameId}`)
@@ -45,6 +47,18 @@ export function JoinGamePage() {
       // error surfaced below via joinGame.error
     }
   }
+
+  const onWatch = async () => {
+    joinGame.reset()
+    try {
+      const gameId = await findGame.mutateAsync(code)
+      navigate(`/game/${gameId}`)
+    } catch {
+      // error surfaced below via findGame.error
+    }
+  }
+
+  const error = joinGame.error ?? findGame.error
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,14 +75,24 @@ export function JoinGamePage() {
           className="text-center text-2xl tracking-[0.3em]"
           required
         />
-        {joinGame.isError && (
-          <p className="text-sm text-danger">
-            {joinGame.error instanceof Error ? joinGame.error.message : 'Could not join game.'}
-          </p>
+        {error && (
+          <p className="text-sm text-danger">{error instanceof Error ? error.message : 'Could not join game.'}</p>
         )}
-        <Button type="submit" disabled={joinGame.isPending || code.length < 6} fullWidth>
+        <Button type="submit" disabled={joinGame.isPending || findGame.isPending || code.length < 6} fullWidth>
           {joinGame.isPending ? 'Joining…' : 'Join game'}
         </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={joinGame.isPending || findGame.isPending || code.length < 6}
+          onClick={onWatch}
+          fullWidth
+        >
+          {findGame.isPending ? 'Opening…' : 'Watch as spectator'}
+        </Button>
+        <p className="text-center text-xs text-paper/40">
+          Watching doesn't take a seat -- you see the live score but can't change anything.
+        </p>
       </form>
     </div>
   )

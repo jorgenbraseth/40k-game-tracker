@@ -503,6 +503,21 @@ export function useJoinGame() {
   })
 }
 
+/** Looks a game up by its join code *without* taking a seat in it -- for watching a game as a
+ * spectator. Every game is already readable by any signed-in user (20260320000000_spectating.sql),
+ * so this is a plain select rather than an RPC; unlike join_game_by_code it works for a game in
+ * any status, since a game that's already full or under way is exactly the one worth watching. */
+export function useFindGameByCode() {
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data, error } = await supabase.from('games').select('id').eq('join_code', code.toUpperCase()).maybeSingle()
+      if (error) throw error
+      if (!data) throw new Error("That code doesn't match any game. Double-check it with the players.")
+      return data.id
+    },
+  })
+}
+
 /**
  * `missions` is this game's whole mission pack (see useMissionsForPack) -- only used to predict
  * each seat's mission optimistically (see onMutate below) the instant both Force Dispositions are
