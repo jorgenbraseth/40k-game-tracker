@@ -427,6 +427,12 @@ stats, broken down by **faction played, Force Disposition, and
 opponent** -- so "how do I do against Necrons?" or "what's my record
 playing Purge the Foe?" has a real answer instead of a memory.
 
+**Ladder rankings.** A player's stats page also shows where they stand
+in each ladder they're a member of -- their rank ("#2 of 8"), rating and
+ladder record -- with a line chart of how that rank has moved over time,
+so a climb (or slide) up the ladder is visible at a glance rather than
+only today's position.
+
 (The mission breakdown this had briefly -- each player has their own, so
 it read more like noise than a useful split -- is on hold for now; Force
 Disposition fills that slot instead.)

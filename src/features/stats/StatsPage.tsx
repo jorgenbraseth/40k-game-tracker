@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useCompletedGames } from '@/lib/queries/history'
 import { useProfile } from '@/lib/queries/profile'
 import { computeStats } from '@/lib/stats'
+import { LadderRankings } from './LadderRankings'
 import { RecordGroup } from './RecordGroup'
 
 /**
@@ -59,6 +60,7 @@ export function StatsPage() {
         </p>
       </div>
 
+      {targetUserId && <LadderRankings userId={targetUserId} />}
       <RecordGroup title="By faction" records={stats.byFaction} />
       <RecordGroup title="By Force Disposition" records={stats.byDisposition} />
       <RecordGroup title="By opponent" records={stats.byOpponent} />
