@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ELO_STARTING_RATING, type EloGame } from './elo'
-import { computeRankHistory, rankOf } from './ladderRank'
+import { computeEloRatings, ELO_STARTING_RATING, type EloGame } from './elo'
+import { computeRatingHistory, rankOf } from './ladderRank'
 
 const game = (day: number, a: string, b: string, scoreForA: 0 | 0.5 | 1): EloGame => ({
   playedAt: `2026-01-${String(day).padStart(2, '0')}T00:00:00Z`,
@@ -24,38 +24,34 @@ describe('rankOf', () => {
   })
 })
 
-describe('computeRankHistory', () => {
+describe('computeRatingHistory', () => {
   const base = { rankingType: 'elo' as const, startingRating: ELO_STARTING_RATING }
 
-  it('starts at the player’s first game and includes later games by others', () => {
-    const games = [game(1, 'b', 'c', 1), game(2, 'a', 'b', 0), game(3, 'c', 'd', 1)]
-    const history = computeRankHistory({ ...base, games, userId: 'a', fieldUserIds: ['a', 'b', 'c', 'd'] })
-    expect(history.map((p) => p.playedAt)).toEqual([games[1].playedAt, games[2].playedAt])
-    expect(history.map((p) => p.playedInGame)).toEqual([true, false])
-    expect(history.every((p) => p.fieldSize === 4)).toBe(true)
+  it('records a point for each of the player’s own games only', () => {
+    const games = [game(1, 'b', 'c', 1), game(2, 'a', 'b', 0), game(3, 'c', 'd', 1), game(4, 'd', 'a', 0.5)]
+    const history = computeRatingHistory({ ...base, games, userId: 'a' })
+    expect(history.map((p) => p.playedAt)).toEqual([games[1].playedAt, games[3].playedAt])
+    expect(history.map((p) => p.result)).toEqual(['loss', 'draw'])
   })
 
-  it('tracks rank moving as results come in, ending on the current standings rank', () => {
-    const games = [game(1, 'a', 'b', 1), game(2, 'c', 'a', 1), game(3, 'c', 'b', 1)]
-    const history = computeRankHistory({ ...base, games, userId: 'a', fieldUserIds: ['a', 'b', 'c'] })
-    // Won game 1 -> top; lost to c -> c overtakes (b still lower); c beats b -> a stays 2nd.
-    expect(history.map((p) => p.rank)).toEqual([1, 2, 2])
+  it('tracks the change per game, ending on the final standings rating', () => {
+    const games = [game(1, 'a', 'b', 1), game(2, 'c', 'a', 1)]
+    const history = computeRatingHistory({ ...base, games, userId: 'a' })
+    expect(history[0].change).toBeGreaterThan(0)
+    expect(history[0].rating).toBe(ELO_STARTING_RATING + history[0].change)
+    expect(history[1].result).toBe('loss')
+    expect(history[1].change).toBeLessThan(0)
+    expect(history[1].rating).toBe(history[0].rating + history[1].change)
+    expect(history[1].rating).toBe(Math.round(computeEloRatings(games).get('a')!))
   })
 
   it('works for Glicko-2 ladders too', () => {
-    const games = [game(1, 'a', 'b', 0)]
-    const history = computeRankHistory({
-      ...base,
-      rankingType: 'glicko2',
-      games,
-      userId: 'a',
-      fieldUserIds: ['a', 'b', 'c'],
-    })
+    const history = computeRatingHistory({ ...base, rankingType: 'glicko2', games: [game(1, 'a', 'b', 0)], userId: 'a' })
     expect(history).toHaveLength(1)
-    expect(history[0].rank).toBe(3)
+    expect(history[0].rating).toBeLessThan(ELO_STARTING_RATING)
   })
 
   it('is empty for a player with no games', () => {
-    expect(computeRankHistory({ ...base, games: [game(1, 'b', 'c', 1)], userId: 'a', fieldUserIds: ['a'] })).toEqual([])
+    expect(computeRatingHistory({ ...base, games: [game(1, 'b', 'c', 1)], userId: 'a' })).toEqual([])
   })
 })

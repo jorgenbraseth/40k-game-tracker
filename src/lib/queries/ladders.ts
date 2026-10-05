@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { computeEloRatings, ELO_STARTING_RATING, type EloGame } from '@/lib/elo'
 import { computeGlicko2Ratings, GLICKO2_STARTING_RATING } from '@/lib/glicko2'
-import { computeRankHistory, rankOf, type RankPoint } from '@/lib/ladderRank'
+import { computeRatingHistory, rankOf, type RatingPoint } from '@/lib/ladderRank'
 import { invalidateContestQueries } from '@/lib/queries/games'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
@@ -356,7 +356,7 @@ interface LadderRatings {
 }
 
 /** fetchLadderStandings' body, also handing back what went into the rating replay so
- * fetchPlayerLadderRankings can trace a player's rank over time from the exact same inputs. */
+ * fetchPlayerLadderRankings can trace a player's rating over time from the exact same inputs. */
 async function loadLadderRatings(ladderId: string): Promise<LadderRatings> {
   const [ladderRes, membersRes, tagsRes, invalidationsRes] = await Promise.all([
     supabase.from('ladders').select('ranking_type').eq('id', ladderId).single(),
@@ -506,10 +506,12 @@ export interface PlayerLadderRanking {
   tiedWith: number
   fieldSize: number
   standing: LadderStandingRow
-  history: RankPoint[]
+  /** startingRating too, so a chart can draw where everyone began. */
+  startingRating: number
+  history: RatingPoint[]
 }
 
-/** A player's current rank in every ladder they're a member of, plus how that rank moved over
+/** A player's current rank in every ladder they're a member of, plus how their rating moved over
  * time -- the ladder section of their stats page. Built on the same loadLadderRatings as the
  * ladder's own standings table, so the numbers can't disagree. Active ladders first, then by
  * name. */
@@ -545,13 +547,8 @@ export async function fetchPlayerLadderRankings(userId: string): Promise<PlayerL
         tiedWith: rows.filter((r) => r.rating === standing.rating).length - 1,
         fieldSize: rows.length,
         standing,
-        history: computeRankHistory({
-          games: ratingGames,
-          rankingType,
-          userId,
-          fieldUserIds: rows.map((r) => r.userId),
-          startingRating,
-        }),
+        startingRating,
+        history: computeRatingHistory({ games: ratingGames, rankingType, userId, startingRating }),
       }
     }),
   )

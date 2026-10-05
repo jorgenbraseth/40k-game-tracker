@@ -1,8 +1,8 @@
 import { ErrorBanner, Spinner } from '@/components/Feedback'
 import { RANKING_TYPE_LABELS, usePlayerLadderRankings } from '@/lib/queries/ladders'
-import { RankChart } from './RankChart'
+import { RatingChart } from './RatingChart'
 
-/** The player's standing in each ladder they're a member of, with a rank-over-time line per
+/** The player's standing in each ladder they're a member of, with a rating-over-time line per
  * ladder. Loads independently of the rest of the stats page, so a slow ladder replay doesn't hold
  * up the win/loss record above it. */
 export function LadderRankings({ userId }: { userId: string }) {
@@ -39,7 +39,7 @@ export function LadderRankings({ userId }: { userId: string }) {
             </p>
             {l.history.length > 0 ? (
               <div className="mt-2">
-                <RankChart history={l.history} ladderName={l.ladderName} />
+                <RatingChart history={l.history} startingRating={l.startingRating} ladderName={l.ladderName} />
               </div>
             ) : (
               <p className="mt-2 text-xs text-paper/50">No rated games in this ladder yet.</p>

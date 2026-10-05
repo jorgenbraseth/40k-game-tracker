@@ -931,18 +931,14 @@ marked -- with their current rank, rating, ranking type and W/L/D there.
   players tied on rating share a rank and the card says "tied with N".
   The ladder page's standings table still numbers rows 1, 2, 3… by
   position, so two tied players show different numbers there.
-- **Rank-over-time chart** (`RankChart`, a hand-rolled SVG -- no chart
-  library). `computeRankHistory` (`src/lib/ladderRank.ts`) replays the
-  ladder once via an `onGame` hook on `computeEloRatings` /
-  `computeGlicko2Ratings` and records the player's rank after every
-  ladder game from their own first game on -- including other people's
-  games, since someone else's result can overtake them. Points are evenly
-  spaced per game, not on a time axis; filled dots mark the player's own
-  games. Hover/drag reads a point out below the chart.
-- **Field size is today's ladder.** At every point the player is ranked
-  against everyone in today's standings (members with no games yet sit
-  at the starting rating, as in standings) -- membership history isn't
-  replayed, so someone who joined later still counts in earlier points.
+- **Rating-over-time chart** (`RatingChart`, a hand-rolled SVG -- no
+  chart library). `computeRatingHistory` (`src/lib/ladderRank.ts`)
+  replays the ladder once via an `onGame` hook on `computeEloRatings` /
+  `computeGlicko2Ratings` and records the player's rating after each of
+  their own ladder games (other people's games don't move it). Points
+  are evenly spaced per game, not on a time axis; a dashed line marks
+  the starting rating. Hover/drag reads a point out below the chart --
+  rating, change (+/-), result and date.
 - No backend change: ladder membership/standings were already readable
   by any signed-in user. Query is keyed under `ladder-standings`, so
   anything that refreshes standings refreshes this too.

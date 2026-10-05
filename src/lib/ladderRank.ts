@@ -3,18 +3,15 @@ import { computeGlicko2Ratings } from '@/lib/glicko2'
 
 export type RatingSystem = 'elo' | 'glicko2'
 
-/** One point on a player's rank-over-time line: where they stood in their ladder right after a
- * given ladder game was applied. */
-export interface RankPoint {
+/** One point on a player's rating-over-time line: their rating right after one of their own
+ * ladder games. */
+export interface RatingPoint {
   playedAt: string
-  /** 1 = top. Competition ranking ("1, 2, 2, 4") on the rounded rating shown in standings, so
-   * players tied on rating share a rank rather than being split by name. */
-  rank: number
-  fieldSize: number
+  /** Rounded, as shown in standings. */
   rating: number
-  /** Whether the player themselves played in this game -- their rank also moves when others play
-   * (someone overtakes them), so not every point is one of their own results. */
-  playedInGame: boolean
+  /** Change from their rating going into this game (from the starting rating for their first). */
+  change: number
+  result: 'win' | 'draw' | 'loss'
 }
 
 /** Competition rank of `userId` among `ratings` (rounded, as displayed). */
@@ -26,39 +23,32 @@ export function rankOf(userId: string, ratings: ReadonlyMap<string, number>): nu
 }
 
 /**
- * Replays a ladder's rated games once and records `userId`'s rank after every game from their
- * own first game onwards (before that they'd just be tied with everyone at the starting rating,
- * which says nothing). `fieldUserIds` is everyone ranked on the ladder today -- the same set the
- * standings table shows -- and anyone not yet rated sits at `startingRating`, exactly as the
- * standings table treats a member with no games, so the line's last point always matches the
- * rank shown in standings.
+ * Replays a ladder's rated games once and records `userId`'s rating after each game they played
+ * in -- a rating only moves on the player's own results, so other people's games add nothing to
+ * the line. The last point always matches the rating shown in standings.
  */
-export function computeRankHistory(input: {
+export function computeRatingHistory(input: {
   games: EloGame[]
   rankingType: RatingSystem
   userId: string
-  fieldUserIds: string[]
   startingRating: number
-}): RankPoint[] {
+}): RatingPoint[] {
   const { games, rankingType, userId, startingRating } = input
-  const field = new Set([...input.fieldUserIds, userId])
-  const history: RankPoint[] = []
-  let started = false
+  const history: RatingPoint[] = []
+  let previous = startingRating
 
   const onGame = (game: EloGame, ratings: ReadonlyMap<string, number>) => {
-    const playedInGame = game.playerAId === userId || game.playerBId === userId
-    if (playedInGame) started = true
-    if (!started) return
-    const current = new Map<string, number>()
-    for (const id of field) current.set(id, ratings.get(id) ?? startingRating)
-    for (const [id, rating] of ratings) current.set(id, rating)
+    const isA = game.playerAId === userId
+    if (!isA && game.playerBId !== userId) return
+    const score = isA ? game.scoreForA : 1 - game.scoreForA
+    const rating = Math.round(ratings.get(userId) ?? startingRating)
     history.push({
       playedAt: game.playedAt,
-      rank: rankOf(userId, current),
-      fieldSize: current.size,
-      rating: Math.round(current.get(userId) ?? startingRating),
-      playedInGame,
+      rating,
+      change: rating - Math.round(previous),
+      result: score === 1 ? 'win' : score === 0 ? 'loss' : 'draw',
     })
+    previous = rating
   }
 
   if (rankingType === 'glicko2') computeGlicko2Ratings(games, { onGame })
