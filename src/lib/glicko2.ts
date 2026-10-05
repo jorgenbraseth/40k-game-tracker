@@ -37,6 +37,13 @@ export interface Glicko2Game {
   scoreForA: 0 | 0.5 | 1
 }
 
+export interface Glicko2Options {
+  startingRating?: number
+  startingRd?: number
+  startingVolatility?: number
+  tau?: number
+}
+
 export interface Glicko2State {
   rating: number
   rd: number
@@ -132,7 +139,11 @@ function updateAfterGame(
  */
 export function computeGlicko2States(
   games: Glicko2Game[],
-  options: { startingRating?: number; startingRd?: number; startingVolatility?: number; tau?: number } = {},
+  options: Glicko2Options & {
+    /** Called after each game is applied, with every player's state right then -- see
+     * computeEloRatings' identical hook. */
+    onGame?: (game: Glicko2Game, states: ReadonlyMap<string, Glicko2State>) => void
+  } = {},
 ): Map<string, Glicko2State> {
   const startingRating = options.startingRating ?? GLICKO2_STARTING_RATING
   const startingRd = options.startingRd ?? GLICKO2_STARTING_RD
@@ -152,6 +163,7 @@ export function computeGlicko2States(
     const nextB = updateAfterGame(b, a, scoreForB, tau)
     states.set(game.playerAId, nextA)
     states.set(game.playerBId, nextB)
+    options.onGame?.(game, states)
   }
 
   return states
@@ -161,9 +173,18 @@ export function computeGlicko2States(
  * table's "Rating" column doesn't care which system a ladder is using. */
 export function computeGlicko2Ratings(
   games: Glicko2Game[],
-  options: { startingRating?: number; startingRd?: number; startingVolatility?: number; tau?: number } = {},
+  options: Glicko2Options & {
+    /** Same as computeEloRatings' onGame -- ratings only, so callers needn't care which system. */
+    onGame?: (game: Glicko2Game, ratings: ReadonlyMap<string, number>) => void
+  } = {},
 ): Map<string, number> {
-  const states = computeGlicko2States(games, options)
+  const { onGame, ...rest } = options
+  const states = computeGlicko2States(games, {
+    ...rest,
+    onGame: onGame
+      ? (game, current) => onGame(game, new Map([...current].map(([id, state]) => [id, state.rating])))
+      : undefined,
+  })
   const ratings = new Map<string, number>()
   for (const [id, state] of states) ratings.set(id, state.rating)
   return ratings

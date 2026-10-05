@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { computeEloRatings, ELO_STARTING_RATING, type EloGame } from '@/lib/elo'
 import { computeGlicko2Ratings, GLICKO2_STARTING_RATING } from '@/lib/glicko2'
+import { computeRatingHistory, rankOf, type RatingPoint } from '@/lib/ladderRank'
 import { invalidateContestQueries } from '@/lib/queries/games'
 import { supabase } from '@/lib/supabase'
 import { showToast } from '@/lib/toast'
@@ -342,6 +343,21 @@ export function useLadderMembers(ladderId: string | undefined) {
  * 20260928000000_game_contests.sql) is left out entirely -- no W/D/L, VP or rating change. A
  * merely *contested* game still counts until the admin decides. */
 export async function fetchLadderStandings(ladderId: string): Promise<LadderStandingRow[]> {
+  return (await loadLadderRatings(ladderId)).rows
+}
+
+interface LadderRatings {
+  rankingType: LadderRankingType
+  startingRating: number
+  /** Sorted the way the standings table shows them. */
+  rows: LadderStandingRow[]
+  /** The games that fed the rating replay, for anything that wants to trace it over time. */
+  ratingGames: EloGame[]
+}
+
+/** fetchLadderStandings' body, also handing back what went into the rating replay so
+ * fetchPlayerLadderRankings can trace a player's rating over time from the exact same inputs. */
+async function loadLadderRatings(ladderId: string): Promise<LadderRatings> {
   const [ladderRes, membersRes, tagsRes, invalidationsRes] = await Promise.all([
     supabase.from('ladders').select('ranking_type').eq('id', ladderId).single(),
     supabase.from('ladder_members').select('user_id').eq('ladder_id', ladderId),
@@ -465,9 +481,10 @@ export async function fetchLadderStandings(ladderId: string): Promise<LadderStan
     row.rating = Math.round(ratingByUserId.get(row.userId) ?? startingRating)
   }
 
-  return [...rowByUserId.values()].sort(
+  const rows = [...rowByUserId.values()].sort(
     (a, b) => b.rating - a.rating || a.displayName.localeCompare(b.displayName),
   )
+  return { rankingType, startingRating, rows, ratingGames }
 }
 
 export function useLadderStandings(ladderId: string | undefined) {
@@ -475,6 +492,79 @@ export function useLadderStandings(ladderId: string | undefined) {
     queryKey: ladderKeys.standings(ladderId ?? ''),
     queryFn: () => fetchLadderStandings(ladderId as string),
     enabled: Boolean(ladderId),
+  })
+}
+
+export interface PlayerLadderRanking {
+  ladderId: string
+  ladderName: string
+  rankingType: LadderRankingType
+  archived: boolean
+  /** Competition rank (players tied on rating share it) -- see rankOf. */
+  rank: number
+  /** How many share that rank, so the UI can say "tied". */
+  tiedWith: number
+  fieldSize: number
+  standing: LadderStandingRow
+  /** startingRating too, so a chart can draw where everyone began. */
+  startingRating: number
+  history: RatingPoint[]
+}
+
+/** A player's current rank in every ladder they're a member of, plus how their rating moved over
+ * time -- the ladder section of their stats page. Built on the same loadLadderRatings as the
+ * ladder's own standings table, so the numbers can't disagree. Active ladders first, then by
+ * name. */
+export async function fetchPlayerLadderRankings(userId: string): Promise<PlayerLadderRanking[]> {
+  const { data: memberships, error: membershipsError } = await supabase
+    .from('ladder_members')
+    .select('ladder_id')
+    .eq('user_id', userId)
+  if (membershipsError) throw membershipsError
+  if (memberships.length === 0) return []
+
+  const { data: ladders, error: laddersError } = await supabase
+    .from('ladders')
+    .select('id, name, archived_at')
+    .in(
+      'id',
+      memberships.map((m) => m.ladder_id),
+    )
+  if (laddersError) throw laddersError
+
+  const rankings = await Promise.all(
+    ladders.map(async (ladder): Promise<PlayerLadderRanking | null> => {
+      const { rankingType, startingRating, rows, ratingGames } = await loadLadderRatings(ladder.id)
+      const standing = rows.find((r) => r.userId === userId)
+      if (!standing) return null
+      const ratings = new Map(rows.map((r) => [r.userId, r.rating]))
+      return {
+        ladderId: ladder.id,
+        ladderName: ladder.name,
+        rankingType,
+        archived: Boolean(ladder.archived_at),
+        rank: rankOf(userId, ratings),
+        tiedWith: rows.filter((r) => r.rating === standing.rating).length - 1,
+        fieldSize: rows.length,
+        standing,
+        startingRating,
+        history: computeRatingHistory({ games: ratingGames, rankingType, userId, startingRating }),
+      }
+    }),
+  )
+
+  return rankings
+    .filter((r): r is PlayerLadderRanking => r !== null)
+    .sort((a, b) => Number(a.archived) - Number(b.archived) || a.ladderName.localeCompare(b.ladderName))
+}
+
+/** Keyed under 'ladder-standings' so everything that already invalidates standings (a finished
+ * game, an edited score, a contest decision) refreshes this too. */
+export function usePlayerLadderRankings(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['ladder-standings', 'by-player', userId ?? ''] as const,
+    queryFn: () => fetchPlayerLadderRankings(userId as string),
+    enabled: Boolean(userId),
   })
 }
 

@@ -916,6 +916,35 @@ on the live Scoreboard and the post-game Summary, the waiting room's
     order, confirming who won) -- navigating away isn't what tapping those
     does.
 
+### Ladder rankings on the stats page
+
+`StatsPage` (both `/stats` and `/players/:userId`) has a **Ladder
+rankings** section (`LadderRankings`, `src/features/stats/`) listing every
+ladder the player is a member of -- active ladders first, archived ones
+marked -- with their current rank, rating, ranking type and W/L/D there.
+
+- **Same numbers as the ladder page.** `fetchPlayerLadderRankings`
+  (`src/lib/queries/ladders.ts`) reuses the exact loader behind
+  `fetchLadderStandings` (`loadLadderRatings`), so invalidated games,
+  unattributed seats and Elo vs Glicko-2 are handled identically.
+- **Rank is competition ranking** on the displayed (rounded) rating --
+  players tied on rating share a rank and the card says "tied with N".
+  The ladder page's standings table still numbers rows 1, 2, 3… by
+  position, so two tied players show different numbers there.
+- **Rating-over-time chart** (`RatingChart`, a hand-rolled SVG -- no
+  chart library). `computeRatingHistory` (`src/lib/ladderRank.ts`)
+  replays the ladder once via an `onGame` hook on `computeEloRatings` /
+  `computeGlicko2Ratings` and records the player's rating after each of
+  their own ladder games (other people's games don't move it). Points
+  are evenly spaced per game, not on a time axis; a dashed line marks
+  the starting rating. Hover/drag reads a point out below the chart --
+  rating, change (+/-), result and date.
+- No backend change: ladder membership/standings were already readable
+  by any signed-in user. Query is keyed under `ladder-standings`, so
+  anything that refreshes standings refreshes this too.
+- Only shows once the player has a finished game (the page's empty state
+  comes first otherwise).
+
 ### History: every finished game
 
 History shows every finished game from everyone, via

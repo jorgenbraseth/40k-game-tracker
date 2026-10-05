@@ -25,7 +25,13 @@ function expectedScore(ratingA: number, ratingB: number): number {
  */
 export function computeEloRatings(
   games: EloGame[],
-  options: { kFactor?: number; startingRating?: number } = {},
+  options: {
+    kFactor?: number
+    startingRating?: number
+    /** Called after each game is applied, with the ratings as they stand right then -- lets a
+     * caller trace ratings over time (e.g. a player's rank history) from the same single replay. */
+    onGame?: (game: EloGame, ratings: ReadonlyMap<string, number>) => void
+  } = {},
 ): Map<string, number> {
   const kFactor = options.kFactor ?? ELO_K_FACTOR
   const startingRating = options.startingRating ?? ELO_STARTING_RATING
@@ -41,6 +47,7 @@ export function computeEloRatings(
     const scoreForB = 1 - game.scoreForA
     ratings.set(game.playerAId, ratingA + kFactor * (game.scoreForA - expectedA))
     ratings.set(game.playerBId, ratingB + kFactor * (scoreForB - expectedB))
+    options.onGame?.(game, ratings)
   }
   return ratings
 }
