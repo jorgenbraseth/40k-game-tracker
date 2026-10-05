@@ -810,6 +810,23 @@ participant or not.
   on.
 - **`SummaryPage`** needed no changes -- its controls were already gated
   on the viewer actually being a seat.
+- **Live games on the Ladders page.** `fetchLiveLadderGames`
+  (`ladders.ts`) finds every `active`, ladder-tagged game with a scoring
+  write (`updated_at` on `round_scores`, `secondary_scores`, either
+  ticks table or `command_points`) or a `started_at` in the last
+  `LIVE_GAME_WINDOW_MINUTES` (10). It's one fetch for the whole page,
+  polled every 30s rather than realtime-subscribed. `LaddersPage` shows
+  each ladder's live games under its name (visible even when the row is
+  collapsed) with both seats' current VP from `game_totals`, the round,
+  and how long ago the last score was. Tapping one opens `/game/:id`.
+  - Caveat: `updated_at` is stamped by the writer's own clock, and a
+    round change on its own (`games.current_round`) has no timestamp, so
+    it doesn't count as activity by itself.
+- **Watch by code.** `JoinGamePage` has a **Watch as spectator** button
+  next to Join. `useFindGameByCode` is a plain `games` select by
+  `join_code` (no RPC, no migration -- games are already readable by
+  anyone signed in), so it works for a game in any status and never
+  takes a seat.
 
 ## Contesting and invalidating ladder games
 

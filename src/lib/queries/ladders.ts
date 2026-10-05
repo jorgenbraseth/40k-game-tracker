@@ -68,6 +68,19 @@ export interface LadderGameRow {
   invalidation: { reason: string; invalidatedAt: string } | null
 }
 
+/** An in-progress ladder game someone has scored in recently -- what the Ladders page lists
+ * under "Live now" so anyone can drop in and spectate it. */
+export interface LiveLadderGame {
+  gameId: string
+  /** Every ladder this game is tagged with -- the page groups by these. */
+  ladderIds: string[]
+  currentRound: number
+  totalRounds: number
+  lastActivityAt: string
+  seat1: LadderGameSeat
+  seat2: LadderGameSeat
+}
+
 /** An open contest on one of this ladder's games, as the ladder's admin sees it. */
 export interface LadderContestRow {
   contestId: string
@@ -88,6 +101,7 @@ export const ladderKeys = {
   members: (ladderId: string) => ['ladder-members', ladderId] as const,
   inviteCode: (ladderId: string) => ['ladder-invite-code', ladderId] as const,
   contests: (ladderId: string) => ['ladder-contests', ladderId] as const,
+  live: ['ladder-live-games'] as const,
 }
 
 /** Every ladder, with membership counts and whether the current user is in it -- powers the
@@ -781,5 +795,122 @@ export function useReinstateLadderGame() {
     },
     onError: () => showToast("Couldn't reinstate the game. Try again."),
     onSettled: (_data, _error, input) => invalidateContestQueries(queryClient, input.gameId),
+  })
+}
+
+/** How recent a game's last scoring write has to be for it to count as "live". */
+export const LIVE_GAME_WINDOW_MINUTES = 10
+
+/** Every scoring table the scoreboard writes to -- each write stamps `updated_at` with the
+ * writer's clock (see the upserts in games.ts), so the newest one is the game's last activity. */
+const ACTIVITY_TABLES = [
+  'round_scores',
+  'secondary_scores',
+  'primary_objective_ticks',
+  'secondary_objective_ticks',
+  'command_points',
+] as const
+
+/**
+ * Every active, ladder-tagged game with scoring activity (or a start) in the last
+ * LIVE_GAME_WINDOW_MINUTES, across all ladders at once -- one fetch for the whole Ladders page
+ * rather than one per ladder row. Readable by anyone signed in, same as the games themselves
+ * (see 20260320000000_spectating.sql). Most recent activity first.
+ *
+ * A round change alone (games.current_round) has no timestamp to go by, so it doesn't count as
+ * activity by itself -- in practice a round never passes without someone scoring something.
+ */
+export async function fetchLiveLadderGames(): Promise<LiveLadderGame[]> {
+  const cutoff = new Date(Date.now() - LIVE_GAME_WINDOW_MINUTES * 60_000).toISOString()
+  const [startedRes, ...activityRes] = await Promise.all([
+    supabase.from('games').select('id, started_at').eq('status', 'active').gte('started_at', cutoff),
+    ...ACTIVITY_TABLES.map((table) => supabase.from(table).select('game_id, updated_at').gte('updated_at', cutoff)),
+  ])
+  if (startedRes.error) throw startedRes.error
+  const lastActivityByGameId = new Map<string, string>()
+  const touch = (gameId: string, at: string | null) => {
+    if (!at) return
+    const prev = lastActivityByGameId.get(gameId)
+    // Compared as dates, not strings -- Postgres trims trailing zeros off fractional seconds, so
+    // two timestamps in the same second don't always sort correctly as text.
+    if (!prev || Date.parse(at) > Date.parse(prev)) lastActivityByGameId.set(gameId, at)
+  }
+  for (const g of startedRes.data) touch(g.id, g.started_at)
+  for (const res of activityRes) {
+    if (res.error) throw res.error
+    for (const row of res.data) touch(row.game_id, row.updated_at)
+  }
+  if (lastActivityByGameId.size === 0) return []
+
+  const candidateIds = [...lastActivityByGameId.keys()]
+  const [gamesRes, tagsRes] = await Promise.all([
+    supabase.from('games').select('id, current_round, total_rounds').in('id', candidateIds).eq('status', 'active'),
+    supabase.from('game_ladders').select('game_id, ladder_id').in('game_id', candidateIds),
+  ])
+  if (gamesRes.error) throw gamesRes.error
+  if (tagsRes.error) throw tagsRes.error
+  const ladderIdsByGameId = new Map<string, string[]>()
+  for (const t of tagsRes.data) {
+    ladderIdsByGameId.set(t.game_id, [...(ladderIdsByGameId.get(t.game_id) ?? []), t.ladder_id])
+  }
+  const games = gamesRes.data.filter((g) => ladderIdsByGameId.has(g.id))
+  if (games.length === 0) return []
+
+  const gameIds = games.map((g) => g.id)
+  const [playersRes, totalsRes] = await Promise.all([
+    supabase.from('game_players').select('*').in('game_id', gameIds).order('seat'),
+    supabase.from('game_totals').select('*').in('game_id', gameIds),
+  ])
+  if (playersRes.error) throw playersRes.error
+  if (totalsRes.error) throw totalsRes.error
+
+  const profileIds = [
+    ...new Set(
+      playersRes.data.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id)),
+    ),
+  ]
+  const profilesRes = profileIds.length
+    ? await supabase.from('profiles').select('id, display_name, avatar_url').in('id', profileIds)
+    : { data: [], error: null }
+  if (profilesRes.error) throw profilesRes.error
+  const nameByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.display_name]))
+  const avatarByUserId = new Map(profilesRes.data?.map((p) => [p.id, p.avatar_url]))
+  const totalByPlayerId = new Map(totalsRes.data.map((t) => [t.game_player_id, t.total_vp]))
+
+  const seatFor = (p: (typeof playersRes.data)[number] | undefined): LadderGameSeat => {
+    if (!p) return { userId: null, displayName: 'No opponent', avatarUrl: null, vp: 0 }
+    const userId = p.user_id ?? p.represents_user_id
+    return {
+      userId,
+      displayName: userId ? (nameByUserId.get(userId) ?? 'Unknown player') : p.army_name || 'Unnamed player',
+      avatarUrl: userId ? (avatarByUserId.get(userId) ?? null) : null,
+      vp: totalByPlayerId.get(p.id) ?? 0,
+    }
+  }
+
+  return games
+    .map((g) => {
+      const players = playersRes.data.filter((p) => p.game_id === g.id)
+      return {
+        gameId: g.id,
+        ladderIds: ladderIdsByGameId.get(g.id) ?? [],
+        currentRound: g.current_round,
+        totalRounds: g.total_rounds,
+        lastActivityAt: lastActivityByGameId.get(g.id) as string,
+        seat1: seatFor(players.find((p) => p.seat === 1)),
+        seat2: seatFor(players.find((p) => p.seat === 2)),
+      }
+    })
+    .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
+}
+
+/** Polled rather than realtime-subscribed: a list of "who's playing right now" only needs to be
+ * roughly current, and subscribing to every game's score tables just to keep it fresh would be far
+ * more traffic than it's worth. Opening one of these games gets the fully live view. */
+export function useLiveLadderGames() {
+  return useQuery({
+    queryKey: ladderKeys.live,
+    queryFn: fetchLiveLadderGames,
+    refetchInterval: 30_000,
   })
 }

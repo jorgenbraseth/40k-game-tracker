@@ -24,12 +24,14 @@ import {
   useLadders,
   useLadderStandings,
   useLeaveLadder,
+  useLiveLadderGames,
   useRegenerateLadderInviteCode,
   useReinstateLadderGame,
   useSetLadderRankingType,
   type LadderContestRow,
   type LadderRankingType,
   type LadderSummary,
+  type LiveLadderGame,
 } from '@/lib/queries/ladders'
 
 const RANKING_TYPE_EXPLAINERS: Record<LadderRankingType, string> = {
@@ -280,7 +282,66 @@ function ContestedGames({ ladderId, contests }: { ladderId: string; contests: La
   )
 }
 
-function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }) {
+/** "3 min ago" -- coarse on purpose, the list only refreshes every 30s anyway. */
+function minutesAgo(at: string) {
+  const minutes = Math.floor((Date.now() - Date.parse(at)) / 60_000)
+  return minutes < 1 ? 'just now' : `${minutes} min ago`
+}
+
+/**
+ * Games in this ladder someone has scored in during the last few minutes (see
+ * fetchLiveLadderGames), shown right under the ladder's name -- not behind the row's expand
+ * toggle -- so dropping in to spectate one is a single tap from the Ladders page. Opening a game
+ * you're not seated in is read-only and updates live (see GamePage); one you are seated in just
+ * opens normally.
+ */
+function LiveGames({ games, userId }: { games: LiveLadderGame[]; userId: string }) {
+  const navigate = useNavigate()
+  return (
+    <ul className="mt-3 flex flex-col gap-1.5">
+      {games.map((g) => {
+        const isMine = g.seat1.userId === userId || g.seat2.userId === userId
+        return (
+          <li key={g.gameId}>
+            <button
+              type="button"
+              onClick={() => navigate(`/game/${g.gameId}`)}
+              className="w-full rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-left text-sm hover:bg-danger/10"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span aria-hidden className="h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-danger" />
+                  <span className="min-w-0 truncate text-paper">
+                    {g.seat1.displayName} <span className="font-semibold text-gold">{g.seat1.vp}</span>
+                    <span className="text-paper/40"> – </span>
+                    <span className="font-semibold text-gold">{g.seat2.vp}</span> {g.seat2.displayName}
+                  </span>
+                </span>
+                <span className="flex-shrink-0 text-xs font-semibold text-paper/70 underline">
+                  {isMine ? 'Open' : 'Watch'}
+                </span>
+              </div>
+              <p className="mt-0.5 pl-4 text-[11px] text-paper/50">
+                Live · Round {Math.min(g.currentRound, g.totalRounds)} of {g.totalRounds} · last score{' '}
+                {minutesAgo(g.lastActivityAt)}
+              </p>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function LadderRow({
+  ladder,
+  userId,
+  liveGames = [],
+}: {
+  ladder: LadderSummary
+  userId: string
+  liveGames?: LiveLadderGame[]
+}) {
   const [expanded, setExpanded] = useState(false)
   const [deleteSheetOpen, setDeleteSheetOpen] = useState(false)
   const [joinSheetOpen, setJoinSheetOpen] = useState(false)
@@ -317,6 +378,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
             {ladder.memberCount} member{ladder.memberCount === 1 ? '' : 's'}
             {ladder.isMember ? ' · you’re in' : ''}
             {openContestCount > 0 && <span className="text-gold"> · {openContestCount} contested</span>}
+            {liveGames.length > 0 && <span className="text-danger"> · {liveGames.length} live</span>}
           </p>
         </button>
         {!isCreator && (
@@ -329,6 +391,7 @@ function LadderRow({ ladder, userId }: { ladder: LadderSummary; userId: string }
           </Button>
         )}
       </div>
+      {liveGames.length > 0 && <LiveGames games={liveGames} userId={userId} />}
       {expanded && (
         <div className="mt-3 border-t border-veil-strong pt-3">
           {isCreator && openContestCount > 0 && (
@@ -526,6 +589,7 @@ function LadderSettings({
 export function LaddersPage() {
   const { user } = useAuth()
   const ladders = useLadders(user?.id)
+  const liveGames = useLiveLadderGames()
   const createLadder = useCreateLadder()
   const [newName, setNewName] = useState('')
 
@@ -543,6 +607,8 @@ export function LaddersPage() {
   // archived ladder is no longer meant to be browsed/joined by people not already in it, unlike
   // the "Other ladders" section above for active ones.
   const archived = (ladders.data ?? []).filter((l) => l.archivedAt && (l.isMember || l.createdBy === user.id))
+
+  const liveGamesFor = (ladderId: string) => (liveGames.data ?? []).filter((g) => g.ladderIds.includes(ladderId))
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -582,7 +648,7 @@ export function LaddersPage() {
         ) : (
           <ul className="flex flex-col gap-2">
             {mine.map((l) => (
-              <LadderRow key={l.id} ladder={l} userId={user.id} />
+              <LadderRow key={l.id} ladder={l} userId={user.id} liveGames={liveGamesFor(l.id)} />
             ))}
           </ul>
         )}
@@ -593,7 +659,7 @@ export function LaddersPage() {
           <h2 className="mb-2 text-sm font-semibold tracking-wide text-paper/60 uppercase">Other ladders</h2>
           <ul className="flex flex-col gap-2">
             {others.map((l) => (
-              <LadderRow key={l.id} ladder={l} userId={user.id} />
+              <LadderRow key={l.id} ladder={l} userId={user.id} liveGames={liveGamesFor(l.id)} />
             ))}
           </ul>
         </section>
@@ -604,7 +670,7 @@ export function LaddersPage() {
           <h2 className="mb-2 text-sm font-semibold tracking-wide text-paper/60 uppercase">Archived</h2>
           <ul className="flex flex-col gap-2">
             {archived.map((l) => (
-              <LadderRow key={l.id} ladder={l} userId={user.id} />
+              <LadderRow key={l.id} ladder={l} userId={user.id} liveGames={liveGamesFor(l.id)} />
             ))}
           </ul>
         </section>

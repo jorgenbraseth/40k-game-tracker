@@ -350,6 +350,13 @@ updating live the same way.
 - The only difference is that nothing on screen is tappable. A spectator
   sees the same state as the players, but only the game's own two seats
   can ever change anything about it.
+- **Finding a game to watch.** Each ladder lists its **live games** --
+  in-progress games someone has scored in during the last 10 minutes --
+  right under the ladder's name on the Ladders page, with the current
+  score and round. One tap opens the game as a spectator.
+- **Watching by code.** The Join-a-game screen also has **Watch as
+  spectator**: enter a game's 6-character code to open it read-only
+  without taking a seat, even if the game is already full or under way.
 
 ## Finishing, ending early, or cancelling a game
 

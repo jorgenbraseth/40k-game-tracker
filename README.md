@@ -30,6 +30,8 @@ history, stats and optional ranked ladders.
   can contest a wrong ladder result; the ladder's admin can then
   invalidate it.
 - **Live sync and spectating.** Scores update for everyone watching.
+  Each ladder lists its games in progress, with the current score, so
+  anyone can drop in and watch.
 - **History, stats and ladders.** Win/loss by faction, Force Disposition
   and opponent, plus each ladder rank with a rating-over-time chart.
   Ladders are invite-only and ranked by Elo or Glicko-2.
