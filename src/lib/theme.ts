@@ -14,7 +14,7 @@ export const DEFAULT_COLOR_MODE: ColorMode = 'system'
  *
  * Every theme ships both a dark and a light palette (index.css's `[data-theme][data-mode]`
  * blocks) -- `previewDark`/`previewLight` mirror those, for swatches that need to show all
- * thirteen at once (including ones not currently active, and both of that theme's modes) without
+ * fifteen at once (including ones not currently active, and both of that theme's modes) without
  * reading the live CSS variables.
  *
  * `src`/`width`/`height` are each crest's own intrinsic pixel size (they don't share one aspect
@@ -176,6 +176,28 @@ export const THEMES: {
     width: 700,
     height: 547,
     quote: '40K Tracker -- strength through the pack.',
+  },
+  {
+    id: 'necrons',
+    label: 'Necrons',
+    description: 'Tomb-black living metal, dynastic bronze, and the green glow of gauss.',
+    previewDark: { ink: '#0a0f0c', blood: '#1d7339', gold: '#6fe04d' },
+    previewLight: { ink: '#eef2ee', blood: '#1d7339', gold: '#2f6e18' },
+    src: '/images/brand/logo-necrons.webp',
+    width: 700,
+    height: 546,
+    quote: '40K Tracker -- the dead awaken, and the galaxy will be ours again.',
+  },
+  {
+    id: 'chaosknight',
+    label: 'Chaos Knight',
+    description: 'Blackened ceramite, blood-red banners, and the ember glow of hellfire.',
+    previewDark: { ink: '#0c0505', blood: '#c8161d', gold: '#ff4d3d' },
+    previewLight: { ink: '#f6eeec', blood: '#c8161d', gold: '#b0141b' },
+    src: '/images/brand/logo-chaosknight.webp',
+    width: 700,
+    height: 547,
+    quote: '40K Tracker -- death to the False Emperor!',
   },
 ]
 

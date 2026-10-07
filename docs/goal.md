@@ -84,11 +84,11 @@ round -- not to police how you got there.
 - **Theme.** A purely cosmetic, per-account choice that applies
   everywhere the signed-in player looks, on every device they sign into,
   with no effect on anyone else's game or on how anything scores.
-  Thirteen options:
+  Fifteen options:
   - the original **grimdark** look (the app's original crest included), or
-  - twelve **faction** themes -- Votann, Tyranid, T'au, Orks, Chaos,
+  - fourteen **faction** themes -- Votann, Tyranid, T'au, Orks, Chaos,
     Sororitas, Grey Knights, Mechanicus, Thousand Sons, Dark Angels, World
-    Eaters, Space Wolves -- each grounded in that faction's real palette
+    Eaters, Space Wolves, Necrons, Chaos Knight -- each grounded in that faction's real palette
     and iconography rather than a generic recolor.
 
   Picking a theme picks its **crest** too -- the header logo and the
@@ -98,7 +98,7 @@ round -- not to police how you got there.
   renders: **Light**, **Dark**, or **System** (follows the device's
   OS-level preference, and keeps following it live if that changes while
   the app's open). Every theme ships both a light and a dark palette, so
-  all thirteen work either way -- faction and Light/Dark are two fully
+  all fifteen work either way -- faction and Light/Dark are two fully
   independent choices.
 
 ## Home
@@ -350,6 +350,13 @@ updating live the same way.
 - The only difference is that nothing on screen is tappable. A spectator
   sees the same state as the players, but only the game's own two seats
   can ever change anything about it.
+- **Finding a game to watch.** Each ladder lists its **live games** --
+  in-progress games someone has scored in during the last 30 minutes --
+  right under the ladder's name on the Ladders page, with the current
+  score and round. One tap opens the game as a spectator.
+- **Watching by code.** The Join-a-game screen also has **Watch as
+  spectator**: enter a game's 6-character code to open it read-only
+  without taking a seat, even if the game is already full or under way.
 
 ## Finishing, ending early, or cancelling a game
 
@@ -426,6 +433,12 @@ ladder's admin decides for their own ladder only.
 stats, broken down by **faction played, Force Disposition, and
 opponent** -- so "how do I do against Necrons?" or "what's my record
 playing Purge the Foe?" has a real answer instead of a memory.
+
+**Ladder rankings.** A player's stats page also shows where they stand
+in each ladder they're a member of -- their rank ("#2 of 8"), rating and
+ladder record -- with a line chart of how their rating has moved game by
+game, so a climb (or slide) is visible at a glance rather than only
+today's number.
 
 (The mission breakdown this had briefly -- each player has their own, so
 it read more like noise than a useful split -- is on hold for now; Force

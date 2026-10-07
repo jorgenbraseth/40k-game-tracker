@@ -30,9 +30,12 @@ history, stats and optional ranked ladders.
   can contest a wrong ladder result; the ladder's admin can then
   invalidate it.
 - **Live sync and spectating.** Scores update for everyone watching.
+  Each ladder lists its games in progress, with the current score, so
+  anyone can drop in and watch.
 - **History, stats and ladders.** Win/loss by faction, Force Disposition
-  and opponent. Ladders are invite-only and ranked by Elo or Glicko-2.
-- **Themes.** Thirteen themes (the original grimdark plus twelve factions), each in light and dark.
+  and opponent, plus each ladder rank with a rating-over-time chart.
+  Ladders are invite-only and ranked by Elo or Glicko-2.
+- **Themes.** Fifteen themes (the original grimdark plus fourteen factions), each in light and dark.
 - **Installable.** Works as a PWA today. An Android app-store build is in
   progress.
 

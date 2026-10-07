@@ -261,6 +261,20 @@ for each existing profile:
    `'sororitas'`, `'greyknights'`, `'mechanicus'`, `'thousandsons'`,
    `'darkangels'`, `'worldeaters'`, `'spacewolves'`.
 
+**Necrons** was added afterwards as a fourteenth theme
+(`20261002000000_profile_theme_necrons.sql`) -- a purely additive widening
+of `profiles_theme_check` to include `'necrons'`, with its own palette in
+`index.css` and crest (`logo-necrons.webp`) in `THEMES`.
+
+**Chaos Knight** followed as a fifteenth
+(`20261002010000_profile_theme_chaosnight.sql`, same additive shape --
+first added under the misspelled id `'chaosnight'`, then renamed to
+`'chaosknight'` by `20261002020000_rename_theme_chaosnight_to_chaosknight.sql`
+before any native build could ship with it). Unlike the existing
+brass-accented Chaos/World Eaters themes, its highlight (`gold` role) is
+ember red too, so red dominates; `danger` shifts to a magenta crimson to
+stay distinguishable from the crimson `blood` fill.
+
 This narrows and drops a column outright rather than
 expand-then-contract -- see the migration's own `-- breaking-change-ok:`
 comment: no native app has a real store release yet, only
@@ -269,7 +283,7 @@ the old two-column shape.
 
 **`src/lib/theme.ts`'s `THEMES` table is the single source of truth per
 theme** -- id, label, description, the crest's own `src`/intrinsic
-`width`/`height` (the thirteen don't share one aspect ratio) and
+`width`/`height` (the fifteen don't share one aspect ratio) and
 in-universe `quote`, *and* two color-preview swatch sets (see below).
 It replaces what used to be a separate `logo.ts`.
 
@@ -278,11 +292,11 @@ It replaces what used to be a separate `logo.ts`.
 defaulting new profiles to `'system'`, added by the same migration) picks
 *how bright* it renders.
 
-- Every one of the thirteen themes ships both a light and a dark palette
+- Every one of the fifteen themes ships both a light and a dark palette
   in `src/index.css` (not just one fixed mode each, as the original
   sixteen-theme version did).
 - Selection is a compound `[data-theme='x'][data-mode='y']` attribute
-  selector per combination -- 25 explicit blocks: 13 × 2, minus
+  selector per combination -- 29 explicit blocks: 15 × 2, minus
   grimdark-dark, which needs none of its own since it's still the base
   `@theme` values, rather than the single `[data-theme='...']` the earlier version
   used.
@@ -326,7 +340,7 @@ defaulting new profiles to `'system'`, added by the same migration) picks
 
 **The picker** (`ProfilePage`).
 
-- The thirteen themes render as one combined swatch grid. Each button
+- The fifteen themes render as one combined swatch grid. Each button
   shows that theme's crest thumbnail plus three small ink/blood/gold
   preview dots, both sourced from `theme.ts`'s own copy of those values
   (the picker has to show themes that aren't active, so it can't just
@@ -801,6 +815,23 @@ participant or not.
   on.
 - **`SummaryPage`** needed no changes -- its controls were already gated
   on the viewer actually being a seat.
+- **Live games on the Ladders page.** `fetchLiveLadderGames`
+  (`ladders.ts`) finds every `active`, ladder-tagged game with a scoring
+  write (`updated_at` on `round_scores`, `secondary_scores`, either
+  ticks table or `command_points`) or a `started_at` in the last
+  `LIVE_GAME_WINDOW_MINUTES` (30). It's one fetch for the whole page,
+  polled every 30s rather than realtime-subscribed. `LaddersPage` shows
+  each ladder's live games under its name (visible even when the row is
+  collapsed) with both seats' current VP from `game_totals`, the round,
+  and how long ago the last score was. Tapping one opens `/game/:id`.
+  - Caveat: `updated_at` is stamped by the writer's own clock, and a
+    round change on its own (`games.current_round`) has no timestamp, so
+    it doesn't count as activity by itself.
+- **Watch by code.** `JoinGamePage` has a **Watch as spectator** button
+  next to Join. `useFindGameByCode` is a plain `games` select by
+  `join_code` (no RPC, no migration -- games are already readable by
+  anyone signed in), so it works for a game in any status and never
+  takes a seat.
 
 ## Contesting and invalidating ladder games
 
@@ -906,6 +937,35 @@ on the live Scoreboard and the post-game Summary, the waiting room's
   - inside a button that does something else (declaring Attacker/turn
     order, confirming who won) -- navigating away isn't what tapping those
     does.
+
+### Ladder rankings on the stats page
+
+`StatsPage` (both `/stats` and `/players/:userId`) has a **Ladder
+rankings** section (`LadderRankings`, `src/features/stats/`) listing every
+ladder the player is a member of -- active ladders first, archived ones
+marked -- with their current rank, rating, ranking type and W/L/D there.
+
+- **Same numbers as the ladder page.** `fetchPlayerLadderRankings`
+  (`src/lib/queries/ladders.ts`) reuses the exact loader behind
+  `fetchLadderStandings` (`loadLadderRatings`), so invalidated games,
+  unattributed seats and Elo vs Glicko-2 are handled identically.
+- **Rank is competition ranking** on the displayed (rounded) rating --
+  players tied on rating share a rank and the card says "tied with N".
+  The ladder page's standings table still numbers rows 1, 2, 3… by
+  position, so two tied players show different numbers there.
+- **Rating-over-time chart** (`RatingChart`, a hand-rolled SVG -- no
+  chart library). `computeRatingHistory` (`src/lib/ladderRank.ts`)
+  replays the ladder once via an `onGame` hook on `computeEloRatings` /
+  `computeGlicko2Ratings` and records the player's rating after each of
+  their own ladder games (other people's games don't move it). Points
+  are evenly spaced per game, not on a time axis; a dashed line marks
+  the starting rating. Hover/drag reads a point out below the chart --
+  rating, change (+/-), result and date.
+- No backend change: ladder membership/standings were already readable
+  by any signed-in user. Query is keyed under `ladder-standings`, so
+  anything that refreshes standings refreshes this too.
+- Only shows once the player has a finished game (the page's empty state
+  comes first otherwise).
 
 ### History: every finished game
 
