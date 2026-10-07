@@ -100,11 +100,11 @@ From there, two ways to produce the signed `.aab`:
 Manual `workflow_dispatch` only -- never runs on a merge to `main`,
 unlike `deploy.yml`.
 
-- **Inputs:** only the Play upload inputs described in
-  [Uploading to Google Play](#uploading-to-google-play) (`track`,
-  `releaseStatus`, `userFraction`, `releaseNotes`), plus an optional
-  `ref` to build. Pick `track: none` to only build the `.aab`. There's
-  no version to choose -- both version values are automatic.
+- **Inputs:** just `track` and `releaseStatus` (see
+  [Uploading to Google Play](#uploading-to-google-play)). Pick
+  `track: none` to only build the `.aab`. The code that gets built is
+  whatever branch you pick under "Use workflow from". There's no version
+  to choose -- both version values are automatic.
 - **`versionName` is the UTC date** of the run, e.g. `2026.10.07`. It's
   what users see in the store and in Android's app info. It doesn't
   have to be unique: two releases on the same day share a name and are
@@ -160,17 +160,15 @@ an Actions artifact too, whatever happens to the Play step.
 
 - **`track`** -- `none` (build only, no upload), `internal` (default),
   `alpha` (closed testing), `beta` (open testing), or `production`.
-- **`releaseStatus`** -- `draft` (default), `completed`, or
-  `inProgress`.
+- **`releaseStatus`** -- `draft` (default) or `completed`.
   - `draft` creates the release in Play Console without rolling it out;
     you review and press "Start rollout" there. It's also the **only**
     status Play accepts while the app itself has never been published.
   - `completed` rolls it out to everyone on that track immediately.
-  - `inProgress` is a staged rollout and needs `userFraction`.
-- **`userFraction`** -- e.g. `0.1` for 10%; only with `inProgress`.
-- **`releaseNotes`** -- optional "What's new" text, written as the
-  `en-US` locale. Leave it empty if the store listing doesn't have an
-  `en-US` language, or Play will reject the edit.
+
+Staged (percentage) rollouts and "What's new" release notes aren't
+workflow inputs: upload as `draft` and set both in Play Console when you
+roll the release out.
 
 The release is named `<versionName> (<versionCode>)` in Play Console,
 e.g. `2026.10.07 (261007153)`.

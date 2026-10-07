@@ -13,10 +13,6 @@ name: Build signed Android release bundle (and optionally upload to Google Play)
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: Branch, tag, or commit to build
-        required: false
-        default: ''
       track:
         description: 'Google Play track to upload to ("none" = only build the .aab as an Actions artifact)'
         type: choice
@@ -31,22 +27,14 @@ on:
         # "draft" is the only status Play accepts while the app itself is still a draft (never
         # published to any track), and it's the safe default after that too: the release shows up
         # in Play Console for you to review and roll out by hand. "completed" rolls it out to the
-        # whole track immediately; "inProgress" is a staged rollout (see userFraction).
+        # whole track immediately. For a staged (percentage) rollout, use draft and pick the
+        # percentage when rolling it out in Play Console.
         description: 'Play release status'
         type: choice
         options:
           - draft
           - completed
-          - inProgress
         default: draft
-      userFraction:
-        description: 'Staged-rollout fraction, 0-1 exclusive (only used with releaseStatus=inProgress, e.g. 0.1)'
-        required: false
-        default: ''
-      releaseNotes:
-        description: 'Optional "What''s new" text (en-US) shown on the Play listing for this release'
-        required: false
-        default: ''
 
 concurrency:
   group: android-release
@@ -62,9 +50,8 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Builds whatever branch/tag is picked in "Use workflow from" on the Run workflow form.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -164,36 +151,15 @@ jobs:
       #
       # Fail early with a readable message rather than letting the upload action error out on an
       # empty credential. Secrets can't be referenced in an `if:`, hence the env-var check here.
-      - name: Check Play upload inputs
+      - name: Check Play credential
         if: inputs.track != 'none'
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          RELEASE_STATUS: ${{ inputs.releaseStatus }}
-          USER_FRACTION: ${{ inputs.userFraction }}
         run: |
           if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
             echo "::error::PLAY_SERVICE_ACCOUNT_JSON secret is not set -- see docs/deployment.md (Uploading to Google Play). The signed .aab was still uploaded as an Actions artifact above."
             exit 1
           fi
-          if [ "$RELEASE_STATUS" = "inProgress" ] && [ -z "$USER_FRACTION" ]; then
-            echo "::error::releaseStatus=inProgress (staged rollout) needs a userFraction, e.g. 0.1."
-            exit 1
-          fi
-          if [ "$RELEASE_STATUS" != "inProgress" ] && [ -n "$USER_FRACTION" ]; then
-            echo "::error::userFraction only applies to releaseStatus=inProgress -- clear it or switch status."
-            exit 1
-          fi
-
-      # upload-google-play reads release notes from files named whatsnew-<locale> in a directory.
-      # Passed through env (not interpolated into the script) so arbitrary text in the input can't
-      # break or inject into the shell.
-      - name: Write release notes
-        if: inputs.track != 'none' && inputs.releaseNotes != ''
-        env:
-          RELEASE_NOTES: ${{ inputs.releaseNotes }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/whatsnew"
-          printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
 
       # Authenticates as a Google Cloud service account that's been granted release permissions on
       # this one app in Play Console -- see docs/deployment.md for the one-time setup. Note the
@@ -212,6 +178,4 @@ jobs:
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           tracks: ${{ inputs.track }}
           status: ${{ inputs.releaseStatus }}
-          userFraction: ${{ inputs.userFraction }}
           releaseName: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
-          whatsNewDirectory: ${{ inputs.releaseNotes != '' && format('{0}/whatsnew', runner.temp) || '' }}
