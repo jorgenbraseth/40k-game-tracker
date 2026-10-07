@@ -799,7 +799,7 @@ export function useReinstateLadderGame() {
 }
 
 /** How recent a game's last scoring write has to be for it to count as "live". */
-export const LIVE_GAME_WINDOW_MINUTES = 10
+export const LIVE_GAME_WINDOW_MINUTES = 30
 
 /** Every scoring table the scoreboard writes to -- each write stamps `updated_at` with the
  * writer's clock (see the upserts in games.ts), so the newest one is the game's last activity. */

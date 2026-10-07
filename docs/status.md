@@ -814,7 +814,7 @@ participant or not.
   (`ladders.ts`) finds every `active`, ladder-tagged game with a scoring
   write (`updated_at` on `round_scores`, `secondary_scores`, either
   ticks table or `command_points`) or a `started_at` in the last
-  `LIVE_GAME_WINDOW_MINUTES` (10). It's one fetch for the whole page,
+  `LIVE_GAME_WINDOW_MINUTES` (30). It's one fetch for the whole page,
   polled every 30s rather than realtime-subscribed. `LaddersPage` shows
   each ladder's live games under its name (visible even when the row is
   collapsed) with both seats' current VP from `game_totals`, the round,
