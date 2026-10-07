@@ -100,10 +100,15 @@ From there, two ways to produce the signed `.aab`:
 Manual `workflow_dispatch` only -- never runs on a merge to `main`,
 unlike `deploy.yml`.
 
-- **Inputs:** `versionName`, plus the Play upload inputs described in
+- **Inputs:** only the Play upload inputs described in
   [Uploading to Google Play](#uploading-to-google-play) (`track`,
-  `releaseStatus`, `userFraction`, `releaseNotes`). Pick `track: none`
-  to only build the `.aab`.
+  `releaseStatus`, `userFraction`, `releaseNotes`), plus an optional
+  `ref` to build. Pick `track: none` to only build the `.aab`. There's
+  no version to choose -- both version values are automatic.
+- **`versionName` is the UTC date** of the run, e.g. `2026.10.07`. It's
+  what users see in the store and in Android's app info. It doesn't
+  have to be unique: two releases on the same day share a name and are
+  told apart by `versionCode`.
 - **`versionCode` is computed automatically** from the current UTC time
   plus a trailing serial digit: `yyMMddHH` + the workflow's own
   `run_number mod 10` (e.g. `260922201`).
@@ -167,7 +172,8 @@ an Actions artifact too, whatever happens to the Play step.
   `en-US` locale. Leave it empty if the store listing doesn't have an
   `en-US` language, or Play will reject the edit.
 
-The release is named `<versionName> (<versionCode>)` in Play Console.
+The release is named `<versionName> (<versionCode>)` in Play Console,
+e.g. `2026.10.07 (261007153)`.
 
 ### One-time setup
 

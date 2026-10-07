@@ -17,9 +17,6 @@ on:
         description: Branch, tag, or commit to build
         required: false
         default: ''
-      versionName:
-        description: 'User-visible version name (e.g. 1.1)'
-        required: true
       track:
         description: 'Google Play track to upload to ("none" = only build the .aab as an Actions artifact)'
         type: choice
@@ -112,12 +109,20 @@ jobs:
       # if they land exactly 10 apart in this workflow's own run history, which a manual release
       # process is never going to hit. Nine digits total still maxes out at 991231239, comfortably
       # under the cap for the life of this app.
-      - name: Compute versionCode
+      #
+      # versionName (what users see in the store and in Android's app info) is just the UTC date,
+      # e.g. 2026.10.07 -- also automatic, so a release never needs a number picked by hand. It
+      # doesn't have to be unique (Play only cares about versionCode); two releases on the same
+      # day share a name and are told apart by versionCode, which the Play release name includes.
+      # Both come from one `date` call so they can't straddle midnight/an hour boundary.
+      - name: Compute versionCode and versionName
         id: version
         run: |
-          TIMESTAMP=$(date -u +%y%m%d%H)
+          NOW=$(date -u +%s)
+          TIMESTAMP=$(date -u -d "@$NOW" +%y%m%d%H)
           SERIAL=$(( ${{ github.run_number }} % 10 ))
           echo "code=${TIMESTAMP}${SERIAL}" >> "$GITHUB_OUTPUT"
+          echo "name=$(date -u -d "@$NOW" +%Y.%m.%d)" >> "$GITHUB_OUTPUT"
 
       - name: Decode signing key
         env:
@@ -139,7 +144,7 @@ jobs:
 
       - name: Build signed release bundle
         working-directory: android
-        run: ./gradlew bundleRelease -PversionCode=${{ steps.version.outputs.code }} -PversionName=${{ inputs.versionName }}
+        run: ./gradlew bundleRelease -PversionCode=${{ steps.version.outputs.code }} -PversionName=${{ steps.version.outputs.name }}
 
       - name: Remove signing key and keystore.properties
         # Always, even if the build above failed -- this job's workspace is thrown away either
@@ -150,7 +155,7 @@ jobs:
       - name: Upload signed bundle
         uses: actions/upload-artifact@v4
         with:
-          name: 40k-tracker-release-${{ inputs.versionName }}-${{ steps.version.outputs.code }}
+          name: 40k-tracker-release-${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 90
 
@@ -208,5 +213,5 @@ jobs:
           tracks: ${{ inputs.track }}
           status: ${{ inputs.releaseStatus }}
           userFraction: ${{ inputs.userFraction }}
-          releaseName: ${{ inputs.versionName }} (${{ steps.version.outputs.code }})
+          releaseName: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
           whatsNewDirectory: ${{ inputs.releaseNotes != '' && format('{0}/whatsnew', runner.temp) || '' }}
