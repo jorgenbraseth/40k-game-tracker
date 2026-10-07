@@ -10,6 +10,7 @@
 - [Android debug APK: `android-apk.yml`](#android-debug-apk-android-apkyml)
 - [Migration compatibility check](#migration-compatibility-check)
 - [Publishing a signed Android release](#publishing-a-signed-android-release)
+- [Uploading to Google Play](#uploading-to-google-play)
 - [Security headers](#security-headers)
 
 ---
@@ -99,7 +100,15 @@ From there, two ways to produce the signed `.aab`:
 Manual `workflow_dispatch` only -- never runs on a merge to `main`,
 unlike `deploy.yml`.
 
-- **Inputs:** only `versionName`.
+- **Inputs:** just `track` and `releaseStatus` (see
+  [Uploading to Google Play](#uploading-to-google-play)). Pick
+  `track: none` to only build the `.aab`. The code that gets built is
+  whatever branch you pick under "Use workflow from". There's no version
+  to choose -- both version values are automatic.
+- **`versionName` is the UTC date** of the run, e.g. `2026.10.07`. It's
+  what users see in the store and in Android's app info. It doesn't
+  have to be unique: two releases on the same day share a name and are
+  told apart by `versionCode`.
 - **`versionCode` is computed automatically** from the current UTC time
   plus a trailing serial digit: `yyMMddHH` + the workflow's own
   `run_number mod 10` (e.g. `260922201`).
@@ -137,6 +146,70 @@ message if it's missing rather than Gradle's own confusing one.
 See issue #125 for the rest of the Play Store submission checklist
 (developer account, store listing, privacy policy, content rating, Data
 Safety form).
+
+## Uploading to Google Play
+
+`android-release.yml` can push the signed `.aab` straight to a Play
+track (via
+[`r0adkll/upload-google-play`](https://github.com/r0adkll/upload-google-play),
+pinned to a commit) instead of you downloading the artifact and
+uploading it in Play Console by hand. The `.aab` is always uploaded as
+an Actions artifact too, whatever happens to the Play step.
+
+### Workflow inputs
+
+- **`track`** -- `none` (build only, no upload), `internal` (default),
+  `alpha` (closed testing), `beta` (open testing), or `production`.
+- **`releaseStatus`** -- `draft` (default) or `completed`.
+  - `draft` creates the release in Play Console without rolling it out;
+    you review and press "Start rollout" there. It's also the **only**
+    status Play accepts while the app itself has never been published.
+  - `completed` rolls it out to everyone on that track immediately.
+
+Staged (percentage) rollouts and "What's new" release notes aren't
+workflow inputs: upload as `draft` and set both in Play Console when you
+roll the release out.
+
+The release is named `<versionName> (<versionCode>)` in Play Console,
+e.g. `2026.10.07 (261007153)`.
+
+### One-time setup
+
+None of this can be done from the repo -- it's all in Google's consoles.
+
+1. **Create the app in Play Console** (package `com.fortyktracker.app`)
+   and accept **Play App Signing**. The keystore in this repo's secrets
+   is then only the *upload* key; Google holds the real app-signing key.
+2. **Upload the first `.aab` by hand.** The Play Developer API can't
+   create an app or make its first upload. Run the workflow with
+   `track: none`, download the artifact, and upload it to the internal
+   testing track in Play Console. After that, the workflow can do it.
+3. **Create a Google Cloud service account:**
+   - In a Google Cloud project, enable the **Google Play Android
+     Developer API**.
+   - Create a service account (no Cloud IAM roles needed) and create a
+     **JSON key** for it.
+4. **Grant it access in Play Console:** Users and permissions → Invite
+   new users → the service account's email. Under *App permissions*,
+   add this app with at least "Release apps to testing tracks" (plus
+   "Release to production…" if you'll use `track: production`). It can
+   take a while (sometimes up to a day) before the API accepts the new
+   account.
+5. **Add the secret** `PLAY_SERVICE_ACCOUNT_JSON` -- the full contents
+   of that JSON key file -- alongside the keystore secrets (repository
+   secrets or the `production` environment; the job runs in that
+   environment so either works). Then delete the local copy of the key.
+
+If the secret is missing, the workflow fails right after building with
+a message pointing here; the `.aab` artifact is still there.
+
+### Trust trade-off
+
+Same shape as the keystore one above, but bigger: this secret can
+publish to the store, not just sign a bundle. Keep its Play Console
+permissions scoped to this one app and to the tracks you actually use,
+and consider requiring reviewers on the `production` environment so
+every run needs an explicit approval.
 
 ## Security headers
 

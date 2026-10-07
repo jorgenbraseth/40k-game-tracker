@@ -64,12 +64,17 @@ working in production, both on the web and in the Android app.
     to end. A `/privacy` page exists (linked from the landing page and the
     signed-in footer) with real, code-grounded content, and
     `android/app/build.gradle` has a release-signing config ready to read
-    a keystore once one exists.
+    a keystore once one exists. `android-release.yml` can build the
+    signed bundle and upload it to a Google Play track (internal by
+    default, as a draft release) -- see
+    [deployment.md](./deployment.md#uploading-to-google-play).
   - *Not done:* the upload keystore itself (a local, by-hand `keytool`
     step -- see [deployment.md](./deployment.md#publishing-a-signed-android-release)),
-    the Google Play Developer account, and the rest of the store listing
-    (screenshots, description, content rating, Data Safety form) -- see
-    #125 for the full remaining checklist.
+    the Google Play Developer account, the Play API service account and
+    the first by-hand upload the workflow's Play step depends on, and
+    the rest of the store listing (screenshots, description, content
+    rating, Data Safety form) -- see #125 for the full remaining
+    checklist.
   - **iOS (#126) hasn't been started.**
 
 ## Overview

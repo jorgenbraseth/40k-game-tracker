@@ -1,4 +1,4 @@
-name: Build signed Android release bundle
+name: Build signed Android release bundle (and optionally upload to Google Play)
 
 # Manual-dispatch-only, deliberately -- a real Play Store release should always be something you
 # consciously trigger, never a side effect of merging to main (unlike deploy.yml's web pipeline).
@@ -13,13 +13,28 @@ name: Build signed Android release bundle
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: Branch, tag, or commit to build
-        required: false
-        default: ''
-      versionName:
-        description: 'User-visible version name (e.g. 1.1)'
-        required: true
+      track:
+        description: 'Google Play track to upload to ("none" = only build the .aab as an Actions artifact)'
+        type: choice
+        options:
+          - none
+          - internal
+          - alpha
+          - beta
+          - production
+        default: internal
+      releaseStatus:
+        # "draft" is the only status Play accepts while the app itself is still a draft (never
+        # published to any track), and it's the safe default after that too: the release shows up
+        # in Play Console for you to review and roll out by hand. "completed" rolls it out to the
+        # whole track immediately. For a staged (percentage) rollout, use draft and pick the
+        # percentage when rolling it out in Play Console.
+        description: 'Play release status'
+        type: choice
+        options:
+          - draft
+          - completed
+        default: draft
 
 concurrency:
   group: android-release
@@ -35,9 +50,8 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Builds whatever branch/tag is picked in "Use workflow from" on the Run workflow form.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -82,12 +96,20 @@ jobs:
       # if they land exactly 10 apart in this workflow's own run history, which a manual release
       # process is never going to hit. Nine digits total still maxes out at 991231239, comfortably
       # under the cap for the life of this app.
-      - name: Compute versionCode
+      #
+      # versionName (what users see in the store and in Android's app info) is just the UTC date,
+      # e.g. 2026.10.07 -- also automatic, so a release never needs a number picked by hand. It
+      # doesn't have to be unique (Play only cares about versionCode); two releases on the same
+      # day share a name and are told apart by versionCode, which the Play release name includes.
+      # Both come from one `date` call so they can't straddle midnight/an hour boundary.
+      - name: Compute versionCode and versionName
         id: version
         run: |
-          TIMESTAMP=$(date -u +%y%m%d%H)
+          NOW=$(date -u +%s)
+          TIMESTAMP=$(date -u -d "@$NOW" +%y%m%d%H)
           SERIAL=$(( ${{ github.run_number }} % 10 ))
           echo "code=${TIMESTAMP}${SERIAL}" >> "$GITHUB_OUTPUT"
+          echo "name=$(date -u -d "@$NOW" +%Y.%m.%d)" >> "$GITHUB_OUTPUT"
 
       - name: Decode signing key
         env:
@@ -109,7 +131,7 @@ jobs:
 
       - name: Build signed release bundle
         working-directory: android
-        run: ./gradlew bundleRelease -PversionCode=${{ steps.version.outputs.code }} -PversionName=${{ inputs.versionName }}
+        run: ./gradlew bundleRelease -PversionCode=${{ steps.version.outputs.code }} -PversionName=${{ steps.version.outputs.name }}
 
       - name: Remove signing key and keystore.properties
         # Always, even if the build above failed -- this job's workspace is thrown away either
@@ -120,6 +142,40 @@ jobs:
       - name: Upload signed bundle
         uses: actions/upload-artifact@v4
         with:
-          name: 40k-tracker-release-${{ inputs.versionName }}-${{ steps.version.outputs.code }}
+          name: 40k-tracker-release-${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 90
+
+      # Everything below only runs when a Play track was picked -- track=none keeps the old
+      # build-only behavior (download the .aab and upload it in Play Console by hand).
+      #
+      # Fail early with a readable message rather than letting the upload action error out on an
+      # empty credential. Secrets can't be referenced in an `if:`, hence the env-var check here.
+      - name: Check Play credential
+        if: inputs.track != 'none'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::PLAY_SERVICE_ACCOUNT_JSON secret is not set -- see docs/deployment.md (Uploading to Google Play). The signed .aab was still uploaded as an Actions artifact above."
+            exit 1
+          fi
+
+      # Authenticates as a Google Cloud service account that's been granted release permissions on
+      # this one app in Play Console -- see docs/deployment.md for the one-time setup. Note the
+      # Play Developer API can't create an app or make its very first upload: the first .aab has
+      # to be uploaded by hand in Play Console (download it from this run's artifacts) before this
+      # step can work.
+      - name: Upload to Google Play (${{ inputs.track }})
+        if: inputs.track != 'none'
+        # Pinned to a commit (v1.1.5) rather than a moving tag: this third-party action is handed
+        # the Play publishing credential, so a retagged/compromised release shouldn't be picked up
+        # silently. Bump deliberately.
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.fortyktracker.app
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          tracks: ${{ inputs.track }}
+          status: ${{ inputs.releaseStatus }}
+          releaseName: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
