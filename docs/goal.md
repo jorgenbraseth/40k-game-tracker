@@ -351,7 +351,7 @@ updating live the same way.
   sees the same state as the players, but only the game's own two seats
   can ever change anything about it.
 - **Finding a game to watch.** Each ladder lists its **live games** --
-  in-progress games someone has scored in during the last 10 minutes --
+  in-progress games someone has scored in during the last 30 minutes --
   right under the ladder's name on the Ladders page, with the current
   score and round. One tap opens the game as a spectator.
 - **Watching by code.** The Join-a-game screen also has **Watch as
