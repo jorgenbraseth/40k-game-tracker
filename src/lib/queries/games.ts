@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Database } from '@/lib/database.types'
+import type { Database, SecondaryDiscardReason } from '@/lib/database.types'
 import { resolveMissionId } from '@/lib/missionResolution'
 import { isDrafting, useGameDraft, writeOrQueue } from '@/lib/queries/gameDraft'
 import { referenceKeys } from '@/lib/queries/referenceData'
@@ -369,6 +369,10 @@ function patchSecondaryDraw(
         battle_round: input.battleRound,
         drawn_by: input.userId,
         drawn_at: new Date().toISOString(),
+        discarded_round: null,
+        discard_reason: null,
+        discarded_by: null,
+        discarded_at: null,
       },
     ],
   }
@@ -1038,6 +1042,71 @@ export function useUndrawSecondary(gameId: string) {
     onError: (_error, _input, context) => {
       if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
       showToast("Couldn't undo that draw. Check your connection and try again.")
+    },
+    onSettled: () => settleGame(queryClient, gameId),
+  })
+}
+
+function patchSecondaryDiscard(
+  detail: GameDetail,
+  input: SecondaryDiscardInput,
+): GameDetail {
+  return {
+    ...detail,
+    secondaryDraws: detail.secondaryDraws.map((d) =>
+      d.game_player_id === input.gamePlayerId && d.secondary_objective_id === input.secondaryObjectiveId
+        ? { ...d, ...discardFields(input) }
+        : d,
+    ),
+  }
+}
+
+type SecondaryDiscardInput = {
+  gamePlayerId: string
+  secondaryObjectiveId: string
+  /** null puts a discarded card back into play (undo). */
+  discard: { battleRound: number; reason: SecondaryDiscardReason; userId: string } | null
+}
+
+function discardFields(input: SecondaryDiscardInput) {
+  return input.discard
+    ? {
+        discarded_round: input.discard.battleRound,
+        discard_reason: input.discard.reason,
+        discarded_by: input.discard.userId,
+        discarded_at: new Date().toISOString(),
+      }
+    : { discarded_round: null, discard_reason: null, discarded_by: null, discarded_at: null }
+}
+
+/** Discards a drawn-but-unscored Tactical secondary (not achievable, or via New Orders) -- or,
+ * with `discard: null`, undoes that. The draw row itself stays, so the card never goes back into
+ * the deck; it just stops being scorable. */
+export function useDiscardSecondary(gameId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: SecondaryDiscardInput) =>
+      writeOrQueue(gameId, async () => {
+        const { error } = await supabase
+          .from('secondary_draws')
+          .update(discardFields(input))
+          .eq('game_player_id', input.gamePlayerId)
+          .eq('secondary_objective_id', input.secondaryObjectiveId)
+        if (error) throw error
+      }),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: gameKeys.detail(gameId) })
+      const previous = queryClient.getQueryData<GameDetail>(gameKeys.detail(gameId))
+      if (previous) queryClient.setQueryData(gameKeys.detail(gameId), patchSecondaryDiscard(previous, input))
+      return { previous }
+    },
+    onError: (_error, input, context) => {
+      if (context?.previous) queryClient.setQueryData(gameKeys.detail(gameId), context.previous)
+      showToast(
+        input.discard
+          ? "Couldn't discard that secondary. Check your connection and try again."
+          : "Couldn't restore that secondary. Check your connection and try again.",
+      )
     },
     onSettled: () => settleGame(queryClient, gameId),
   })

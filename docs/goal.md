@@ -322,6 +322,9 @@ Secondaries follow the real Tactical deck flow:
 - The app always shows the whole cumulative picture -- what's scored, and
   what's drawn but still sitting there unscored -- not just the current
   round's two.
+- A drawn card can be **discarded** instead of scored -- because it isn't
+  achievable, or via the once-per-turn **New Orders** stratagem (discard
+  one, draw a replacement) -- and the app records which, and when.
 - Only the scoring lines for the seat's declared Fixed/Tactical mode are
   shown (see [the waiting room](#the-waiting-room-game-setup)).
 
