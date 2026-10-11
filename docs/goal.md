@@ -323,8 +323,10 @@ Secondaries follow the real Tactical deck flow:
   what's drawn but still sitting there unscored -- not just the current
   round's two.
 - A drawn card can be **discarded** instead of scored -- because it isn't
-  achievable, or via the once-per-turn **New Orders** stratagem (discard
-  one, draw a replacement) -- and the app records which, and when.
+  achievable, or via the once-per-game **New Orders** stratagem (discard
+  one, draw a replacement) -- and the app records which, and when. Any
+  CP effect is logged by the players themselves, not applied
+  automatically.
 - Only the scoring lines for the seat's declared Fixed/Tactical mode are
   shown (see [the waiting room](#the-waiting-room-game-setup)).
 

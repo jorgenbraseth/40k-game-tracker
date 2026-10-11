@@ -1,6 +1,6 @@
 -- Tactical secondaries can be discarded instead of scored: either because
 -- the card isn't achievable (discarded at the end of the turn), or via the
--- once-per-turn "New Orders" stratagem (discard one, draw a replacement).
+-- once-per-game "New Orders" stratagem (discard one, draw a replacement).
 -- A discarded card stays in secondary_draws -- it was drawn, and it must not
 -- go back into the deck -- it just stops being scorable. So this is two
 -- nullable columns on the existing draw row rather than a new table: null

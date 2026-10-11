@@ -35,7 +35,7 @@ const MAX_SECONDARY_VP_PER_GAME = 45
  * each group, secondaries are ordered by the round they were drawn in, oldest first.
  *
  * A drawn card can also be discarded instead of scored -- because it isn't achievable, or via the
- * once-per-turn New Orders stratagem -- from its scoring sheet. Discarded cards stay drawn (they
+ * once-per-game New Orders stratagem -- from its scoring sheet. Discarded cards stay drawn (they
  * never go back into the deck) but drop out of the scorable list into their own faded group at the
  * bottom, restorable in case of a mis-tap.
  */
@@ -94,9 +94,8 @@ export function SecondaryScores({
   const discarded = myDraws
     .filter((d) => !scoredIds.has(d.secondary_objective_id) && d.discarded_round !== null)
     .sort((a, b) => a.battle_round - b.battle_round)
-  // New Orders is once per turn -- each player gets one turn per battle round, so "this turn" is
-  // "this player, this round".
-  const newOrdersUsedThisRound = myDraws.some((d) => d.discard_reason === 'new_orders' && d.discarded_round === round)
+  // New Orders is once per game, per player.
+  const newOrdersUsed = myDraws.some((d) => d.discard_reason === 'new_orders')
   const notYetDrawn = available.filter((a) => !drawnIds.has(a.id))
 
   const scoringObjective = available.find((a) => a.id === scoringObjectiveId)
@@ -435,16 +434,16 @@ export function SecondaryScores({
                   <button
                     type="button"
                     onClick={() => discardScoring('new_orders')}
-                    disabled={newOrdersUsedThisRound}
+                    disabled={newOrdersUsed}
                     className="min-h-9 flex-1 rounded-lg border border-veil-loud px-3 py-1.5 text-sm text-paper/70 hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-veil-loud disabled:hover:text-paper/70"
                   >
                     New Orders
                   </button>
                 </div>
                 <p className="text-[11px] text-paper/40">
-                  {newOrdersUsedThisRound
-                    ? 'New Orders already used this turn.'
-                    : "New Orders is once per turn -- draw the replacement card afterwards, and log the CP spent under Command Points."}
+                  {newOrdersUsed
+                    ? 'New Orders already used this game.'
+                    : 'New Orders is once per game -- draw the replacement card afterwards.'}
                 </p>
               </div>
             )}
