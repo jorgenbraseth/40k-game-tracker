@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Sheet } from '@/components/Sheet'
 import { clsx } from '@/lib/clsx'
-import type { Database } from '@/lib/database.types'
+import type { Database, SecondaryDiscardReason } from '@/lib/database.types'
 import type { GameDetail } from '@/lib/queries/games'
 import {
+  useDiscardSecondary,
   useDrawSecondary,
   useRemoveSecondaryScore,
   useUndrawSecondary,
@@ -32,6 +33,11 @@ const MAX_SECONDARY_VP_PER_GAME = 45
  * scored in, since those can differ), regardless of which round is currently being viewed -- only
  * *new* draws/scores get attributed to the viewed round. Within
  * each group, secondaries are ordered by the round they were drawn in, oldest first.
+ *
+ * A drawn card can also be discarded instead of scored -- because it isn't achievable, or via the
+ * once-per-game New Orders stratagem -- from its scoring sheet. Discarded cards stay drawn (they
+ * never go back into the deck) but drop out of the scorable list into their own faded group at the
+ * bottom, restorable in case of a mis-tap.
  */
 export function SecondaryScores({
   gameId,
@@ -65,6 +71,7 @@ export function SecondaryScores({
   const remove = useRemoveSecondaryScore(gameId)
   const draw = useDrawSecondary(gameId)
   const undraw = useUndrawSecondary(gameId)
+  const discard = useDiscardSecondary(gameId)
   const tick = useUpsertSecondaryObjectiveTick(gameId)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [scoringObjectiveId, setScoringObjectiveId] = useState<string | null>(null)
@@ -82,12 +89,21 @@ export function SecondaryScores({
   const scoredIds = new Set(myScores.map((s) => s.secondary_objective_id))
   const drawnIds = new Set(myDraws.map((d) => d.secondary_objective_id))
   const availableToScore = myDraws
-    .filter((d) => !scoredIds.has(d.secondary_objective_id))
+    .filter((d) => !scoredIds.has(d.secondary_objective_id) && d.discarded_round === null)
     .sort((a, b) => a.battle_round - b.battle_round)
+  const discarded = myDraws
+    .filter((d) => !scoredIds.has(d.secondary_objective_id) && d.discarded_round !== null)
+    .sort((a, b) => a.battle_round - b.battle_round)
+  // New Orders is once per game, per player.
+  const newOrdersUsed = myDraws.some((d) => d.discard_reason === 'new_orders')
   const notYetDrawn = available.filter((a) => !drawnIds.has(a.id))
 
   const scoringObjective = available.find((a) => a.id === scoringObjectiveId)
   const scoringScore = myScores.find((s) => s.secondary_objective_id === scoringObjectiveId)
+  // Only a drawn, still-unscored card can be discarded -- not one already banked for VP, and not
+  // in Fixed mode, where the two picks are kept for the whole game.
+  const canDiscardScoring =
+    playerMode !== 'fixed' && !scoringScore && myDraws.some((d) => d.secondary_objective_id === scoringObjectiveId)
   // A handful of cards score differently as a Fixed pick than as a Tactical draw (see the `mode`
   // column) -- once this player has declared which they're playing, only the matching lines (plus
   // any mode-agnostic ones) show; undeclared, every line still shows, same as before this existed.
@@ -159,6 +175,16 @@ export function SecondaryScores({
   const closeScoringSheet = () => {
     setScoringObjectiveId(null)
     setManualDraft(null)
+  }
+
+  const discardScoring = (reason: SecondaryDiscardReason) => {
+    if (!scoringObjectiveId) return
+    discard.mutate({
+      gamePlayerId,
+      secondaryObjectiveId: scoringObjectiveId,
+      discard: { battleRound: round, reason, userId },
+    })
+    closeScoringSheet()
   }
 
   const drawOne = (secondaryObjectiveId: string) => {
@@ -265,6 +291,43 @@ export function SecondaryScores({
         )
       })}
 
+      {discarded.length > 0 && (
+        <p className="border-t border-veil-strong px-3 pt-2.5 pb-1.5 text-[11px] font-semibold tracking-wide text-paper/40 uppercase">
+          Discarded
+        </p>
+      )}
+      {discarded.map((d) => {
+        const objective = available.find((a) => a.id === d.secondary_objective_id)
+        return (
+          <div
+            key={d.id}
+            className="flex items-center justify-between border-t border-veil-strong px-3 py-2 text-sm [&>*]:opacity-55"
+          >
+            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-paper/80 line-through decoration-paper/30">
+                {objective?.name ?? 'Unknown'}
+              </span>
+              <span className="flex-shrink-0 text-[10px] text-paper/50">
+                {d.discard_reason === 'new_orders' ? 'New Orders' : 'Not achievable'} · R{d.discarded_round}
+              </span>
+            </span>
+            {editable && (
+              <button
+                type="button"
+                aria-label={`Restore ${objective?.name}`}
+                title="Undo discard"
+                onClick={() =>
+                  discard.mutate({ gamePlayerId, secondaryObjectiveId: d.secondary_objective_id, discard: null })
+                }
+                className="ml-2 text-paper/40 hover:text-gold"
+              >
+                ↺
+              </button>
+            )}
+          </div>
+        )
+      })}
+
       {editable && notYetDrawn.length > 0 && (
         <div className="flex gap-2 border-t border-veil-strong px-3 pt-2.5">
           <button
@@ -356,6 +419,34 @@ export function SecondaryScores({
                 </div>
               )}
             </div>
+
+            {canDiscardScoring && (
+              <div className="flex flex-col gap-2 border-t border-veil-strong pt-3">
+                <p className="text-xs font-medium tracking-wide text-paper/60 uppercase">Discard instead</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => discardScoring('not_achievable')}
+                    className="min-h-9 flex-1 rounded-lg border border-veil-loud px-3 py-1.5 text-sm text-paper/70 hover:border-danger hover:text-danger"
+                  >
+                    Not achievable
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => discardScoring('new_orders')}
+                    disabled={newOrdersUsed}
+                    className="min-h-9 flex-1 rounded-lg border border-veil-loud px-3 py-1.5 text-sm text-paper/70 hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-veil-loud disabled:hover:text-paper/70"
+                  >
+                    New Orders
+                  </button>
+                </div>
+                <p className="text-[11px] text-paper/40">
+                  {newOrdersUsed
+                    ? 'New Orders already used this game.'
+                    : 'New Orders is once per game -- draw the replacement card afterwards.'}
+                </p>
+              </div>
+            )}
           </div>
         </Sheet>
       )}

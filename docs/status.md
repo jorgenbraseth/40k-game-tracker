@@ -690,6 +690,25 @@ Tracked the way Tactical secondaries actually work:
    - **"Random"** -- draws uniformly at random from whatever's left in
      that role's deck, immediately, no extra tap.
 
+**Discarding.** A drawn, still-unscored card can be discarded instead of
+scored, from a "Discard instead" section at the bottom of its scoring
+sheet (not offered in Fixed mode, or once the card has VP banked):
+
+- **Two reasons**, recorded on the draw row itself
+  (`secondary_draws.discarded_round`/`discard_reason`, added by
+  `20261011000000_secondary_discards.sql`): **Not achievable**, or **New
+  Orders**.
+- **New Orders is once per game** -- the button is disabled once that
+  player has used it. The replacement card is drawn with the normal draw
+  buttons.
+- **CP is never adjusted automatically** for a discard (New Orders'
+  cost, or any CP a discard earns) -- players log it themselves under
+  Command Points, same "bookkeeping, not a rules engine" stance.
+- A discarded card **stays drawn** -- it never goes back into the deck
+  -- but leaves the scorable list for a faded, struck-through
+  **Discarded** group at the bottom, badged with reason and round, with
+  a ↺ to undo a mis-tap.
+
 ### Command Points
 
 - A `command_points` table (`20260322000000_command_points.sql`) holds
