@@ -24,6 +24,12 @@ type SecondaryMode = Database['public']['Tables']['game_players']['Row']['second
 const MAX_SECONDARY_VP_PER_ROUND = 15
 const MAX_SECONDARY_VP_PER_GAME = 45
 
+const DISCARD_REASON_LABELS: Record<SecondaryDiscardReason, string> = {
+  not_achievable: 'Not achievable',
+  for_cp: 'For CP',
+  new_orders: 'New Orders',
+}
+
 /**
  * Tactical secondaries are drawn cumulatively (2 more each round) and scored from that whole
  * cumulative pool, not just what was drawn this round -- a player may score any not-yet-scored
@@ -34,8 +40,8 @@ const MAX_SECONDARY_VP_PER_GAME = 45
  * *new* draws/scores get attributed to the viewed round. Within
  * each group, secondaries are ordered by the round they were drawn in, oldest first.
  *
- * A drawn card can also be discarded instead of scored -- because it isn't achievable, or via the
- * once-per-game New Orders stratagem -- from its scoring sheet. Discarded cards stay drawn (they
+ * A drawn card can also be discarded instead of scored -- because it isn't achievable, for CP, or via
+ * the once-per-game New Orders stratagem -- from its scoring sheet. Discarded cards stay drawn (they
  * never go back into the deck) but drop out of the scorable list into their own faded group at the
  * bottom, restorable in case of a mis-tap.
  */
@@ -308,7 +314,7 @@ export function SecondaryScores({
                 {objective?.name ?? 'Unknown'}
               </span>
               <span className="flex-shrink-0 text-[10px] text-paper/50">
-                {d.discard_reason === 'new_orders' ? 'New Orders' : 'Not achievable'} · R{d.discarded_round}
+                {d.discard_reason ? DISCARD_REASON_LABELS[d.discard_reason] : 'Discarded'} · R{d.discarded_round}
               </span>
             </span>
             {editable && (
@@ -433,6 +439,13 @@ export function SecondaryScores({
                   </button>
                   <button
                     type="button"
+                    onClick={() => discardScoring('for_cp')}
+                    className="min-h-9 flex-1 rounded-lg border border-veil-loud px-3 py-1.5 text-sm text-paper/70 hover:border-gold hover:text-gold"
+                  >
+                    For CP
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => discardScoring('new_orders')}
                     disabled={newOrdersUsed}
                     className="min-h-9 flex-1 rounded-lg border border-veil-loud px-3 py-1.5 text-sm text-paper/70 hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-veil-loud disabled:hover:text-paper/70"
@@ -442,8 +455,8 @@ export function SecondaryScores({
                 </div>
                 <p className="text-[11px] text-paper/40">
                   {newOrdersUsed
-                    ? 'New Orders already used this game.'
-                    : 'New Orders is once per game -- draw the replacement card afterwards.'}
+                    ? 'New Orders already used this game. Log any CP gained or spent under Command Points.'
+                    : 'New Orders is once per game -- draw the replacement card afterwards. Log any CP gained or spent under Command Points.'}
                 </p>
               </div>
             )}

@@ -1079,7 +1079,7 @@ function discardFields(input: SecondaryDiscardInput) {
     : { discarded_round: null, discard_reason: null, discarded_by: null, discarded_at: null }
 }
 
-/** Discards a drawn-but-unscored Tactical secondary (not achievable, or via New Orders) -- or,
+/** Discards a drawn-but-unscored Tactical secondary (not achievable, for CP, or via New Orders) -- or,
  * with `discard: null`, undoes that. The draw row itself stays, so the card never goes back into
  * the deck; it just stops being scorable. */
 export function useDiscardSecondary(gameId: string) {
