@@ -13,7 +13,7 @@ export type TurnOrder = 'first' | 'second'
 export type LayoutVariant = 'A' | 'B' | 'C'
 export type SecondaryMode = 'fixed' | 'tactical'
 /** Why a drawn Tactical secondary was discarded (secondary_draws.discard_reason). */
-export type SecondaryDiscardReason = 'not_achievable' | 'new_orders'
+export type SecondaryDiscardReason = 'not_achievable' | 'for_cp' | 'new_orders'
 // The theme *is* the crest now (see 20260922000000_collapse_theme_and_logo.sql) -- one value
 // drives both the color palette (index.css) and the logo (theme.ts's THEMES), so there's no
 // separate `Logo` type any more. 'grimdark' is the default, generic look; the rest are one per

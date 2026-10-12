@@ -694,15 +694,16 @@ Tracked the way Tactical secondaries actually work:
 scored, from a "Discard instead" section at the bottom of its scoring
 sheet (not offered in Fixed mode, or once the card has VP banked):
 
-- **Two reasons**, recorded on the draw row itself
+- **Three reasons**, recorded on the draw row itself
   (`secondary_draws.discarded_round`/`discard_reason`, added by
-  `20261011000000_secondary_discards.sql`): **Not achievable**, or **New
-  Orders**.
+  `20261011000000_secondary_discards.sql`, with "for CP" added by
+  `20261012000000_secondary_discard_for_cp.sql`): **Not achievable**,
+  **For CP**, or **New Orders**.
 - **New Orders is once per game** -- the button is disabled once that
   player has used it. The replacement card is drawn with the normal draw
   buttons.
 - **CP is never adjusted automatically** for a discard (New Orders'
-  cost, or any CP a discard earns) -- players log it themselves under
+  cost, or the CP a "For CP" discard earns) -- players log it themselves under
   Command Points, same "bookkeeping, not a rules engine" stance.
 - A discarded card **stays drawn** -- it never goes back into the deck
   -- but leaves the scorable list for a faded, struck-through
