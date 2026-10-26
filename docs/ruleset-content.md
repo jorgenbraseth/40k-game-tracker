@@ -147,6 +147,12 @@ achieved instead of typing a raw VP number.
   asking for a deployment as a separate, independent pick (see
   [status.md](./status.md#terrain-layout-attackerdefender-turn-order),
   `20260323000000_deployment_optional.sql`).
+- GW revises layouts without renaming anything, so refreshing them is a
+  file swap, not a migration: the page's `CA7_Layouts` map gives each
+  pairing's A/B/C image URL; download those over the same local
+  filenames (pair sorted alphabetically, lowercased, no spaces). Last
+  synced 2026-10-26 (27 of the 45 layouts had changed; the 6
+  deployment maps under `img/maps/cards/` had not).
 - Picking a layout (`games.layout_variant`) is required before a game can
   start, same as every other setup field except army name -- but, like
   those, stays freely editable for the life of the game once set.
