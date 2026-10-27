@@ -3,7 +3,7 @@ import { BrandLogo } from '@/components/BrandLogo'
 import { InstallHint } from '@/components/InstallHint'
 
 const SHORTCUTS = [
-  { to: '/game/lobby', label: 'New game', description: 'Start, join, or log a game' },
+  { to: '/game/lobby', label: 'Play', description: 'Start, join, or log a game' },
   { to: '/history', label: 'History', description: 'Every finished game, yours and others’' },
   { to: '/ladders', label: 'Ladders', description: 'Standings and Elo/Glicko-2 rankings' },
   { to: '/stats', label: 'Stats', description: 'Your record, factions, and trends' },
@@ -12,9 +12,9 @@ const SHORTCUTS = [
 
 /**
  * The landing page for a signed-in visitor -- previously this was the "start/join a game" hub
- * (now its own "New game" nav item, GameLobbyPage), so returning here didn't always mean "I want
+ * (now its own "Play" nav item, GameLobbyPage), so returning here didn't always mean "I want
  * to play right now." This is a proper front door instead: the app's own crest, prominent, and a
- * shortcut to every section, same shape as the shortcuts a "New game" card in the grid links to.
+ * shortcut to every section, same shape as the shortcuts a "Play" card in the grid links to.
  */
 export function HomePage() {
   return (

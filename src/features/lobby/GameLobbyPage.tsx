@@ -7,7 +7,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useDeleteGame, useMyActiveGames } from '@/lib/queries/games'
 
 /** Start/join/log a game, plus whatever's already in progress -- this used to be the whole of
- * HomePage; it moved to its own "New game" nav item once HomePage itself became a proper landing
+ * HomePage; it moved to its own "Play" nav item once HomePage itself became a proper landing
  * page (logo + shortcuts to every section), so a returning visitor doesn't land straight into
  * "start a game" every single time. */
 export function GameLobbyPage() {
@@ -56,7 +56,7 @@ export function GameLobbyPage() {
               >
                 <Link to={`/game/${game.id}`} className="flex flex-1 items-center justify-between px-4 py-3">
                   <span>
-                    <span className="font-medium text-paper">Code {game.join_code}</span>
+                    <span className="font-medium text-paper">{game.playerNames.join(' vs. ')}</span>
                     <span className="ml-2 text-sm text-paper/50 capitalize">{game.status}</span>
                   </span>
                   <span aria-hidden className="text-paper/40">

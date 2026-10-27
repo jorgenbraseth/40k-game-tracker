@@ -10,7 +10,7 @@ import { UpdatePrompt } from './UpdatePrompt'
 
 const navItems = [
   { to: '/home', label: 'Home' },
-  { to: '/game/lobby', label: 'New game' },
+  { to: '/game/lobby', label: 'Play' },
   { to: '/history', label: 'History' },
   { to: '/ladders', label: 'Ladders' },
   { to: '/stats', label: 'Stats' },
