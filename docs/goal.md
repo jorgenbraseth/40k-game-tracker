@@ -105,11 +105,11 @@ round -- not to police how you got there.
 
 Signing in lands on a proper Home page, not straight into "start a game":
 the same prominent crest as the sign-in screen up top, and a shortcut to
-every section underneath (New game, History, Ladders, Stats, Profile) --
+every section underneath (Play, History, Ladders, Stats, Profile) --
 a front door, not a single-purpose lobby.
 
 Starting, joining, or logging a game, plus whatever's already in
-progress, lives one tap away behind its own **"New game"** nav item.
+progress, lives one tap away behind its own **"Play"** nav item.
 
 ## Starting, joining, or logging a game
 
