@@ -130,6 +130,8 @@ So is the **always-editable bookkeeping model**:
   disposition ("Space Marines · Gladius vs. Orks · War Horde"), with "?"
   for a side that hasn't picked either yet; the line is left out
   entirely while neither side has.
+- Once a terrain layout is picked, a small thumbnail of its layout image
+  sits at the left of the row (same image the Summary page shows).
 - Apart from those labels, nothing about that content changed, only where
   it lives. That's
   also why a "Cancel this game" redirect or a Summary page's "Home"

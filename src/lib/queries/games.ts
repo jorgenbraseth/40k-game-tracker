@@ -1360,7 +1360,9 @@ export function useDeleteGame() {
 /** Active (lobby/active) games the current user is part of, most recent first, each with its two
  * seats in seat order (`players`): a name -- same priority as `playerLabel` (own account, then the
  * ladder member an unclaimed seat is attributed to, then army name), "Unknown" for a seat with none
- * of those yet -- plus the seat's faction and force disposition names, if picked yet. */
+ * of those yet -- plus the seat's faction and force disposition names, if picked yet -- and the
+ * picked terrain layout's image (`layoutImagePath`), resolved the same way as SummaryPage's: from
+ * either seat's resolved mission, since both carry the same pairing's layout images. */
 export function useMyActiveGames(userId: string | undefined) {
   return useQuery({
     queryKey: ['games', 'active', userId],
@@ -1396,7 +1398,17 @@ export function useMyActiveGames(userId: string | undefined) {
       const forceDispositionIds = [
         ...new Set(seats.map((p) => p.force_disposition_id).filter((id): id is string => Boolean(id))),
       ]
-      const [profilesRes, factionsRes, forceDispositionsRes] = await Promise.all([
+      // Only games that have a layout picked need a mission looked up for its image.
+      const layoutGameIds = new Set(data.filter((g) => g.layout_variant).map((g) => g.id))
+      const missionIds = [
+        ...new Set(
+          seats
+            .filter((p) => layoutGameIds.has(p.game_id))
+            .map((p) => p.mission_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ]
+      const [profilesRes, factionsRes, forceDispositionsRes, missionsRes] = await Promise.all([
         profileIds.length
           ? supabase.from('profiles').select('id, display_name').in('id', profileIds)
           : Promise.resolve({ data: [], error: null }),
@@ -1406,13 +1418,21 @@ export function useMyActiveGames(userId: string | undefined) {
         forceDispositionIds.length
           ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
           : Promise.resolve({ data: [], error: null }),
+        missionIds.length
+          ? supabase
+              .from('missions')
+              .select('id, layout_a_image_path, layout_b_image_path, layout_c_image_path')
+              .in('id', missionIds)
+          : Promise.resolve({ data: [], error: null }),
       ])
       if (profilesRes.error) throw profilesRes.error
+      if (missionsRes.error) throw missionsRes.error
       if (factionsRes.error) throw factionsRes.error
       if (forceDispositionsRes.error) throw forceDispositionsRes.error
       const nameById = new Map((profilesRes.data ?? []).map((p) => [p.id, p.display_name]))
       const factionById = new Map((factionsRes.data ?? []).map((f) => [f.id, f.name]))
       const forceDispositionById = new Map((forceDispositionsRes.data ?? []).map((f) => [f.id, f.name]))
+      const missionById = new Map((missionsRes.data ?? []).map((m) => [m.id, m]))
 
       return data.map((game) => {
         const players = ([1, 2] as const).map((seat) => {
@@ -1427,7 +1447,19 @@ export function useMyActiveGames(userId: string | undefined) {
             forceDispositionName: (p?.force_disposition_id && forceDispositionById.get(p.force_disposition_id)) || null,
           }
         })
-        return { ...game, players }
+        const layoutImageKey = game.layout_variant
+          ? (`layout_${game.layout_variant.toLowerCase()}_image_path` as
+              | 'layout_a_image_path'
+              | 'layout_b_image_path'
+              | 'layout_c_image_path')
+          : null
+        const layoutImagePath = layoutImageKey
+          ? (seats
+              .filter((p) => p.game_id === game.id && p.mission_id)
+              .map((p) => missionById.get(p.mission_id as string)?.[layoutImageKey])
+              .find(Boolean) ?? null)
+          : null
+        return { ...game, players, layoutImagePath }
       })
     },
     enabled: Boolean(userId),
