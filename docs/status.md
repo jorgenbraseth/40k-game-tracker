@@ -120,7 +120,13 @@ So is the **always-editable bookkeeping model**:
   `GameLobbyPage` (`src/features/lobby/GameLobbyPage.tsx`), at its own
   route (`/game/lobby`) and nav item ("New game", `src/app/Layout.tsx`'s
   `navItems`, placed right after Home).
-- Nothing about that content itself changed, only where it lives. That's
+- The in-progress list labels each game by its players ("Jørgen vs.
+  Christopher") rather than its join code -- each seat's account name,
+  else the ladder member it's attributed to, else its army name, else
+  "Unknown" (e.g. a lobby game nobody has joined yet). The join code is
+  still shown in the waiting room, where it's actually needed.
+- Apart from that label, nothing about that content changed, only where
+  it lives. That's
   also why a "Cancel this game" redirect or a Summary page's "Home"
   button still just goes to `/home` -- landing on the new dashboard after
   finishing or cancelling a game is a perfectly good place to end up.

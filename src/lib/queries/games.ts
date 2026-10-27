@@ -1357,7 +1357,10 @@ export function useDeleteGame() {
   })
 }
 
-/** Active (lobby/active) games the current user is part of, most recent first. */
+/** Active (lobby/active) games the current user is part of, most recent first, each with its
+ * seats' names in seat order (`playerNames`) -- same priority as `playerLabel` (own account, then
+ * the ladder member an unclaimed seat is attributed to, then army name), "Unknown" for a seat with
+ * none of those yet. */
 export function useMyActiveGames(userId: string | undefined) {
   return useQuery({
     queryKey: ['games', 'active', userId],
@@ -1378,7 +1381,35 @@ export function useMyActiveGames(userId: string | undefined) {
         .in('status', ['lobby', 'active'])
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data
+      if (data.length === 0) return []
+
+      const { data: seats, error: seatsError } = await supabase
+        .from('game_players')
+        .select('*')
+        .in('game_id', data.map((g) => g.id))
+      if (seatsError) throw seatsError
+
+      const profileIds = [
+        ...new Set(seats.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id))),
+      ]
+      const profilesRes = profileIds.length
+        ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
+        : { data: [], error: null }
+      if (profilesRes.error) throw profilesRes.error
+      const nameById = new Map((profilesRes.data ?? []).map((p) => [p.id, p.display_name]))
+
+      return data.map((game) => {
+        const playerNames = ([1, 2] as const).map((seat) => {
+          const p = seats.find((s) => s.game_id === game.id && s.seat === seat)
+          return (
+            (p?.user_id && nameById.get(p.user_id)) ||
+            (p?.represents_user_id && nameById.get(p.represents_user_id)) ||
+            p?.army_name ||
+            'Unknown'
+          )
+        })
+        return { ...game, playerNames }
+      })
     },
     enabled: Boolean(userId),
   })

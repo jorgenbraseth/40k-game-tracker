@@ -56,7 +56,7 @@ export function GameLobbyPage() {
               >
                 <Link to={`/game/${game.id}`} className="flex flex-1 items-center justify-between px-4 py-3">
                   <span>
-                    <span className="font-medium text-paper">Code {game.join_code}</span>
+                    <span className="font-medium text-paper">{game.playerNames.join(' vs. ')}</span>
                     <span className="ml-2 text-sm text-paper/50 capitalize">{game.status}</span>
                   </span>
                   <span aria-hidden className="text-paper/40">
