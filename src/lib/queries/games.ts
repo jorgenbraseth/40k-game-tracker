@@ -1357,10 +1357,10 @@ export function useDeleteGame() {
   })
 }
 
-/** Active (lobby/active) games the current user is part of, most recent first, each with its
- * seats' names in seat order (`playerNames`) -- same priority as `playerLabel` (own account, then
- * the ladder member an unclaimed seat is attributed to, then army name), "Unknown" for a seat with
- * none of those yet. */
+/** Active (lobby/active) games the current user is part of, most recent first, each with its two
+ * seats in seat order (`players`): a name -- same priority as `playerLabel` (own account, then the
+ * ladder member an unclaimed seat is attributed to, then army name), "Unknown" for a seat with none
+ * of those yet -- plus the seat's faction and force disposition names, if picked yet. */
 export function useMyActiveGames(userId: string | undefined) {
   return useQuery({
     queryKey: ['games', 'active', userId],
@@ -1392,23 +1392,42 @@ export function useMyActiveGames(userId: string | undefined) {
       const profileIds = [
         ...new Set(seats.flatMap((p) => [p.user_id, p.represents_user_id]).filter((id): id is string => Boolean(id))),
       ]
-      const profilesRes = profileIds.length
-        ? await supabase.from('profiles').select('id, display_name').in('id', profileIds)
-        : { data: [], error: null }
+      const factionIds = [...new Set(seats.map((p) => p.faction_id).filter((id): id is string => Boolean(id)))]
+      const forceDispositionIds = [
+        ...new Set(seats.map((p) => p.force_disposition_id).filter((id): id is string => Boolean(id))),
+      ]
+      const [profilesRes, factionsRes, forceDispositionsRes] = await Promise.all([
+        profileIds.length
+          ? supabase.from('profiles').select('id, display_name').in('id', profileIds)
+          : Promise.resolve({ data: [], error: null }),
+        factionIds.length
+          ? supabase.from('factions').select('id, name').in('id', factionIds)
+          : Promise.resolve({ data: [], error: null }),
+        forceDispositionIds.length
+          ? supabase.from('force_dispositions').select('id, name').in('id', forceDispositionIds)
+          : Promise.resolve({ data: [], error: null }),
+      ])
       if (profilesRes.error) throw profilesRes.error
+      if (factionsRes.error) throw factionsRes.error
+      if (forceDispositionsRes.error) throw forceDispositionsRes.error
       const nameById = new Map((profilesRes.data ?? []).map((p) => [p.id, p.display_name]))
+      const factionById = new Map((factionsRes.data ?? []).map((f) => [f.id, f.name]))
+      const forceDispositionById = new Map((forceDispositionsRes.data ?? []).map((f) => [f.id, f.name]))
 
       return data.map((game) => {
-        const playerNames = ([1, 2] as const).map((seat) => {
+        const players = ([1, 2] as const).map((seat) => {
           const p = seats.find((s) => s.game_id === game.id && s.seat === seat)
-          return (
-            (p?.user_id && nameById.get(p.user_id)) ||
-            (p?.represents_user_id && nameById.get(p.represents_user_id)) ||
-            p?.army_name ||
-            'Unknown'
-          )
+          return {
+            name:
+              (p?.user_id && nameById.get(p.user_id)) ||
+              (p?.represents_user_id && nameById.get(p.represents_user_id)) ||
+              p?.army_name ||
+              'Unknown',
+            factionName: (p?.faction_id && factionById.get(p.faction_id)) || null,
+            forceDispositionName: (p?.force_disposition_id && forceDispositionById.get(p.force_disposition_id)) || null,
+          }
         })
-        return { ...game, playerNames }
+        return { ...game, players }
       })
     },
     enabled: Boolean(userId),

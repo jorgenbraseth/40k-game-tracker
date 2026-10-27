@@ -55,9 +55,18 @@ export function GameLobbyPage() {
                 className="flex items-center gap-2 rounded-xl border border-veil-strong bg-veil pr-2 hover:bg-veil-strong"
               >
                 <Link to={`/game/${game.id}`} className="flex flex-1 items-center justify-between px-4 py-3">
-                  <span>
-                    <span className="font-medium text-paper">{game.playerNames.join(' vs. ')}</span>
-                    <span className="ml-2 text-sm text-paper/50 capitalize">{game.status}</span>
+                  <span className="flex flex-col gap-0.5">
+                    <span>
+                      <span className="font-medium text-paper">{game.players.map((p) => p.name).join(' vs. ')}</span>
+                      <span className="ml-2 text-sm text-paper/50 capitalize">{game.status}</span>
+                    </span>
+                    {game.players.some((p) => p.factionName || p.forceDispositionName) && (
+                      <span className="text-sm text-paper/60">
+                        {game.players
+                          .map((p) => [p.factionName, p.forceDispositionName].filter(Boolean).join(' · ') || '?')
+                          .join(' vs. ')}
+                      </span>
+                    )}
                   </span>
                   <span aria-hidden className="text-paper/40">
                     →
